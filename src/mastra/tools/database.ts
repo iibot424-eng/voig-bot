@@ -525,3 +525,35 @@ export async function levelUp(userId: number, chatId: number) {
   }
   return null;
 }
+
+export async function getUserVirtas(userId: number): Promise<number> {
+  const result = await query(
+    "SELECT virtas FROM global_users WHERE user_id = $1",
+    [userId]
+  );
+  return result.rows[0]?.virtas || 0;
+}
+
+export async function updateUserVirtas(userId: number, amount: number) {
+  await query(
+    "INSERT INTO global_users (user_id, virtas) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET virtas = global_users.virtas + $2",
+    [userId, amount]
+  );
+}
+
+export async function buyVirtas(userId: number, starsAmount: number): Promise<{ success: boolean; message: string }> {
+  const virtasAmount = (starsAmount / 10) * 10000;
+  const user = await query("SELECT * FROM bot_users WHERE user_id = $1 LIMIT 1", [userId]);
+  
+  if (!user.rows[0] || user.rows[0].stars < starsAmount) {
+    return { success: false, message: `❌ Недостаточно звёзд! Нужно: ${starsAmount} ⭐` };
+  }
+  
+  await query(
+    "UPDATE bot_users SET stars = stars - $2 WHERE user_id = $1",
+    [userId, starsAmount]
+  );
+  await updateUserVirtas(userId, virtasAmount);
+  
+  return { success: true, message: `✅ Вы купили ${Math.floor(virtasAmount)} виртов за ${starsAmount} ⭐!` };
+}

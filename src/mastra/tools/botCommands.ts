@@ -21,7 +21,7 @@ import {
 } from "../../triggers/telegramTriggers";
 
 const OWNER_USERNAME = "n777snickers777";
-const PREMIUM_PRICE = 200;
+const PREMIUM_PRICE = 200; // в звёздах
 
 const jokes = [
   "Почему программисты не любят природу? Слишком много багов! 🐛",

@@ -34,6 +34,16 @@ const ANIMAL_EMOJIS: Record<string, string> = {
   cat: "🐱", dog: "🐕", cow: "🐄", fox: "🦊",
   wolf: "🐺", bear: "🐻", rabbit: "🐰", tiger: "🐯"
 };
+const ANIMAL_SOUNDS: Record<string, string> = {
+  cat: "мяу",
+  dog: "гав",
+  cow: "муу",
+  fox: "не-не",
+  wolf: "у-у-у",
+  bear: "рррр",
+  rabbit: "писк",
+  tiger: "рррык"
+};
 
 // Получить или создать пользователя
 async function getOrCreateUser(ctx: Context) {
@@ -752,6 +762,42 @@ bot.on(message('text'), async (ctx, next) => {
     return await ctx.reply(`📤 Рассылка отправлена ${sent} пользователям!`);
   }
 
+  // Премиум превращение
+  if (text === "превратить") {
+    if (!user.isPremium) {
+      return await ctx.reply("❌ Эта команда только для премиум пользователей!");
+    }
+
+    const now = new Date();
+    // Проверка - было ли превращение в последние 24 часа
+    if (user.transformUntil && user.transformAnimal) {
+      const hoursPassed = (now.getTime() - new Date(user.transformUntil).getTime()) / (1000 * 60 * 60);
+      if (hoursPassed < 24 - 1) { // Если прошло менее 23 часов после последнего (с запасом 1 час)
+        const hoursLeft = Math.ceil(24 - hoursPassed);
+        return await ctx.reply(`⏳ Превращение доступно через ${hoursLeft} часов!`);
+      }
+    }
+
+    const randomAnimal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+    const sound = ANIMAL_SOUNDS[randomAnimal];
+    const emoji = ANIMAL_EMOJIS[randomAnimal];
+    const transformUntil = new Date(now.getTime() + 60 * 60 * 1000); // 1 час
+
+    await db.update(users)
+      .set({
+        transformAnimal: randomAnimal,
+        transformUntil,
+      })
+      .where(eq(users.id, user.id));
+
+    return await ctx.replyWithHTML(
+      `${emoji} <b>Вы превратились в ${randomAnimal}!</b>\n\n` +
+      `🔊 Ваш звук: <b>${sound}</b>\n` +
+      `⏱️ Длится 1 час\n\n` +
+      `Начинайте сообщения с "${sound}" или они будут удалены!`
+    );
+  }
+
   // RP текстовые команды
   const rpTextCommands: Record<string, { emoji: string; action: string }> = {
     обнять: { emoji: "🤗", action: "обнял(а)" },
@@ -793,6 +839,19 @@ bot.on(message('text'), async (ctx, next) => {
       return await ctx.replyWithHTML(
         `${emoji} <b>@${user.username || user.firstName}</b> ${action} <b>${targetName}</b>`
       );
+    }
+  }
+
+  // Проверка превращения - удаляем сообщение если юзер не пишет звук
+  if (user.transformUntil && new Date() < new Date(user.transformUntil) && user.transformAnimal) {
+    const sound = ANIMAL_SOUNDS[user.transformAnimal];
+    if (sound && !text.startsWith(sound)) {
+      try {
+        await ctx.deleteMessage();
+      } catch (e) {
+        // Не удалось удалить
+      }
+      return;
     }
   }
   

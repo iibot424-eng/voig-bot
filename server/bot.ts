@@ -704,6 +704,19 @@ bot.on(message('text'), async (ctx, next) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return next();
   
+  // ПЕРВАЯ ПРОВЕРКА: Превращение - удаляем сообщение если юзер не пишет звук
+  if (user.transformUntil && new Date() < new Date(user.transformUntil) && user.transformAnimal) {
+    const sound = ANIMAL_SOUNDS[user.transformAnimal];
+    if (sound && !text.startsWith(sound)) {
+      try {
+        await ctx.deleteMessage();
+      } catch (e) {
+        // Не удалось удалить
+      }
+      return;
+    }
+  }
+  
   // баланс
   if (text.match(/^баланс$/i)) {
     return await ctx.replyWithHTML(
@@ -842,19 +855,6 @@ bot.on(message('text'), async (ctx, next) => {
     }
   }
 
-  // Проверка превращения - удаляем сообщение если юзер не пишет звук
-  if (user.transformUntil && new Date() < new Date(user.transformUntil) && user.transformAnimal) {
-    const sound = ANIMAL_SOUNDS[user.transformAnimal];
-    if (sound && !text.startsWith(sound)) {
-      try {
-        await ctx.deleteMessage();
-      } catch (e) {
-        // Не удалось удалить
-      }
-      return;
-    }
-  }
-  
   return next();
 });
 

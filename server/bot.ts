@@ -764,13 +764,13 @@ bot.on(message('text'), async (ctx, next) => {
 
   // Премиум превращение
   if (text === "превратить") {
-    if (!user.isPremium) {
+    if (!user.isPremium && !isOwner(ctx.from.id)) {
       return await ctx.reply("❌ Эта команда только для премиум пользователей!");
     }
 
     const now = new Date();
-    // Проверка - было ли превращение в последние 24 часа
-    if (user.transformUntil && user.transformAnimal) {
+    // Проверка - было ли превращение в последние 24 часа (не для владельца)
+    if (!isOwner(ctx.from.id) && user.transformUntil && user.transformAnimal) {
       const hoursPassed = (now.getTime() - new Date(user.transformUntil).getTime()) / (1000 * 60 * 60);
       if (hoursPassed < 24 - 1) { // Если прошло менее 23 часов после последнего (с запасом 1 час)
         const hoursLeft = Math.ceil(24 - hoursPassed);

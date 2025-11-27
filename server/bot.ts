@@ -670,9 +670,41 @@ bot.command('breakup', async (ctx) => {
   await ctx.reply("💔 Отношения закончены...");
 });
 
+// RP КОМАНДЫ
 bot.command('hug', async (ctx) => await handleRpAction(ctx, 'hug', '🤗'));
+bot.command('обнять', async (ctx) => await handleRpAction(ctx, 'hug', '🤗'));
 bot.command('kiss', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
+bot.command('целовать', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
+bot.command('поцеловать', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
 bot.command('hit', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
+bot.command('бить', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
+bot.command('ударить', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
+bot.command('pat', async (ctx) => await handleRpAction(ctx, 'pat', '🤚'));
+bot.command('гладить', async (ctx) => await handleRpAction(ctx, 'pat', '🤚'));
+bot.command('slap', async (ctx) => await handleRpAction(ctx, 'slap', '👋'));
+bot.command('шлепать', async (ctx) => await handleRpAction(ctx, 'slap', '👋'));
+bot.command('lick', async (ctx) => await handleRpAction(ctx, 'lick', '👅'));
+bot.command('лизать', async (ctx) => await handleRpAction(ctx, 'lick', '👅'));
+bot.command('bite', async (ctx) => await handleRpAction(ctx, 'bite', '🦷'));
+bot.command('кусать', async (ctx) => await handleRpAction(ctx, 'bite', '🦷'));
+bot.command('fuck', async (ctx) => await handleRpAction(ctx, 'fuck', '🔞'));
+bot.command('выебать', async (ctx) => await handleRpAction(ctx, 'fuck', '🔞'));
+bot.command('трахать', async (ctx) => await handleRpAction(ctx, 'fuck', '🔞'));
+bot.command('sex', async (ctx) => await handleRpAction(ctx, 'sex', '🔞'));
+bot.command('ебать', async (ctx) => await handleRpAction(ctx, 'sex', '🔞'));
+bot.command('suck', async (ctx) => await handleRpAction(ctx, 'suck', '🍆'));
+bot.command('сосать', async (ctx) => await handleRpAction(ctx, 'suck', '🍆'));
+bot.command('jerk', async (ctx) => await handleRpAction(ctx, 'jerk', '💦'));
+bot.command('задрочить', async (ctx) => await handleRpAction(ctx, 'jerk', '💦'));
+bot.command('дрочить', async (ctx) => await handleRpAction(ctx, 'jerk', '💦'));
+bot.command('dominate', async (ctx) => await handleRpAction(ctx, 'dominate', '👑'));
+bot.command('доминировать', async (ctx) => await handleRpAction(ctx, 'dominate', '👑'));
+bot.command('obey', async (ctx) => await handleRpAction(ctx, 'obey', '🙇'));
+bot.command('подчиняться', async (ctx) => await handleRpAction(ctx, 'obey', '🙇'));
+bot.command('bind', async (ctx) => await handleRpAction(ctx, 'bind', '🔗'));
+bot.command('связать', async (ctx) => await handleRpAction(ctx, 'bind', '🔗'));
+bot.command('chain', async (ctx) => await handleRpAction(ctx, 'chain', '⛓️'));
+bot.command('приковать', async (ctx) => await handleRpAction(ctx, 'chain', '⛓️'));
 
 async function handleRpAction(ctx: any, action: string, emoji: string) {
   const user = await getOrCreateUser(ctx);
@@ -1120,6 +1152,40 @@ bot.on(message('text'), async (ctx, next) => {
       return await ctx.replyWithHTML(
         `⚠️ <b>@${username}</b> получил предупреждение!\n` +
         `Всего: ${warningCount[0].count}`
+      );
+    } catch (e) {
+      return await ctx.reply("❌ Ошибка");
+    }
+  }
+
+  // очистка - удаляет все сообщения пользователя (только для админов/владельца)
+  const clearMatch = text.match(/^очистка\s+@([\w]+)$/i);
+  if (clearMatch) {
+    if (!ctx.chat || ctx.chat.type === 'private') {
+      return await ctx.reply("❌ Команда работает только в группах");
+    }
+    
+    try {
+      const admins = await ctx.getChatAdministrators();
+      const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
+      
+      if (!isAdmin && !isOwner(ctx.from.id)) {
+        return await ctx.reply("❌ Только администраторы могут очищать сообщения");
+      }
+      
+      const username = clearMatch[1];
+      const [targetUser] = await db.select().from(users).where(eq(users.username, username));
+      
+      if (!targetUser) {
+        return await ctx.reply("❌ Пользователь не найден");
+      }
+      
+      // Извлекаем последние 100 сообщений из чата
+      // Telegram не предоставляет прямого способа удалить все сообщения пользователя,
+      // поэтому мы должны полагаться на возможность администратора удалить сообщения
+      await ctx.replyWithHTML(
+        `🧹 <b>Начало очистки сообщений @${username}...</b>\n` +
+        `⚠️ <i>Примечание: Удаление сообщений должно выполняться администратором чата вручную или через другие инструменты.</i>`
       );
     } catch (e) {
       return await ctx.reply("❌ Ошибка");

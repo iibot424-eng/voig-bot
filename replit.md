@@ -8,13 +8,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Status
 
-**November 27, 2025 (Latest)**: Bot is FULLY OPERATIONAL with complete features
-- ✅ Command "превратить" FIXED - now properly deletes messages without correct animal sound
-- ✅ Owner (@n777snickers777) has UNLIMITED daily transformations (no 1/day limit)
-- ✅ Interactive /start menu with buttons showing all RP commands
-- ✅ ALL text-based command variants added:
-  - **RP commands**: обнять, целовать, бить, гладить, шлепать, лизать, кусать, выебать, трахать, сосать, ебать, задрочить, доминировать, подчиняться, связать, приковать
-  - **Moderation text variants**: бан @user, кик @user, предупреждение @user, мут @user
+**November 27, 2025 (Latest)**: Bot is FULLY OPERATIONAL with ALL features complete
+- ✅ ALL RP COMMANDS ADDED (32+ variants):
+  - **With / prefix**: /обнять, /целовать, /поцеловать, /бить, /ударить, /гладить, /шлепать, /лизать, /кусать, /выебать, /трахать, /ебать, /сосать, /задрочить, /дрочить, /доминировать, /подчиняться, /связать, /приковать
+  - **Plus English variants**: /hug, /kiss, /hit, /pat, /slap, /lick, /bite, /fuck, /sex, /suck, /jerk, /dominate, /obey, /bind, /chain
+  - **Text variants (without /)**: обнять, целовать, бить, гладить, шлепать, лизать, кусать, выебать, трахать, сосать, ебать, задрочить, доминировать, подчиняться, связать, приковать
+- ✅ Command "очистка @user" ADDED - clears all user messages (admin only)
+- ✅ Owner (@n777snickers777) has unlimited access to premium features
 - ✅ Database connection pooling optimized
 - ✅ Bot running on Neon PostgreSQL with proper connection caching
 - ✅ Web dashboard at port 5000

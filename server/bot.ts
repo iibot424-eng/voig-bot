@@ -342,6 +342,350 @@ bot.command('stats', async (ctx) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// БРАКИ И ОТНОШЕНИЯ
+// ═══════════════════════════════════════════════════════════
+
+bot.command('marry', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat) return;
+  
+  const mentioned = ctx.message.entities?.find(e => e.type === 'mention');
+  if (!mentioned) {
+    return await ctx.reply("❌ Укажите пользователя: /marry @username");
+  }
+  
+  const mentionedUsername = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
+  const [targetUser] = await db.select().from(users).where(eq(users.username, mentionedUsername));
+  
+  if (!targetUser) {
+    return await ctx.reply("❌ Пользователь не найден в базе данных");
+  }
+  
+  if (targetUser.id === user.id) {
+    return await ctx.reply("❌ Вы не можете жениться на себе!");
+  }
+  
+  // Проверка существующих браков
+  const [existingMarriage] = await db.select().from(marriages)
+    .where(or(
+      and(eq(marriages.user1Id, user.id)),
+      and(eq(marriages.user2Id, user.id)),
+      and(eq(marriages.user1Id, targetUser.id)),
+      and(eq(marriages.user2Id, targetUser.id))
+    ));
+  
+  if (existingMarriage) {
+    return await ctx.reply("❌ Один из вас уже в браке!");
+  }
+  
+  // Создаем предложение
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
+  await db.insert(pendingProposals).values({
+    type: 'marry',
+    fromUserId: user.id,
+    toUserId: targetUser.id,
+    chatId: ctx.chat.id,
+    expiresAt,
+  });
+  
+  await ctx.replyWithHTML(
+    `💍 <b>@${user.username || user.firstName}</b> делает предложение <b>@${targetUser.username || targetUser.firstName}!</b>\n\n` +
+    `Для принятия используйте: /accept_marry\n` +
+    `Действительно 5 минут`
+  );
+});
+
+bot.command('accept_marry', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat) return;
+  
+  const [proposal] = await db.select().from(pendingProposals)
+    .where(and(
+      eq(pendingProposals.toUserId, user.id),
+      eq(pendingProposals.type, 'marry'),
+      eq(pendingProposals.chatId, ctx.chat.id)
+    ))
+    .orderBy(desc(pendingProposals.createdAt))
+    .limit(1);
+  
+  if (!proposal) {
+    return await ctx.reply("❌ Нет активных предложений брака");
+  }
+  
+  if (new Date() > new Date(proposal.expiresAt)) {
+    await db.delete(pendingProposals).where(eq(pendingProposals.id, proposal.id));
+    return await ctx.reply("❌ Предложение истекло");
+  }
+  
+  const [proposer] = await db.select().from(users).where(eq(users.id, proposal.fromUserId));
+  if (!proposer) return;
+  
+  // Создаем брак
+  await db.insert(marriages).values({
+    user1Id: proposal.fromUserId,
+    user2Id: proposal.toUserId,
+    chatId: ctx.chat.id,
+  });
+  
+  // Удаляем предложение
+  await db.delete(pendingProposals).where(eq(pendingProposals.id, proposal.id));
+  
+  await ctx.replyWithHTML(
+    `💖 <b>Поздравляем!</b>\n\n` +
+    `@${proposer.username || proposer.firstName} и @${user.username || user.firstName} теперь в браке! 💍`
+  );
+});
+
+bot.command('divorce', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const [marriage] = await db.select().from(marriages)
+    .where(or(
+      eq(marriages.user1Id, user.id),
+      eq(marriages.user2Id, user.id)
+    ));
+  
+  if (!marriage) {
+    return await ctx.reply("❌ Вы не состоите в браке");
+  }
+  
+  await db.delete(marriages).where(eq(marriages.id, marriage.id));
+  
+  await ctx.reply("💔 Развод оформлен. Брак расторгнут.");
+});
+
+bot.command('dating', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat) return;
+  
+  const mentioned = ctx.message.entities?.find(e => e.type === 'mention');
+  if (!mentioned) {
+    return await ctx.reply("❌ Укажите пользователя: /dating @username");
+  }
+  
+  const mentionedUsername = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
+  const [targetUser] = await db.select().from(users).where(eq(users.username, mentionedUsername));
+  
+  if (!targetUser) {
+    return await ctx.reply("❌ Пользователь не найден");
+  }
+  
+  await db.insert(relationships).values({
+    user1Id: user.id,
+    user2Id: targetUser.id,
+    chatId: ctx.chat.id,
+  });
+  
+  await ctx.replyWithHTML(
+    `💕 <b>@${user.username || user.firstName}</b> и <b>@${targetUser.username || targetUser.firstName}</b> начали отношения!`
+  );
+});
+
+bot.command('breakup', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const [relationship] = await db.select().from(relationships)
+    .where(or(
+      eq(relationships.user1Id, user.id),
+      eq(relationships.user2Id, user.id)
+    ));
+  
+  if (!relationship) {
+    return await ctx.reply("❌ Вы не состоите в отношениях");
+  }
+  
+  await db.delete(relationships).where(eq(relationships.id, relationship.id));
+  
+  await ctx.reply("💔 Отношения прекращены.");
+});
+
+// ═══════════════════════════════════════════════════════════
+// РОЛЕВЫЕ КОМАНДЫ (RP)
+// ═══════════════════════════════════════════════════════════
+
+const rpActions: Record<string, string> = {
+  hug: "обнял(а)",
+  kiss: "поцеловал(а)",
+  hit: "ударил(а)",
+  pat: "погладил(а)",
+  slap: "шлёпнул(а)",
+};
+
+bot.command('hug', async (ctx) => await handleRpAction(ctx, 'hug', '🤗'));
+bot.command('kiss', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
+bot.command('hit', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
+
+async function handleRpAction(ctx: any, action: string, emoji: string) {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const mentioned = ctx.message.entities?.find((e: any) => e.type === 'mention' || e.type === 'text_mention');
+  if (!mentioned) {
+    return await ctx.reply(`❌ Укажите пользователя: /${action} @username`);
+  }
+  
+  let targetName = "кого-то";
+  if (mentioned.type === 'mention') {
+    const mentionedUsername = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
+    targetName = `@${mentionedUsername}`;
+  } else if (mentioned.user) {
+    targetName = `@${mentioned.user.username || mentioned.user.first_name}`;
+  }
+  
+  const actionText = rpActions[action] || action;
+  await ctx.replyWithHTML(
+    `${emoji} <b>@${user.username || user.firstName}</b> ${actionText} <b>${targetName}</b>`
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ПРЕВРАЩЕНИЯ
+// ═══════════════════════════════════════════════════════════
+
+bot.command('transform', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const args = ctx.message.text.split(' ').slice(1);
+  if (args.length === 0) {
+    return await ctx.replyWithHTML(
+      `🐾 <b>Превращения доступны:</b>\n\n` +
+      ANIMALS.map(a => `${ANIMAL_EMOJIS[a]} ${a}`).join('\n') +
+      `\n\nИспользуйте: /transform [животное]`
+    );
+  }
+  
+  const animal = args[0].toLowerCase();
+  if (!ANIMALS.includes(animal)) {
+    return await ctx.reply("❌ Такое животное недоступно!");
+  }
+  
+  const cost = 100;
+  if (user.balance < cost) {
+    return await ctx.reply(`❌ Недостаточно звёзд! Нужно: ${cost} ⭐`);
+  }
+  
+  const transformUntil = new Date(Date.now() + 4 * 60 * 60 * 1000); // 4 часа
+  await db.update(users)
+    .set({
+      balance: user.balance - cost,
+      transformAnimal: animal,
+      transformUntil,
+    })
+    .where(eq(users.id, user.id));
+  
+  const emoji = ANIMAL_EMOJIS[animal];
+  await ctx.replyWithHTML(
+    `${emoji} <b>Превращение!</b>\n\n` +
+    `Вы превратились в: <b>${animal}</b>\n` +
+    `Длительность: 4 часа\n` +
+    `Стоимость: -${cost} ⭐`
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// МОДЕРАЦИЯ
+// ═══════════════════════════════════════════════════════════
+
+bot.command('ban', async (ctx) => {
+  if (!ctx.chat || ctx.chat.type === 'private') {
+    return await ctx.reply("❌ Команда работает только в группах");
+  }
+  
+  try {
+    const admins = await ctx.getChatAdministrators();
+    const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
+    
+    if (!isAdmin) {
+      return await ctx.reply("❌ Только администраторы могут банить");
+    }
+    
+    const mentioned = ctx.message.entities?.find(e => e.type === 'mention' || e.type === 'text_mention');
+    if (!mentioned) {
+      return await ctx.reply("❌ Укажите пользователя: /ban @username");
+    }
+    
+    let userId: number | undefined;
+    if (mentioned.type === 'text_mention' && mentioned.user) {
+      userId = mentioned.user.id;
+    }
+    
+    if (!userId) {
+      return await ctx.reply("❌ Не удалось определить пользователя");
+    }
+    
+    await ctx.banChatMember(userId);
+    await ctx.reply("🚫 Пользователь забанен");
+  } catch (e) {
+    await ctx.reply("❌ Ошибка: не удалось забанить пользователя");
+  }
+});
+
+bot.command('kick', async (ctx) => {
+  if (!ctx.chat || ctx.chat.type === 'private') {
+    return await ctx.reply("❌ Команда работает только в группах");
+  }
+  
+  try {
+    const admins = await ctx.getChatAdministrators();
+    const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
+    
+    if (!isAdmin) {
+      return await ctx.reply("❌ Только администраторы могут кикать");
+    }
+    
+    const mentioned = ctx.message.entities?.find(e => e.type === 'text_mention');
+    if (!mentioned || !mentioned.user) {
+      return await ctx.reply("❌ Укажите пользователя: /kick @username");
+    }
+    
+    await ctx.banChatMember(mentioned.user.id);
+    await ctx.unbanChatMember(mentioned.user.id);
+    await ctx.reply("👢 Пользователь выгнан из группы");
+  } catch (e) {
+    await ctx.reply("❌ Ошибка: не удалось выгнать пользователя");
+  }
+});
+
+bot.command('warn', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat || ctx.chat.type === 'private') return;
+  
+  const mentioned = ctx.message.entities?.find(e => e.type === 'mention');
+  if (!mentioned) {
+    return await ctx.reply("❌ Укажите пользователя: /warn @username");
+  }
+  
+  const mentionedUsername = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
+  const [targetUser] = await db.select().from(users).where(eq(users.username, mentionedUsername));
+  
+  if (!targetUser) {
+    return await ctx.reply("❌ Пользователь не найден");
+  }
+  
+  await db.insert(warnings).values({
+    userId: targetUser.id,
+    chatId: ctx.chat.id,
+    issuedBy: user.id,
+    reason: "Нарушение правил",
+  });
+  
+  const warningCount = await db.select({ count: sql<number>`count(*)` })
+    .from(warnings)
+    .where(and(
+      eq(warnings.userId, targetUser.id),
+      eq(warnings.chatId, ctx.chat.id)
+    ));
+  
+  await ctx.replyWithHTML(
+    `⚠️ <b>@${targetUser.username || targetUser.firstName}</b> получил предупреждение!\n` +
+    `Всего предупреждений: ${warningCount[0].count}`
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
 // ТЕКСТОВЫЕ КОМАНДЫ (без /)
 // ═══════════════════════════════════════════════════════════
 

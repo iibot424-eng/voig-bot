@@ -9,10 +9,10 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
-    { name: "Home", path: "/" },
-    { name: "Features", path: "/#features" },
-    { name: "Commands", path: "/#commands" },
-    { name: "Premium", path: "/#premium" },
+    { name: "Главная", path: "/" },
+    { name: "Функции", path: "/#features" },
+    { name: "Команды", path: "/#commands" },
+    { name: "Премиум", path: "/#premium" },
   ];
 
   return (
@@ -44,11 +44,11 @@ export function Navbar() {
           <Link href="/dashboard">
             <Button variant="outline" className="font-ui border-primary/50 text-primary hover:bg-primary/20 hover:text-white hidden md:flex gap-2">
               <LayoutDashboard className="w-4 h-4" />
-              OWNER PANEL
+              ПАНЕЛЬ ВЛАДЕЛЬЦА
             </Button>
           </Link>
           <Button className="font-ui bg-primary hover:bg-primary/80 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]">
-            ADD TO TELEGRAM
+            ДОБАВИТЬ В TELEGRAM
           </Button>
         </div>
 
@@ -81,7 +81,7 @@ export function Navbar() {
               <div className="h-px bg-white/10 my-2" />
               <Link href="/dashboard">
                 <a onClick={() => setIsOpen(false)} className="text-lg font-display font-medium text-primary">
-                  Owner Panel
+                  Панель Владельца
                 </a>
               </Link>
             </div>

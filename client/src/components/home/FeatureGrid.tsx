@@ -4,38 +4,38 @@ import { Coins, Heart, Gamepad2, Shield, Star, Users } from "lucide-react";
 const features = [
   {
     icon: Coins,
-    title: "Advanced Economy",
-    description: "Earn stars, trade with players, and climb the global wealth leaderboard. Complete daily tasks for rewards.",
+    title: "Продвинутая Экономика",
+    description: "Зарабатывайте звёзды, торгуйте с игроками и поднимайтесь в глобальном рейтинге богачей. Выполняйте ежедневные задания.",
     color: "text-yellow-400"
   },
   {
     icon: Gamepad2,
-    title: "Minigames",
-    description: "Test your luck with slots, dice, fishing, and duels. Bet your stars and win big against other players.",
+    title: "Мини-игры",
+    description: "Испытайте удачу в слотах, костях, рыбалке и дуэлях. Делайте ставки и выигрывайте у других игроков.",
     color: "text-purple-400"
   },
   {
     icon: Heart,
-    title: "Relationship System",
-    description: "Marry other users, adopt pets, and build your digital family. Special commands for couples.",
+    title: "Система Отношений",
+    description: "Заключайте браки, заводите питомцев и создавайте свою цифровую семью. Особые команды для пар.",
     color: "text-pink-400"
   },
   {
     icon: Users,
-    title: "Roleplay Actions",
-    description: "Express yourself with over 50+ interactive RP commands like hug, kiss, hit, and more.",
+    title: "Ролевые Действия (RP)",
+    description: "Выражайте эмоции с помощью 50+ интерактивных команд: обнять, поцеловать, ударить и многое другое.",
     color: "text-cyan-400"
   },
   {
     icon: Shield,
-    title: "Group Management",
-    description: "Powerful moderation tools to keep your chat safe. Ban, mute, and warn users with ease.",
+    title: "Управление Группами",
+    description: "Мощные инструменты модерации для защиты вашего чата. Бан, мут и предупреждения в один клик.",
     color: "text-red-400"
   },
   {
     icon: Star,
-    title: "Premium Status",
-    description: "Unlock exclusive badges, increased daily rewards, and custom profile customization.",
+    title: "Премиум Статус",
+    description: "Разблокируйте эксклюзивные значки, увеличенные ежедневные награды и кастомизацию профиля.",
     color: "text-orange-400"
   }
 ];
@@ -45,9 +45,9 @@ export function FeatureGrid() {
     <section id="features" className="py-24 bg-black/50 relative">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-display font-bold mb-4">SYSTEM <span className="text-primary">MODULES</span></h2>
+          <h2 className="text-4xl font-display font-bold mb-4">МОДУЛИ <span className="text-primary">СИСТЕМЫ</span></h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to engage your community in one single package.
+            Всё необходимое для вовлечения вашего сообщества в одном пакете.
           </p>
         </div>
 

@@ -10,13 +10,13 @@ import {
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const data = [
-  { name: "Mon", users: 4000 },
-  { name: "Tue", users: 3000 },
-  { name: "Wed", users: 2000 },
-  { name: "Thu", users: 2780 },
-  { name: "Fri", users: 1890 },
-  { name: "Sat", users: 2390 },
-  { name: "Sun", users: 3490 },
+  { name: "Пн", users: 4000 },
+  { name: "Вт", users: 3000 },
+  { name: "Ср", users: 2000 },
+  { name: "Чт", users: 2780 },
+  { name: "Пт", users: 1890 },
+  { name: "Сб", users: 2390 },
+  { name: "Вс", users: 3490 },
 ];
 
 export default function Dashboard() {
@@ -27,22 +27,22 @@ export default function Dashboard() {
       <div className="container mx-auto px-6 pt-24 pb-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-display font-bold">OWNER <span className="text-primary">PANEL</span></h1>
-            <p className="text-muted-foreground">Welcome back, @n777snickers777</p>
+            <h1 className="text-3xl font-display font-bold">ПАНЕЛЬ <span className="text-primary">ВЛАДЕЛЬЦА</span></h1>
+            <p className="text-muted-foreground">Добро пожаловать, @n777snickers777</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-sm font-mono text-green-500">BOT ONLINE</span>
+            <span className="text-sm font-mono text-green-500">БОТ ОНЛАЙН</span>
           </div>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[
-            { title: "Total Users", value: "12,405", icon: Users, color: "text-blue-400" },
-            { title: "Total Economy", value: "8.4M ⭐", icon: DollarSign, color: "text-yellow-400" },
-            { title: "Commands Today", value: "45,201", icon: Activity, color: "text-purple-400" },
-            { title: "Active Bans", value: "12", icon: ShieldAlert, color: "text-red-400" },
+            { title: "Всего Пользователей", value: "12,405", icon: Users, color: "text-blue-400" },
+            { title: "Общая Экономика", value: "8.4M ⭐", icon: DollarSign, color: "text-yellow-400" },
+            { title: "Команд Сегодня", value: "45,201", icon: Activity, color: "text-purple-400" },
+            { title: "Активные Баны", value: "12", icon: ShieldAlert, color: "text-red-400" },
           ].map((stat) => (
             <Card key={stat.title} className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -60,17 +60,17 @@ export default function Dashboard() {
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-white/5 border border-white/10">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="economy">Economy Control</TabsTrigger>
+            <TabsTrigger value="overview">Обзор</TabsTrigger>
+            <TabsTrigger value="broadcast">Рассылка</TabsTrigger>
+            <TabsTrigger value="users">Пользователи</TabsTrigger>
+            <TabsTrigger value="economy">Экономика</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="bg-white/5 border-white/10">
                 <CardHeader>
-                  <CardTitle>Activity Growth</CardTitle>
+                  <CardTitle>Рост Активности</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px] w-full">
@@ -91,12 +91,12 @@ export default function Dashboard() {
 
               <Card className="bg-white/5 border-white/10">
                 <CardHeader>
-                  <CardTitle>System Status</CardTitle>
+                  <CardTitle>Статус Системы</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>CPU Usage</span>
+                      <span>Загрузка CPU</span>
                       <span className="text-green-400">12%</span>
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -105,7 +105,7 @@ export default function Dashboard() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Memory Usage</span>
+                      <span>Использование ОЗУ</span>
                       <span className="text-yellow-400">45%</span>
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -114,7 +114,7 @@ export default function Dashboard() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Database Connections</span>
+                      <span>Подключения к БД</span>
                       <span className="text-blue-400">8/20</span>
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -130,23 +130,23 @@ export default function Dashboard() {
             <Card className="bg-white/5 border-white/10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Megaphone className="w-5 h-5 text-primary" /> Global Broadcast
+                  <Megaphone className="w-5 h-5 text-primary" /> Глобальная Рассылка
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg text-sm text-yellow-200">
-                  Warning: This message will be sent to all 12,405 users. Use with caution.
+                  Внимание: Это сообщение будет отправлено всем 12,405 пользователям. Используйте с осторожностью.
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Message Content</label>
+                  <label className="text-sm font-medium">Текст Сообщения</label>
                   <textarea 
                     className="w-full h-32 bg-black/50 border border-white/10 rounded-lg p-4 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                    placeholder="Type your announcement here..."
+                    placeholder="Введите текст объявления..."
                   />
                 </div>
                 <div className="flex justify-end">
                   <Button className="bg-primary hover:bg-primary/80">
-                    <Send className="w-4 h-4 mr-2" /> Send Broadcast
+                    <Send className="w-4 h-4 mr-2" /> Отправить Рассылку
                   </Button>
                 </div>
               </CardContent>
@@ -157,26 +157,26 @@ export default function Dashboard() {
             <Card className="bg-white/5 border-white/10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-yellow-400" /> Economy Management
+                  <DollarSign className="w-5 h-5 text-yellow-400" /> Управление Экономикой
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4 p-4 bg-black/30 rounded-lg border border-white/5">
-                    <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Grant Stars</h4>
+                    <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Выдать Звёзды</h4>
                     <div className="space-y-2">
-                      <Input placeholder="User ID / Username" className="bg-black/50 border-white/10" />
-                      <Input type="number" placeholder="Amount" className="bg-black/50 border-white/10" />
-                      <Button className="w-full bg-green-600 hover:bg-green-500">Add Balance</Button>
+                      <Input placeholder="ID Пользователя / Username" className="bg-black/50 border-white/10" />
+                      <Input type="number" placeholder="Сумма" className="bg-black/50 border-white/10" />
+                      <Button className="w-full bg-green-600 hover:bg-green-500">Пополнить Баланс</Button>
                     </div>
                   </div>
                   
                   <div className="space-y-4 p-4 bg-black/30 rounded-lg border border-white/5">
-                    <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Reset Economy</h4>
-                    <p className="text-xs text-red-400">Danger Zone: This will reset everyone's balance to 0.</p>
+                    <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Сброс Экономики</h4>
+                    <p className="text-xs text-red-400">Опасная Зона: Это действие обнулит баланс у всех пользователей.</p>
                     <div className="pt-4">
                       <Button variant="destructive" className="w-full">
-                        <RefreshCcw className="w-4 h-4 mr-2" /> Reset All Balances
+                        <RefreshCcw className="w-4 h-4 mr-2" /> Сбросить Все Балансы
                       </Button>
                     </div>
                   </div>

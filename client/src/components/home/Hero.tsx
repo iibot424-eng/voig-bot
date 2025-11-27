@@ -22,42 +22,42 @@ export function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
-              <span className="text-xs font-ui tracking-widest text-muted-foreground uppercase">System Online • v2.4.0</span>
+              <span className="text-xs font-ui tracking-widest text-muted-foreground uppercase">Система Онлайн • v2.4.0</span>
             </div>
             
             <h1 className="text-5xl md:text-7xl font-display font-bold leading-tight mb-6">
-              THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-400 to-secondary text-glow">NEXT GEN</span><br />
-              TELEGRAM BOT
+              БОТ НОВОГО <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-400 to-secondary text-glow">ПОКОЛЕНИЯ</span>
             </h1>
             
             <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-              Economy, Roleplay, Games, and Marriages combined into one powerful ecosystem. 
-              Engage your community with the most advanced bot on the platform.
+              Экономика, Ролевые игры, Мини-игры и Браки в одной мощной системе. 
+              Прокачайте свое сообщество с самым продвинутым ботом на платформе.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
               <Button size="lg" className="font-ui text-base h-14 px-8 bg-primary hover:bg-primary/80 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] group">
-                START BOT <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                ЗАПУСТИТЬ БОТА <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button size="lg" variant="outline" className="font-ui text-base h-14 px-8 border-white/20 hover:bg-white/5 text-white">
-                VIEW COMMANDS
+                ВСЕ КОМАНДЫ
               </Button>
             </div>
 
             <div className="mt-12 flex items-center gap-8 opacity-70">
               <div>
                 <p className="text-2xl font-display font-bold text-white">200+</p>
-                <p className="text-xs font-ui uppercase tracking-widest text-muted-foreground">Commands</p>
+                <p className="text-xs font-ui uppercase tracking-widest text-muted-foreground">Команд</p>
               </div>
               <div className="w-px h-8 bg-white/10" />
               <div>
                 <p className="text-2xl font-display font-bold text-white">24/7</p>
-                <p className="text-xs font-ui uppercase tracking-widest text-muted-foreground">Uptime</p>
+                <p className="text-xs font-ui uppercase tracking-widest text-muted-foreground">Аптайм</p>
               </div>
               <div className="w-px h-8 bg-white/10" />
               <div>
-                <p className="text-2xl font-display font-bold text-white">FREE</p>
-                <p className="text-xs font-ui uppercase tracking-widest text-muted-foreground">To Use</p>
+                <p className="text-2xl font-display font-bold text-white">БЕСПЛАТНО</p>
+                <p className="text-xs font-ui uppercase tracking-widest text-muted-foreground">Для всех</p>
               </div>
             </div>
           </motion.div>
@@ -84,9 +84,9 @@ export function Hero() {
               >
                 <div className="flex items-center gap-3 mb-2">
                   <Sparkles className="text-yellow-400 w-5 h-5" />
-                  <span className="font-display font-bold text-sm">Daily Bonus</span>
+                  <span className="font-display font-bold text-sm">Ежедневный Бонус</span>
                 </div>
-                <p className="text-xs text-muted-foreground font-mono">+1,500 Stars Received</p>
+                <p className="text-xs text-muted-foreground font-mono">+1,500 Звёзд получено</p>
               </motion.div>
 
               <motion.div 
@@ -96,7 +96,7 @@ export function Hero() {
               >
                 <div className="flex items-center gap-3 mb-2">
                   <Zap className="text-secondary w-5 h-5" />
-                  <span className="font-display font-bold text-sm">Level Up!</span>
+                  <span className="font-display font-bold text-sm">Новый Уровень!</span>
                 </div>
                 <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
                   <div className="h-full w-3/4 bg-secondary" />

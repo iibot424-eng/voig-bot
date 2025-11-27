@@ -7,38 +7,38 @@ const commands = [
   {
     cmd: "/profile",
     response: {
-      title: "👤 User Profile",
+      title: "👤 Профиль Пользователя",
       content: [
-        "Name: CyberUser_99",
+        "Имя: CyberUser_99",
         "🆔 ID: 123456789",
-        "💰 Balance: 5,420 ⭐",
-        "🏆 Reputation: 150",
-        "💍 Married to: None",
-        "✨ Status: Online"
+        "💰 Баланс: 5,420 ⭐",
+        "🏆 Репутация: 150",
+        "💍 В браке с: Никто",
+        "✨ Статус: Онлайн"
       ]
     }
   },
   {
     cmd: "/daily",
     response: {
-      title: "🎁 Daily Reward",
+      title: "🎁 Ежедневная Награда",
       content: [
-        "You claimed your daily bonus!",
-        "Received: +500 Stars ⭐",
-        "Streak: 5 days 🔥",
-        "Come back in 24h for more!"
+        "Вы забрали свой ежедневный бонус!",
+        "Получено: +500 Звёзд ⭐",
+        "Серия: 5 дней 🔥",
+        "Возвращайтесь через 24ч за добавкой!"
       ]
     }
   },
   {
     cmd: "/transform cat",
     response: {
-      title: "🐱 Transformation",
+      title: "🐱 Превращение",
       content: [
-        "You have transformed into a Cat!",
-        "Duration: 4 hours",
-        "Effect: Meow at people instead of talking.",
-        "Cost: 100 Stars"
+        "Вы превратились в Кота!",
+        "Длительность: 4 часа",
+        "Эффект: Мяукаете вместо разговора.",
+        "Стоимость: 100 Звёзд"
       ]
     }
   }
@@ -52,10 +52,10 @@ export function CommandPreview() {
       <div className="container mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
-            <h2 className="text-4xl font-display font-bold mb-6">INTERACTIVE <span className="text-secondary">COMMANDS</span></h2>
+            <h2 className="text-4xl font-display font-bold mb-6">ИНТЕРАКТИВНЫЕ <span className="text-secondary">КОМАНДЫ</span></h2>
             <p className="text-muted-foreground mb-8">
-              Experience a rich set of commands designed for fun and utility. 
-              From managing your economy to roleplaying with friends.
+              Оцените богатый набор команд, созданных для развлечения и пользы. 
+              От управления экономикой до ролевых игр с друзьями.
             </p>
 
             <div className="space-y-3">

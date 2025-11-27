@@ -78,7 +78,7 @@ bot.command('start', async (ctx) => {
   if (!user) return;
   
   await ctx.replyWithHTML(
-    `👋 <b>Добро пожаловать в IRIS BOT!</b>\n\n` +
+    `👋 <b>Добро пожаловать в VOIG BOT!</b>\n\n` +
     `🎮 Бот для развлечений и экономики в Telegram.\n\n` +
     `💰 Стартовый баланс: <b>${formatNumber(user.balance)} ⭐</b>\n` +
     `📋 Команды: /help\n` +
@@ -89,7 +89,7 @@ bot.command('start', async (ctx) => {
 
 bot.command('help', async (ctx) => {
   await ctx.replyWithHTML(
-    `📋 <b>КОМАНДЫ IRIS BOT</b>\n\n` +
+    `📋 <b>КОМАНДЫ VOIG BOT</b>\n\n` +
     `<b>🔵 ОСНОВНЫЕ:</b>\n` +
     `/start - начать работу с ботом\n` +
     `/help - список всех команд\n` +
@@ -333,7 +333,7 @@ bot.command('stats', async (ctx) => {
   const [totalMarriagesResult] = await db.select({ count: sql<number>`count(*)` }).from(marriages);
   
   await ctx.replyWithHTML(
-    `📊 <b>СТАТИСТИКА IRIS BOT</b>\n\n` +
+    `📊 <b>СТАТИСТИКА VOIG BOT</b>\n\n` +
     `👥 Пользователей: <b>${totalUsersResult.count}</b>\n` +
     `💰 Общая экономика: <b>${formatNumber(totalBalanceResult.sum || 0)} ⭐</b>\n` +
     `💍 Браков: <b>${totalMarriagesResult.count}</b>\n` +
@@ -751,6 +751,44 @@ bot.on(message('text'), async (ctx, next) => {
     
     return await ctx.reply(`📤 Рассылка отправлена ${sent} пользователям!`);
   }
+
+  // RP текстовые команды
+  const rpTextCommands: Record<string, { emoji: string; action: string }> = {
+    обнять: { emoji: "🤗", action: "обнял(а)" },
+    целовать: { emoji: "💋", action: "поцеловал(а)" },
+    поцеловать: { emoji: "💋", action: "поцеловал(а)" },
+    бить: { emoji: "👊", action: "ударил(а)" },
+    ударить: { emoji: "👊", action: "ударил(а)" },
+    гладить: { emoji: "🤚", action: "погладил(а)" },
+    шлепать: { emoji: "👋", action: "шлёпнул(а)" },
+    лизать: { emoji: "👅", action: "облизал(а)" },
+    кусать: { emoji: "🦷", action: "укусил(а)" },
+    выебать: { emoji: "🔞", action: "выебал(а)" },
+    трахать: { emoji: "🔞", action: "трахал(а)" },
+    сосать: { emoji: "🍆", action: "сосал(а)" },
+    ебать: { emoji: "🔞", action: "ебал(а)" },
+    задрочить: { emoji: "💦", action: "задрочил(а)" },
+    доминировать: { emoji: "👑", action: "доминирует над" },
+    подчиняться: { emoji: "🙇", action: "подчиняется" },
+    связать: { emoji: "🔗", action: "связал(а)" },
+    приковать: { emoji: "⛓️", action: "приковал(а)" },
+  };
+
+  for (const [cmd, { emoji, action }] of Object.entries(rpTextCommands)) {
+    const pattern = new RegExp(`^${cmd}(?:\\s+@([\\w]+))?$`, 'i');
+    const match = text.match(pattern);
+    
+    if (match) {
+      let targetName = "кого-то";
+      if (match[1]) {
+        targetName = `@${match[1]}`;
+      }
+      
+      return await ctx.replyWithHTML(
+        `${emoji} <b>@${user.username || user.firstName}</b> ${action} <b>${targetName}</b>`
+      );
+    }
+  }
   
   return next();
 });
@@ -761,7 +799,7 @@ bot.on(message('text'), async (ctx, next) => {
 
 export function startBot() {
   bot.launch();
-  console.log('🤖 IRIS BOT запущен!');
+  console.log('🤖 VOIG BOT запущен!');
   
   // Graceful stop
   process.once('SIGINT', () => bot.stop('SIGINT'));

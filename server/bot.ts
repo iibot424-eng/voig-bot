@@ -1,8 +1,8 @@
 import { Telegraf, Context, Markup } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { db } from './db';
-import { users, marriages, duels, relationships, pendingProposals, chats, warnings } from '@shared/schema';
-import { eq, and, or, desc, sql } from 'drizzle-orm';
+import { users, marriages, duels, relationships, pendingProposals, chats, warnings, businesses, mutes, bans, inventory } from '@shared/schema';
+import { eq, and, or, desc, sql, lt } from 'drizzle-orm';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_OWNER_ID = 7977020467; // @n777snickers777
@@ -1180,9 +1180,6 @@ bot.on(message('text'), async (ctx, next) => {
         return await ctx.reply("❌ Пользователь не найден");
       }
       
-      // Извлекаем последние 100 сообщений из чата
-      // Telegram не предоставляет прямого способа удалить все сообщения пользователя,
-      // поэтому мы должны полагаться на возможность администратора удалить сообщения
       await ctx.replyWithHTML(
         `🧹 <b>Начало очистки сообщений @${username}...</b>\n` +
         `⚠️ <i>Примечание: Удаление сообщений должно выполняться администратором чата вручную или через другие инструменты.</i>`
@@ -1193,6 +1190,176 @@ bot.on(message('text'), async (ctx, next) => {
   }
 
   return next();
+});
+
+// ═══════════════════════════════════════════════════════════
+// НОВЫЕ КОМАНДЫ МОДЕРАЦИИ (168+)
+// ═══════════════════════════════════════════════════════════
+
+// BAN - полный бан
+bot.command('ban', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat || ctx.chat.type === 'private') return await ctx.reply("❌ Только в группах");
+  
+  const admins = await ctx.getChatAdministrators();
+  if (!admins.some(a => a.user.id === ctx.from?.id) && !isOwner(ctx.from?.id)) {
+    return await ctx.reply("❌ Только админы могут банить");
+  }
+  
+  const text = ctx.message?.text || '';
+  const match = text.match(/\/ban\s+@([\w]+)(?:\s+(.+))?/i);
+  if (!match) return await ctx.reply("❌ Используйте: /ban @username [причина]");
+  
+  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
+  if (!targetUser) return await ctx.reply("❌ Пользователь не найден");
+  
+  try {
+    await ctx.banChatMember(targetUser.telegramId);
+    await db.insert(bans).values({
+      userId: targetUser.id,
+      chatId: ctx.chat.id,
+      reason: match[2] || "Нарушение правил",
+      issuedBy: user.id,
+    });
+    await ctx.reply(`🚫 @${match[1]} заб анен. Причина: ${match[2] || "не указана"}`);
+  } catch (e) {
+    await ctx.reply("❌ Ошибка при бане");
+  }
+});
+
+// MUTE - заглушить
+bot.command('mute', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat || ctx.chat.type === 'private') return;
+  
+  const admins = await ctx.getChatAdministrators();
+  if (!admins.some(a => a.user.id === ctx.from?.id) && !isOwner(ctx.from?.id)) {
+    return await ctx.reply("❌ Только админы");
+  }
+  
+  const text = ctx.message?.text || '';
+  const match = text.match(/\/mute\s+@([\w]+)(?:\s+(\d+))?/i);
+  if (!match) return await ctx.reply("❌ Используйте: /mute @username [минуты]");
+  
+  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
+  if (!targetUser) return await ctx.reply("❌ Пользователь не найден");
+  
+  const minutes = parseInt(match[2]) || 60;
+  const until = new Date(Date.now() + minutes * 60 * 1000);
+  
+  try {
+    const permissions: any = {
+      can_send_messages: false,
+      can_send_media_messages: false,
+      can_send_polls: false,
+      can_send_other_messages: false,
+    };
+    await ctx.restrictChatMember(targetUser.telegramId, permissions, { until_date: Math.floor(until.getTime() / 1000) } as any);
+    await db.insert(mutes).values({
+      userId: targetUser.id,
+      chatId: ctx.chat.id,
+      mutedUntil: until,
+      issuedBy: user.id,
+    });
+    await ctx.reply(`🔇 @${match[1]} заглушен на ${minutes} минут`);
+  } catch (e) {
+    await ctx.reply("❌ Ошибка");
+  }
+});
+
+// WARN - предупреждение
+bot.command('warn', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !ctx.chat || ctx.chat.type === 'private') return;
+  
+  const admins = await ctx.getChatAdministrators();
+  if (!admins.some(a => a.user.id === ctx.from?.id) && !isOwner(ctx.from?.id)) {
+    return await ctx.reply("❌ Только админы");
+  }
+  
+  const text = ctx.message?.text || '';
+  const match = text.match(/\/warn\s+@([\w]+)/i);
+  if (!match) return await ctx.reply("❌ Используйте: /warn @username");
+  
+  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
+  if (!targetUser) return await ctx.reply("❌ Пользователь не найден");
+  
+  await db.insert(warnings).values({
+    userId: targetUser.id,
+    chatId: ctx.chat.id,
+    reason: "Администратор",
+    issuedBy: user.id,
+  });
+  
+  const warns = await db.select({ count: sql<number>`count(*)` }).from(warnings)
+    .where(and(eq(warnings.userId, targetUser.id), eq(warnings.chatId, ctx.chat.id)));
+  
+  await ctx.reply(`⚠️ @${match[1]} получил варн (Всего: ${warns[0].count})`);
+});
+
+// ═══════════════════════════════════════════════════════════
+// ЭКОНОМИКА КОМАНДЫ
+// ═══════════════════════════════════════════════════════════
+
+bot.command('баланс', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  await ctx.replyWithHTML(`💰 <b>Ваш баланс:</b> ${formatNumber(user.balance)} ⭐`);
+});
+
+bot.command('передать', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const text = ctx.message?.text || '';
+  const match = text.match(/\/передать\s+@([\w]+)\s+(\d+)/i);
+  if (!match) return await ctx.reply("❌ Используйте: /передать @username сумма");
+  
+  const amount = parseInt(match[2]);
+  if (amount <= 0 || user.balance < amount) return await ctx.reply("❌ Недостаточно звёзд");
+  
+  const [target] = await db.select().from(users).where(eq(users.username, match[1]));
+  if (!target) return await ctx.reply("❌ Пользователь не найден");
+  
+  await db.update(users).set({ balance: user.balance - amount }).where(eq(users.id, user.id));
+  await db.update(users).set({ balance: target.balance + amount }).where(eq(users.id, target.id));
+  
+  await ctx.replyWithHTML(`✅ Передано ${formatNumber(amount)} ⭐ для @${match[1]}`);
+});
+
+bot.command('топ_богачей', async (ctx) => {
+  const topUsers = await db.select().from(users).orderBy(desc(users.balance)).limit(10);
+  const list = topUsers.map((u, i) => `${i + 1}. @${u.username || u.firstName} - ${formatNumber(u.balance)} ⭐`).join('\n');
+  await ctx.replyWithHTML(`🏆 <b>ТОП 10 БОГАЧЕЙ:</b>\n\n${list}`);
+});
+
+// ═══════════════════════════════════════════════════════════
+// ПРОФИЛЬ И ИНФОРМАЦИЯ
+// ═══════════════════════════════════════════════════════════
+
+bot.command('профиль', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const warnCount = await db.select({ count: sql<number>`count(*)` }).from(warnings).where(eq(warnings.userId, user.id));
+  const marriageCount = await db.select({ count: sql<number>`count(*)` }).from(marriages)
+    .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)));
+  
+  await ctx.replyWithHTML(`
+👤 <b>ПРОФИЛЬ</b>
+├ Имя: @${user.username || user.firstName}
+├ ID: ${user.telegramId}
+├ Уровень: ${user.level}
+├ Баланс: ${formatNumber(user.balance)} ⭐
+├ Репутация: ${user.reputation}
+├ Браков: ${marriageCount[0].count}
+├ Варнов: ${warnCount[0].count}
+└ Статус: ${user.isPremium ? '💎 Premium' : '⚪ Free'}
+  `.trim());
+});
+
+bot.command('ид', async (ctx) => {
+  await ctx.reply(`🆔 Ваш ID: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' });
 });
 
 // ═══════════════════════════════════════════════════════════

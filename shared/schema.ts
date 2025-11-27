@@ -10,13 +10,24 @@ export const users = pgTable("users", {
   username: text("username"),
   firstName: text("first_name"),
   lastName: text("last_name"),
-  balance: integer("balance").notNull().default(0),
+  balance: integer("balance").notNull().default(1000), // Звёзды
   reputation: integer("reputation").notNull().default(0),
+  level: integer("level").notNull().default(1),
   isPremium: boolean("is_premium").notNull().default(false),
   premiumUntil: timestamp("premium_until"),
   transformAnimal: text("transform_animal"),
   transformUntil: timestamp("transform_until"),
   dailyBonusAt: timestamp("daily_bonus_at"),
+  // Работа и бизнес
+  job: text("job"),
+  businessId: integer("business_id"),
+  // Мут/Бан
+  mutedUntil: timestamp("muted_until"),
+  isBanned: boolean("is_banned").notNull().default(false),
+  // Другое
+  bio: text("bio"),
+  isAfk: boolean("is_afk").notNull().default(false),
+  afkReason: text("afk_reason"),
   lastActive: timestamp("last_active").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -134,3 +145,72 @@ export const insertPendingProposalSchema = createInsertSchema(pendingProposals).
 });
 export type InsertPendingProposal = z.infer<typeof insertPendingProposalSchema>;
 export type PendingProposal = typeof pendingProposals.$inferSelect;
+
+// Businesses table - бизнесы пользователей
+export const businesses = pgTable("businesses", {
+  id: serial("id").primaryKey(),
+  ownerId: integer("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  balance: integer("balance").notNull().default(0),
+  employees: integer("employees").array().default([]),
+  level: integer("level").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBusinessSchema = createInsertSchema(businesses).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
+export type Business = typeof businesses.$inferSelect;
+
+// Mutes table - мусы пользователей в чате
+export const mutes = pgTable("mutes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  chatId: bigint("chat_id", { mode: "number" }).notNull(),
+  mutedUntil: timestamp("muted_until").notNull(),
+  reason: text("reason"),
+  issuedBy: integer("issued_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertMuteSchema = createInsertSchema(mutes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertMute = z.infer<typeof insertMuteSchema>;
+export type Mute = typeof mutes.$inferSelect;
+
+// Bans table - баны пользователей в чате
+export const bans = pgTable("bans", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  chatId: bigint("chat_id", { mode: "number" }).notNull(),
+  reason: text("reason"),
+  issuedBy: integer("issued_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBanSchema = createInsertSchema(bans).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBan = z.infer<typeof insertBanSchema>;
+export type Ban = typeof bans.$inferSelect;
+
+// Inventory table - инвентарь пользователей (предметы, питомцы и т.д.)
+export const inventory = pgTable("inventory", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  itemType: text("item_type").notNull(), // pet, house, car, etc
+  itemData: jsonb("item_data").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertInventorySchema = createInsertSchema(inventory).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertInventory = z.infer<typeof insertInventorySchema>;
+export type Inventory = typeof inventory.$inferSelect;

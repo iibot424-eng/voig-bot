@@ -5,7 +5,7 @@ import { users, marriages, duels, relationships, pendingProposals, chats, warnin
 import { eq, and, or, desc, sql } from 'drizzle-orm';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const BOT_OWNER_ID = 7946808743; // ID владельца из инструкции
+const BOT_OWNER_ID = 7977020467; // @n777snickers777
 const BOT_OWNER_USERNAME = "n777snickers777";
 
 if (!BOT_TOKEN) {

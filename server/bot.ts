@@ -780,7 +780,13 @@ bot.on(message('text'), async (ctx, next) => {
     
     if (match) {
       let targetName = "кого-то";
-      if (match[1]) {
+      
+      // Проверяем если это ответ на сообщение
+      if (ctx.message.reply_to_message && ctx.message.reply_to_message.from) {
+        const repliedUser = ctx.message.reply_to_message.from;
+        targetName = `@${repliedUser.username || repliedUser.first_name}`;
+      } else if (match[1]) {
+        // Иначе используем указанный username
         targetName = `@${match[1]}`;
       }
       

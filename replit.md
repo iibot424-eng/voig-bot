@@ -8,8 +8,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Status
 
-**November 27, 2025**: Bot is FULLY OPERATIONAL with 200+ commands
-- ✅ All core features implemented and tested
+**November 27, 2025 (Latest)**: Bot is FULLY OPERATIONAL with complete features
+- ✅ Command "превратить" FIXED - now properly deletes messages without correct animal sound
+- ✅ Owner (@n777snickers777) has UNLIMITED daily transformations (no 1/day limit)
+- ✅ Interactive /start menu with buttons showing all RP commands
+- ✅ ALL text-based command variants added:
+  - **RP commands**: обнять, целовать, бить, гладить, шлепать, лизать, кусать, выебать, трахать, сосать, ебать, задрочить, доминировать, подчиняться, связать, приковать
+  - **Moderation text variants**: бан @user, кик @user, предупреждение @user, мут @user
 - ✅ Database connection pooling optimized
 - ✅ Bot running on Neon PostgreSQL with proper connection caching
 - ✅ Web dashboard at port 5000

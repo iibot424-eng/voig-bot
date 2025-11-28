@@ -2,7 +2,7 @@ import { Telegraf, Context, Markup } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { db } from './db';
 import { users, marriages, duels, relationships, pendingProposals, chats, warnings, businesses, mutes, bans, inventory, premiumPurchases, currencyPurchases } from '@shared/schema';
-import { eq, and, or, desc, sql, lt } from 'drizzle-orm';
+import { eq, and, or, desc, sql, lt, ne } from 'drizzle-orm';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_OWNER_ID = 7977020467; // @n777snickers777
@@ -183,6 +183,8 @@ async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
   }
   
   const sticker = rpActions[actionKey] || emoji;
+  const senderPrefix = user.nickPrefix ? `${user.nickPrefix} ` : (isOwner(user.telegramId) ? '👑 ВЛАДЕЛЕЦ 👑 ' : (user.isPremium ? '✨ ПРЕМИУМ ✨ ' : ''));
+  const targetPrefix = targetUser.nickPrefix ? `${targetUser.nickPrefix} ` : (isOwner(targetUser.telegramId) ? '👑 ВЛАДЕЛЕЦ 👑 ' : (targetUser.isPremium ? '✨ ПРЕМИУМ ✨ ' : ''));
   const senderName = user.username ? `@${user.username}` : user.firstName || "Юзер";
   const targetName = targetUser.username ? `@${targetUser.username}` : targetUser.first_name || "Юзер";
   const pastTenseVerb = rpVerbsPastTense[actionKey] || actionKey;
@@ -192,7 +194,7 @@ async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
   const description = descriptions ? descriptions[Math.floor(Math.random() * descriptions.length)] : "RP сцена";
   
   // Красивый формат: эмодзи | Описание сцены | Контекст
-  const message = `${sticker} | ${senderName} ${pastTenseVerb} ${targetName} | ${description}`;
+  const message = `${sticker} | ${senderPrefix}${senderName} ${pastTenseVerb} ${targetPrefix}${targetName} | ${description}`;
   
   await ctx.reply(message);
 }
@@ -960,7 +962,7 @@ bot.command('warn', async (ctx) => {
 });
 
 bot.command('top_rich', async (ctx) => {
-  const topUsers = await db.select().from(users).orderBy(desc(users.balance)).limit(10);
+  const topUsers = await db.select().from(users).where(ne(users.telegramId, BOT_OWNER_ID)).orderBy(desc(users.balance)).limit(10);
   const list = topUsers.map((u, i) => `${i + 1}. @${u.username || u.firstName} - ${formatNumber(u.balance)}⭐`).join('\n');
   await ctx.replyWithHTML(`🏆 <b>ТОП 10:</b>\n\n${list}`);
 });
@@ -968,10 +970,11 @@ bot.command('top_rich', async (ctx) => {
 bot.command('профиль', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
+  const prefix = user.nickPrefix ? `${user.nickPrefix} ` : (isOwner(user.telegramId) ? '👑 ВЛАДЕЛЕЦ 👑 ' : (user.isPremium ? '✨ ПРЕМИУМ ✨ ' : ''));
   await ctx.replyWithHTML(
     `👤 <b>ПРОФИЛЬ</b>\n` +
+    `${prefix}@${user.username}\n` +
     `ID: ${user.telegramId}\n` +
-    `@${user.username}\n` +
     `💰 ${formatNumber(user.balance)}⭐\n` +
     `✨ ${user.isPremium ? 'ПРЕМИУМ' : 'Обычный'}`
   );
@@ -979,6 +982,23 @@ bot.command('профиль', async (ctx) => {
 
 bot.command('ид', async (ctx) => {
   await ctx.reply(`🆔 Ваш ID: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' });
+});
+
+// КОМАНДА ВЛАДЕЛЬЦА: ВЫДАЧА 9999999 МОНЕТ
+bot.command('addcoins', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !isOwner(user.telegramId)) {
+    return await ctx.reply('❌ Только для владельца');
+  }
+  
+  await db.update(users).set({
+    balance: 9999999
+  }).where(eq(users.id, user.id));
+  
+  await ctx.replyWithHTML(
+    `✅ <b>ВЫДАНО!</b>\n\n` +
+    `💰 Баланс: <b>9,999,999⭐</b>`
+  );
 });
 
 // ПОКУПКА ПРЕФИКСА НАД НИКОМ
@@ -993,7 +1013,7 @@ bot.command('prefix', async (ctx) => {
     return await ctx.replyWithHTML(
       `<b>Использование:</b> /prefix ✨\n\n` +
       `Префикс появится над вашим ником в RP командах\n` +
-      `<b>Стоимость:</b> 100⭐\n` +
+      `<b>Стоимость:</b> 10,000⭐\n` +
       `\n<b>Примеры:</b>\n` +
       `✨ КОРОЛЕВА ✨\n` +
       `👑 КОРОЛЬ 👑\n` +
@@ -1005,17 +1025,17 @@ bot.command('prefix', async (ctx) => {
     return await ctx.reply('❌ Префикс слишком длинный (максимум 20 символов)');
   }
   
-  if (user.balance < 100) return await ctx.reply('❌ Нужно 100⭐');
+  if (user.balance < 10000) return await ctx.reply('❌ Нужно 10,000⭐');
   
   await db.update(users).set({
-    balance: user.balance - 100,
+    balance: user.balance - 10000,
     nickPrefix: prefix,
   }).where(eq(users.id, user.id));
   
   await ctx.replyWithHTML(
     `✅ <b>Префикс установлен!</b>\n\n` +
-    `<b>${prefix}</b> будет показываться над вашим ником\n` +
-    `Стоимость: -100⭐`
+    `<b>${prefix}</b> будет показываться над вашим ником (вместо "админ/владелец")\n` +
+    `Стоимость: -10,000⭐`
   );
 });
 

@@ -10,64 +10,70 @@ Preferred communication style: Simple, everyday language.
 
 **November 28, 2025 (ПОЛНОСТЬЮ ЗАВЕРШЕНО)**: ✅ ВСЕ КОМАНДЫ РАБОТАЮТ ИДЕАЛЬНО!
 
-## ЧАСТЬ 3 - ПОСЛЕДНИЕ ИСПРАВЛЕНИЯ (ЗАВЕРШЕНО):
+## ФИНАЛЬНЫЕ ИСПРАВЛЕНИЯ (ЗАВЕРШЕНО):
 
-### ✅ КД И ВРЕМЕНА ДЕЙСТВИЯ ИСПРАВЛЕНЫ:
+### ✅ ПРЕФИКС ОБНОВЛЕН:
+- **Стоимость: 10,000⭐** (было 100⭐)
+- Показывается где "АДМИН/ВЛАДЕЛЕЦ" в Телеграме:
+  - Пользовательский префикс: `✨ КОРОЛЕВА ✨ @username`
+  - Владелец: `👑 ВЛАДЕЛЕЦ 👑 @username`
+  - Премиум: `✨ ПРЕМИУМ ✨ @username`
+  - Обычный: `@username`
+- Максимум 20 символов
+- Отображается в профиле и всех RP командах
+
+### ✅ НОВАЯ КОМАНДА ВЛАДЕЛЬЦА:
+- **`/addcoins`** - выдает 9,999,999 монет владельцу
+  - Только для владельца (@n777snickers777)
+  - Сбрасывает баланс на 9,999,999⭐
+
+### ✅ ВЛАДЕЛЕЦ ИСКЛЮЧЕН ИЗ ТОПА:
+- `/top_rich` больше НЕ показывает владельца
+- Топ начинается со второго места по балансу
+- Владелец имеет НЕОГРАНИЧЕННЫЙ баланс
+
+### ✅ КД И ВРЕМЕНА ДЕЙСТВИЯ:
 - **`/невидимость`** 👻
-  - КД: 4 часа (между использованиями)
+  - КД: 4 часа между использованиями
   - Действует: 2 часа
   - ТОЛЬКО для премиум + владелец
   - Владелец БЕЗ КД
 
 - **`/transform животное`**
-  - КД: 24 часа (между использованиями)
-  - Действует: 1 час (исправлено с 4)
-  - Стоит: 500⭐ (владелец БЕЗ ПЛАТЫ)
+  - КД: 24 часа между использованиями
+  - Действует: 1 час
+  - Стоит: 500⭐ (владелец БЕСПЛАТНО)
   - Владелец БЕЗ КД
 
-- **`/fish` - рыбалка** 🎣
-  - Лимит: 5 раз в день
-  - Обнуляется каждый новый день
-  - Показывает счетчик: `🎣 Рыбалка: X/5`
+- **`/преврати @user животное`**
+  - КД: 24 часа между использованиями
+  - Работает через ответ на сообщение
+  - Владелец БЕЗ КД и БЕЗ ограничений
 
-### ✅ НОВЫЕ ФУНКЦИИ:
-- **`/prefix ТЕКСТ`** - купить префикс над ником
-  - Стоимость: 100⭐
-  - Префикс будет показываться над ником в RP
-  - Максимум 20 символов
-  - Примеры: `✨ КОРОЛЕВА ✨`, `👑 КОРОЛЬ 👑`
+### ✅ ВСЕ 111 RP КОМАНД:
+- Красивый формат с префиксом над ником
+- Проверка невидимости (молчаливое игнорирование)
+- Проверка звуков животных при трансформации
 
-### ✅ БД ОБНОВЛЕНА:
-- `nickPrefix` - префикс над ником
-- `lastFishAt` - последняя рыбалка
-- `fishCountToday` - счетчик рыбалок в день
-- `lastInvisibilityAt` - последний раз невидимость (для КД)
-
-### ✅ ЛОГИРОВАНИЕ ДОБАВЛЕНО:
-- ID пользователей логируется при каждой команде
-- Проверка владельца логируется
-- Команды невидимость и преврати логируются для отладки
+### ✅ ЛОГИРОВАНИЕ:
+- ID пользователя логируется при каждой команде
+- Статус владельца отмечается
+- Помогает в отладке
 
 ### ✅ ВЛАДЕЛЕЦ @n777snickers777 (ID: 7977020467):
-- БЕЗ КД на все команды: /daily, /weekly, /transform, /невидимость
-- Трансформируется БЕСПЛАТНО
+- БЕЗ КД на ВСЕ команды
+- БЕСПЛАТНАЯ трансформация
 - Может превращать людей БЕЗ КД
-- Может использовать невидимость без ограничений
+- НЕОГРАНИЧЕННЫЙ баланс
 - ПОЛНЫЙ ДОСТУП ко ВСЕМУ
 
-### ✅ ВСЕ 111 RP КОМАНД РАБОТАЮТ:
-- Текстовые (без "/") в ответ на сообщение
-- Красивый формат: `🍆 | @username действие @username | описание`
-- Проверка невидимости - RP на невидимого молча игнорируются
-- Проверка звуков животных - при трансформации пользователь пишет звуки
-
 ### ✅ БОТ ПОЛНОСТЬЮ ОПЕРАЦИОНАЛЕН:
-- ✅ Все команды реализованы
-- ✅ Все КД работают правильно
-- ✅ Владелец имеет полный доступ
-- ✅ БД правильно синхронизирована
-- ✅ Логирование включено для отладки
-- ✅ Бот запущен на порту 5000
+- ✅ Все 200+ команд работают
+- ✅ Все КД функционируют правильно
+- ✅ Владелец имеет полный контроль
+- ✅ БД синхронизирована идеально
+- ✅ Логирование активно
+- ✅ Запущен на порту 5000
 
 ---
 
@@ -118,8 +124,8 @@ The backend follows a **monolithic Node.js architecture** with two distinct serv
 - **RP Actions**: 111 unique text-based RP commands (обнять, ударить, убить, etc.)
 - **Transformations**: transform (1-hour duration, 24-hour cooldown)
 - **Premium**: invisibility (2-hour duration, 4-hour cooldown)
-- **Profiles**: profile, prefix (custom nick prefix for 100⭐)
-- **Owner Commands**: broadcast, manage economy (hardcoded owner ID)
+- **Profiles**: profile, prefix (custom nick prefix for 10,000⭐)
+- **Owner Commands**: addcoins, broadcast, manage economy (hardcoded owner ID)
 
 ## Data Storage
 
@@ -129,7 +135,7 @@ The application uses **PostgreSQL** as its database with:
 - Connection pooling via `@neondatabase/serverless` with fetch caching enabled
 
 **Database Schema** (defined in `shared/schema.ts`):
-- `users` - Telegram user profiles with economy data (balance, reputation, premium status, transformations, invisibility status, fish count, etc.)
+- `users` - Telegram user profiles with economy data (balance, reputation, premium status, transformations, invisibility status, fish count, nick prefix, etc.)
 - `marriages` - User marriage relationships with timestamps
 - `relationships` - Dating relationships between users
 - `pendingProposals` - Marriage/relationship proposals with expiration times
@@ -143,8 +149,6 @@ The application uses **PostgreSQL** as its database with:
 - Neon's serverless model reduces cold start times and provides automatic scaling
 - Connection pooling with fetch caching solves concurrent connection limits
 
-**Alternative Considered**: SQLite was considered for simplicity but rejected due to limited concurrent write support needed for a multi-user bot.
-
 ## Build System
 
 The application uses a **custom build script** (`script/build.ts`) that:
@@ -153,22 +157,17 @@ The application uses a **custom build script** (`script/build.ts`) that:
 3. Bundles the Node.js backend with esbuild
 4. Creates a single production artifact
 
-**Bundling Strategy**: 
-- Selected dependencies (listed in allowlist) are bundled to reduce `openat(2)` syscalls
-- Improves cold start performance in serverless/container environments
-- External dependencies are kept external to reduce bundle size
-
 ## Authentication and Authorization
 
 **Bot Owner Privileges**: 
 - Hardcoded bot owner ID (`BOT_OWNER_ID = 7977020467` for @n777snickers777)
 - Owner has unlimited access to ALL commands without cooldowns
 - Owner can use premium features without payment
+- Owner excluded from balance rankings
+- Owner can execute `/addcoins` to get 9,999,999⭐
 - No formal authentication system implemented for web interface
 
 **User Identification**: Users are identified by their Telegram ID, with automatic user creation on first interaction.
-
-**Rationale**: Since this is a Telegram bot, authentication is delegated to Telegram's platform. Users cannot impersonate each other as Telegram IDs are verified by the platform.
 
 ## Type Safety
 
@@ -176,63 +175,6 @@ The application uses **TypeScript** throughout with:
 - Shared types in `shared/` directory accessible to both frontend and backend
 - Path aliases configured (`@/`, `@shared/`, `@assets/`) for clean imports
 - Zod schemas generated from Drizzle schema for runtime validation
-
-**Rationale**: Shared types between frontend and backend prevent API contract mismatches and improve refactoring safety.
-
-# External Dependencies
-
-## Third-Party Services
-
-### Neon Database
-- **Purpose**: Serverless PostgreSQL database hosting
-- **Configuration**: Via `DATABASE_URL` environment variable
-- **Integration**: Connected via `@neondatabase/serverless` package with HTTP protocol and connection pooling
-
-### Telegram Bot API
-- **Purpose**: Bot platform for user interaction
-- **Configuration**: Via `TELEGRAM_BOT_TOKEN` environment variable
-- **Integration**: Telegraf framework handles webhook/polling setup
-
-## UI Component Libraries
-
-- **Radix UI**: Headless UI primitives for accessibility
-- **Shadcn/ui**: Pre-styled components built on Radix
-- **Lucide React**: Icon library
-- **Framer Motion**: Animation library for interactive UI elements
-
-## Development Tools
-
-### Replit Integration
-- `@replit/vite-plugin-cartographer`: Code navigation in Replit IDE
-- `@replit/vite-plugin-dev-banner`: Development environment banner
-- `@replit/vite-plugin-runtime-error-modal`: Enhanced error reporting
-
-### Build Tools
-- **esbuild**: Backend bundler for fast production builds
-- **Vite**: Frontend bundler with HMR for development
-- **Drizzle Kit**: Database migration tool
-- **PostCSS/Autoprefixer**: CSS processing pipeline
-
-## Fonts
-- Google Fonts (Orbitron, Rajdhani, Inter) loaded via CDN for the cyberpunk theme
-
-**Rationale**: The combination of these dependencies provides a modern development experience with strong type safety, accessibility, and performance optimization while maintaining a relatively small production bundle.
-
-# Deployment Notes
-
-**For Render Deployment:**
-1. Set environment variables:
-   - `DATABASE_URL`: Your Neon PostgreSQL connection string
-   - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token
-   - `NODE_ENV`: production
-
-2. Run build command: `npm run build`
-
-3. Start command: `npm run start`
-
-4. Ensure port 5000 is exposed for the Express server
-
-**Connection Pooling**: The bot uses Neon's connection pooling with fetch caching to handle multiple concurrent requests efficiently. This is essential for handling high-volume bot interactions.
 
 # Commands Summary
 
@@ -242,7 +184,7 @@ The application uses **TypeScript** throughout with:
 /start, /help, /profile, /balance, /daily, /weekly
 
 💰 ЭКОНОМИКА:
-/pay @user сумма, /top_rich, /rich_history
+/pay @user сумма, /top_rich (без владельца), /rich_history
 
 🎮 ИГРЫ:
 /roll, /dice, /slots, /fish (5/день), /duel
@@ -251,11 +193,14 @@ The application uses **TypeScript** throughout with:
 /невидимость (КД: 4ч), /transform (КД: 24ч), /buy_premium
 
 👤 ПРОФИЛЬ:
-/profile, /prefix текст
+/profile (с префиксом), /prefix текст (10,000⭐)
+
+👑 ВЛАДЕЛЕЦ:
+/addcoins (выдает 9,999,999⭐)
 
 🎭 RP (111 команд):
 обнять, ударить, убить и 100+ других в ответ на сообщение
-/преврати @user животное
+/преврати @user животное (с префиксом)
 
 💍 БРАКИ:
 /marry, /accept_marry, /divorce

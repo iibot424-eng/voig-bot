@@ -35,6 +35,12 @@ export const users = pgTable("users", {
   afkReason: text("afk_reason"),
   lastActive: timestamp("last_active").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Префиксы над ником
+  nickPrefix: text("nick_prefix"), // Префикс над ником
+  // Лимиты на игры
+  lastFishAt: timestamp("last_fish_at"), // Последняя рыбалка
+  fishCountToday: integer("fish_count_today").notNull().default(0), // Сколько раз рыбалка сегодня
+  lastInvisibilityAt: timestamp("last_invisibility_at"), // Последний раз невидимость (для кулдауна)
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

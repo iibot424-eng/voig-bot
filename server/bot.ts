@@ -8,9 +8,12 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_OWNER_ID = 7977020467; // @n777snickers777
 const BOT_OWNER_USERNAME = "n777snickers777";
 const TRANSFORM_COOLDOWN_HOURS = 24;
-const TRANSFORM_DURATION_HOURS = 4;
+const TRANSFORM_DURATION_HOURS = 1; // 1 час действует
+const INVISIBILITY_COOLDOWN_HOURS = 4; // 4 часа КД
+const INVISIBILITY_DURATION_HOURS = 2; // 2 часа действует
 const PREMIUM_COST_STARS = 200;
 const WEEKLY_BONUS_POINTS = 10000;
+const FISH_LIMIT_PER_DAY = 5;
 
 if (!BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN не найден в переменных окружения');
 
@@ -635,6 +638,23 @@ bot.command('slots', async (ctx) => {
 bot.command('fish', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
+  
+  // Проверка лимита 5 рыбалок в день
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const lastFish = user.lastFishAt ? new Date(user.lastFishAt) : null;
+  const lastFishDay = lastFish ? new Date(lastFish.getFullYear(), lastFish.getMonth(), lastFish.getDate()) : null;
+  
+  // Если это новый день, сброс счетчика
+  let fishCount = user.fishCountToday || 0;
+  if (!lastFishDay || lastFishDay < today) {
+    fishCount = 0;
+  }
+  
+  if (fishCount >= FISH_LIMIT_PER_DAY) {
+    return await ctx.replyWithHTML(`❌ <b>Лимит рыбалки:</b> ${FISH_LIMIT_PER_DAY}/день\n⏳ Попробуйте завтра!`);
+  }
+  
   if (user.balance < 50) return await ctx.reply('❌ Нужно 50⭐');
   
   const fish = ['🐟', '🐠', '🐡', '🦈'];
@@ -642,8 +662,13 @@ bot.command('fish', async (ctx) => {
   const win = randomInt(50, 500);
   const newBalance = user.balance - 50 + win;
   
-  await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
-  await ctx.replyWithHTML(`${caught} Поймали! +${win}⭐`);
+  await db.update(users).set({ 
+    balance: newBalance,
+    lastFishAt: new Date(),
+    fishCountToday: fishCount + 1,
+  }).where(eq(users.id, user.id));
+  
+  await ctx.replyWithHTML(`${caught} Поймали! +${win}⭐\n\n🎣 <b>Рыбалка:</b> ${fishCount + 1}/${FISH_LIMIT_PER_DAY}`);
 });
 
 // ТРАНСФОРМАЦИЯ СЕБЯ
@@ -676,7 +701,7 @@ bot.command('transform', async (ctx) => {
   await ctx.replyWithHTML(
     `${ANIMAL_EMOJIS[animal]} <b>Превращение!</b>\n\n` +
     `Животное: <b>${animal}</b>\n` +
-    `Длительность: 4 часа\n` +
+    `Длительность: ${TRANSFORM_DURATION_HOURS} час\n` +
     `${isOwner(user.telegramId) ? 'Стоимость: БЕСПЛАТНО (ВЛАДЕЛЕЦ)' : 'Стоимость: -500⭐'}\n` +
     `⏳ <b>КД:</b> 24ч`
   );
@@ -739,37 +764,56 @@ async function handleTransformOther(ctx: Context) {
 
 bot.command('преврати', handleTransformOther);
 
-// ПРЕМИУМ КОМАНДА: НЕВИДИМОСТЬ (2 часа)
+// ПРЕМИУМ КОМАНДА: НЕВИДИМОСТЬ (2 часа действует, 4 часа КД)
 async function handleInvisibility(ctx: Context) {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  const now = new Date();
+  const now_ms = now.getTime();
+  
+  // Проверка КД (4 часа между использованиями)
+  if (!isOwner(user.telegramId) && user.lastInvisibilityAt) {
+    const lastInvisibility = new Date(user.lastInvisibilityAt);
+    const hoursSince = (now_ms - lastInvisibility.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSince < INVISIBILITY_COOLDOWN_HOURS) {
+      const hoursLeft = Math.ceil(INVISIBILITY_COOLDOWN_HOURS - hoursSince);
+      const minutesLeft = Math.ceil((INVISIBILITY_COOLDOWN_HOURS - hoursSince) * 60);
+      return await ctx.replyWithHTML(
+        `⏳ <b>КД:</b> ${hoursLeft}ч ${minutesLeft % 60}м\n❌ Вы уже использовали невидимость!`
+      );
+    }
+  }
+  
+  // Проверка премиума
   if (!user.isPremium && !isOwner(user.telegramId)) {
     return await ctx.reply('❌ Только для премиум пользователей! Купите премиум: /buy_premium');
   }
   
-  const now = new Date();
+  // Если уже невидим, показать оставшееся время действия
   if (user.isInvisible && user.invisibilityUntil && new Date(user.invisibilityUntil) > now) {
-    const timeLeft = new Date(user.invisibilityUntil).getTime() - now.getTime();
+    const timeLeft = new Date(user.invisibilityUntil).getTime() - now_ms;
     const minutesLeft = Math.ceil(timeLeft / (1000 * 60));
     const hoursLeft = Math.floor(minutesLeft / 60);
     return await ctx.replyWithHTML(
-      `⏳ <b>КД:</b> ${hoursLeft}ч ${minutesLeft % 60}м\n❌ Вы уже невидимы!`
+      `👻 Вы уже невидимы!\n⏳ Осталось: ${hoursLeft}ч ${minutesLeft % 60}м`
     );
   }
   
-  const invisibilityUntil = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 часа
+  const invisibilityUntil = new Date(now_ms + INVISIBILITY_DURATION_HOURS * 60 * 60 * 1000);
   await db.update(users).set({
     isInvisible: true,
     invisibilityUntil,
+    lastInvisibilityAt: now,
   }).where(eq(users.id, user.id));
   
   await ctx.replyWithHTML(
     `👻 <b>ВЫ НЕВИДИМЫ!</b>\n\n` +
-    `Длительность: 2 часа\n` +
+    `Длительность: ${INVISIBILITY_DURATION_HOURS} часа\n` +
     `Статус: <b>ПРИЗРАК</b> 👻\n\n` +
     `Все RP команды больше на вас не работают!\n` +
-    `⏳ <b>КД:</b> 2ч`
+    `⏳ <b>КД:</b> ${INVISIBILITY_COOLDOWN_HOURS}ч`
   );
 }
 
@@ -927,6 +971,44 @@ bot.command('профиль', async (ctx) => {
 
 bot.command('ид', async (ctx) => {
   await ctx.reply(`🆔 Ваш ID: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' });
+});
+
+// ПОКУПКА ПРЕФИКСА НАД НИКОМ
+bot.command('prefix', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const args = ctx.message.text.split(' ');
+  const prefix = args.slice(1).join(' ');
+  
+  if (!prefix) {
+    return await ctx.replyWithHTML(
+      `<b>Использование:</b> /prefix ✨\n\n` +
+      `Префикс появится над вашим ником в RP командах\n` +
+      `<b>Стоимость:</b> 100⭐\n` +
+      `\n<b>Примеры:</b>\n` +
+      `✨ КОРОЛЕВА ✨\n` +
+      `👑 КОРОЛЬ 👑\n` +
+      `💎 ЛЕГЕНДА 💎`
+    );
+  }
+  
+  if (prefix.length > 20) {
+    return await ctx.reply('❌ Префикс слишком длинный (максимум 20 символов)');
+  }
+  
+  if (user.balance < 100) return await ctx.reply('❌ Нужно 100⭐');
+  
+  await db.update(users).set({
+    balance: user.balance - 100,
+    nickPrefix: prefix,
+  }).where(eq(users.id, user.id));
+  
+  await ctx.replyWithHTML(
+    `✅ <b>Префикс установлен!</b>\n\n` +
+    `<b>${prefix}</b> будет показываться над вашим ником\n` +
+    `Стоимость: -100⭐`
+  );
 });
 
 // ═══════════════════════════════════════════════════════════

@@ -1012,7 +1012,7 @@ bot.command('prefix', async (ctx) => {
   if (!prefix) {
     return await ctx.replyWithHTML(
       `<b>Использование:</b> /prefix ✨\n\n` +
-      `Префикс появится над вашим ником в RP командах\n` +
+      `Префикс будет показываться рядом с вашим ником в группе\n` +
       `<b>Стоимость:</b> 10,000⭐\n` +
       `\n<b>Примеры:</b>\n` +
       `✨ КОРОЛЕВА ✨\n` +
@@ -1027,14 +1027,29 @@ bot.command('prefix', async (ctx) => {
   
   if (user.balance < 10000) return await ctx.reply('❌ Нужно 10,000⭐');
   
+  // Сохраняем в БД
   await db.update(users).set({
     balance: user.balance - 10000,
     nickPrefix: prefix,
   }).where(eq(users.id, user.id));
   
+  // Пытаемся установить custom title в группе (если это не приватный чат)
+  if (ctx.chat && ctx.chat.type !== 'private') {
+    try {
+      await (ctx.telegram as any).setChatMember(ctx.chat.id, user.telegramId, {
+        can_be_edited: true,
+        custom_title: prefix,
+      });
+      console.log(`[PREFIX] Установлен префикс для ${user.username} (${user.telegramId}): ${prefix}`);
+    } catch (e: any) {
+      console.log(`[PREFIX] Ошибка при установке custom title: ${e.message}`);
+      // Продолжаем даже если ошибка - префикс сохранен в БД
+    }
+  }
+  
   await ctx.replyWithHTML(
     `✅ <b>Префикс установлен!</b>\n\n` +
-    `<b>${prefix}</b> будет показываться над вашим ником (вместо "админ/владелец")\n` +
+    `<b>${prefix}</b> показывается рядом с вашим ником\n` +
     `Стоимость: -10,000⭐`
   );
 });

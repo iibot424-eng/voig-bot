@@ -120,9 +120,9 @@ async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
   }
   
   const sticker = rpActions[actionKey] || emoji;
-  const message = `<b>@${user.username || user.firstName}</b> ${actionKey}(а) <b>@${targetUser.username || targetUser.first_name}</b>`;
+  const message = `${sticker} Юзер ${actionKey}(а) юзера`;
   
-  await ctx.replyWithHTML(`${sticker} ${message}`);
+  await ctx.reply(message);
 }
 
 // Проверить лимит трансформации (НО НЕ ДЛЯ ВЛАДЕЛЬЦА)

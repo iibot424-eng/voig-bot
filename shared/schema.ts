@@ -20,6 +20,9 @@ export const users = pgTable("users", {
   lastTransformAt: timestamp("last_transform_at"), // Для отслеживания кулдауна
   dailyBonusAt: timestamp("daily_bonus_at"),
   lastWeeklyBonusAt: timestamp("last_weekly_bonus_at"), // Для еженедельного бонуса
+  isInvisible: boolean("is_invisible").notNull().default(false), // Премиум невидимость
+  invisibilityUntil: timestamp("invisibility_until"), // До когда действует невидимость
+  lastAnimalSoundAt: timestamp("last_animal_sound_at"), // Для отслеживания звуков животных
   // Работа и бизнес
   job: text("job"),
   businessId: integer("business_id"),

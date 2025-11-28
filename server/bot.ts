@@ -44,6 +44,9 @@ const ANIMAL_SOUNDS: Record<string, string> = {
 async function getOrCreateUser(ctx: Context) {
   if (!ctx.from) return null;
   const telegramId = ctx.from.id;
+  const isOwner_check = isOwner(telegramId);
+  console.log(`[USER] ID: ${telegramId}, Username: ${ctx.from.username}, IsOwner: ${isOwner_check}`);
+  
   let [user] = await db.select().from(users).where(eq(users.telegramId, telegramId));
   
   if (!user) {
@@ -51,6 +54,7 @@ async function getOrCreateUser(ctx: Context) {
       telegramId, username: ctx.from.username || null, firstName: ctx.from.first_name || null,
       lastName: ctx.from.last_name || null, balance: 1000,
     }).returning();
+    console.log(`[USER] Создан новый пользователь ID: ${telegramId}`);
   } else {
     await db.update(users).set({ 
       lastActive: new Date(), username: ctx.from.username || null, firstName: ctx.from.first_name || null,
@@ -676,8 +680,10 @@ bot.command('transform', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[TRANSFORM] Пользователь ${user.username} (${user.telegramId}) вызвал команду трансформация`);
   const { canTransform, message: msg } = await checkTransformCooldown(user);
   if (!canTransform) {
+    console.log(`[TRANSFORM] КД: ${msg}`);
     return await ctx.replyWithHTML(msg!);
   }
   
@@ -712,6 +718,7 @@ async function handleTransformOther(ctx: Context) {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[TRANSFORM_OTHER] Пользователь ${user.username} (${user.telegramId}) вызвал команду превратить`);
   const replyTo = (ctx.message as any)?.reply_to_message;
   if (!replyTo || !replyTo.from) {
     return await ctx.reply('❌ Ответьте на сообщение пользователя и укажите животное');
@@ -769,6 +776,7 @@ async function handleInvisibility(ctx: Context) {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[INVISIBILITY] Пользователь ${user.username} (${user.telegramId}) вызвал команду невидимость`);
   const now = new Date();
   const now_ms = now.getTime();
   

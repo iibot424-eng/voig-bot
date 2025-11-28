@@ -8,49 +8,68 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Status
 
-**November 28, 2025 (FULLY COMPLETE)**: 🚀 111 RP КОМАНД - ОБЕ ПОЛОВИНЫ ЗАВЕРШЕНЫ!
+**November 28, 2025 (ПОЛНОСТЬЮ ЗАВЕРШЕНО)**: ✅ ВСЕ КОМАНДЫ РАБОТАЮТ ИДЕАЛЬНО!
 
-**ЧАСТЬ 1 - ✅ ЗАВЕРШЕНО:**
-- ✅ **111 RP КОМАНД ДОБАВЛЕНО** (все 5 категорий):
-  - 🔥 Агрессивные/Боевые (25): выстрелить, ударить, убить, арестовать, зарезать, отравить, взорвать, сжечь и т.д.
-  - ❤️ Социальные/Позитивные (20): обнять, поцеловать, выслушать, утешить, похвалить, приготовить_ужин и т.д.
-  - 🎭 Эмоции/Реакции (15): засмеяться, заплакать, удивиться, испугаться, разозлиться, закатить_глаза и т.д.
-  - 🚀 Действия/Активность (20): побежать, спрятаться, замереть, прилечь, кивнуть, кричать, исчезнуть и т.д.
-  - ❄️ Магия/Сверхъестественное (20): заморозить, поджечь, ослепить_вспышкой, воскресить, парить_в_воздухе и т.д.
-  - 🛠️ Прочие/Бытовые (11): напоить_чаем, накормить_пирогом, принести_кофе, написать_письмо и т.д.
-- ✅ **ТЕКСТОВЫЕ RP КОМАНДЫ** - работают БЕЗ "/" префикса (просто "обнять", "бить" и т.д.)
-- ✅ **СИСТЕМА ПРОВЕРКИ ЗВУКОВ ЖИВОТНЫХ** - при трансформации пользователь должен писать звуки животного (мяу, гав, муу, не-не, у-у-у, рррр, писк, рррык), иначе сообщение удаляется
-- ✅ **ЛИМИТ ТРАНСФОРМАЦИИ - БЕЗ ДЛЯ ВЛАДЕЛЬЦА** - владелец может трансформироваться бесконечно
+## ЧАСТЬ 3 - ПОСЛЕДНИЕ ИСПРАВЛЕНИЯ (ЗАВЕРШЕНО):
 
-**ЧАСТЬ 2 - ✅ ЗАВЕРШЕНО:**
-- ✅ **ПРЕМИУМ КОМАНДА /невидимость** - преобразует пользователя в "ПРИЗРАКА" на 2 часа (👻 статус "НЕВИДИМ"):
-  - Иммунитет к ВСЕМ RP командам (никто не может воздействовать на невидимого)
-  - Иммунитет срабатывает автоматически при попытке RP действия
-  - Только для премиум пользователей и владельца
-  - Молчаливое игнорирование RP команд (не показывается сообщение об ошибке)
-- ✅ **СИСТЕМА /преврати @user животное** - трансформирует ДРУГИХ пользователей:
-  - Работает через ответ на сообщение пользователя: /преврати животное
-  - Показывает сообщение: "@user преобразился в 🐱 cat!"
-  - Применяет те же проверки звуков как и обычная трансформация
-  - Владелец может трансформировать людей бесплатно
-- ✅ **ПРОВЕРКА НЕВИДИМОСТИ В RP** - при ответе на RP действие:
-  - Система проверяет, невидим ли целевой пользователь
-  - Если невидим - RP действие молча игнорируется (не отправляется)
-  - Иммунитет работает со всеми 111 RP командами
-- ✅ **ВЛАДЕЛЕЦ БЕЗ ЛИМИТОВ ВО ВСЕ КОМАНДАХ:**
-  - /daily - БЕЗ кулдауна 24 часов (владелец может брать бонус сколько угодно)
-  - /weekly - БЕЗ кулдауна 7 дней (премиум бонус на любое количество раз)
-  - /transform - БЕЗ кулдауна 24 часов (владелец может трансформироваться сколько угодно)
-  - /transform - БЕЗ СТОИМОСТИ 500⭐ (владелец трансформируется бесплатно, видно "БЕСПЛАТНО (ВЛАДЕЛЕЦ)")
-  
-- ✅ БД РАСШИРЕНА:
-  - isInvisible (boolean) - статус невидимости
-  - invisibilityUntil (timestamp) - до когда длится невидимость
-  - lastAnimalSoundAt (timestamp) - отслеживание звуков животных
-- ✅ PREMIUM SYSTEM: 200 звёзд = премиум, 10 звёзд = 10k валюты
-- ✅ Еженедельный бонус 10,000 пойнтов для премиум пользователей (БЕЗ ЛИМИТОВ ДЛЯ ВЛАДЕЛЬЦА)
-- ✅ Владелец (@n777snickers777) имеет ПОЛНЫЙ ДОСТУП ко ВСЕМУ без каких-либо ограничений
-- ✅ БОТ РАБОТАЕТ НА ПОРТУ 5000 И ПОЛНОСТЬЮ ОПЕРАЦИОНАЛЕН
+### ✅ КД И ВРЕМЕНА ДЕЙСТВИЯ ИСПРАВЛЕНЫ:
+- **`/невидимость`** 👻
+  - КД: 4 часа (между использованиями)
+  - Действует: 2 часа
+  - ТОЛЬКО для премиум + владелец
+  - Владелец БЕЗ КД
+
+- **`/transform животное`**
+  - КД: 24 часа (между использованиями)
+  - Действует: 1 час (исправлено с 4)
+  - Стоит: 500⭐ (владелец БЕЗ ПЛАТЫ)
+  - Владелец БЕЗ КД
+
+- **`/fish` - рыбалка** 🎣
+  - Лимит: 5 раз в день
+  - Обнуляется каждый новый день
+  - Показывает счетчик: `🎣 Рыбалка: X/5`
+
+### ✅ НОВЫЕ ФУНКЦИИ:
+- **`/prefix ТЕКСТ`** - купить префикс над ником
+  - Стоимость: 100⭐
+  - Префикс будет показываться над ником в RP
+  - Максимум 20 символов
+  - Примеры: `✨ КОРОЛЕВА ✨`, `👑 КОРОЛЬ 👑`
+
+### ✅ БД ОБНОВЛЕНА:
+- `nickPrefix` - префикс над ником
+- `lastFishAt` - последняя рыбалка
+- `fishCountToday` - счетчик рыбалок в день
+- `lastInvisibilityAt` - последний раз невидимость (для КД)
+
+### ✅ ЛОГИРОВАНИЕ ДОБАВЛЕНО:
+- ID пользователей логируется при каждой команде
+- Проверка владельца логируется
+- Команды невидимость и преврати логируются для отладки
+
+### ✅ ВЛАДЕЛЕЦ @n777snickers777 (ID: 7977020467):
+- БЕЗ КД на все команды: /daily, /weekly, /transform, /невидимость
+- Трансформируется БЕСПЛАТНО
+- Может превращать людей БЕЗ КД
+- Может использовать невидимость без ограничений
+- ПОЛНЫЙ ДОСТУП ко ВСЕМУ
+
+### ✅ ВСЕ 111 RP КОМАНД РАБОТАЮТ:
+- Текстовые (без "/") в ответ на сообщение
+- Красивый формат: `🍆 | @username действие @username | описание`
+- Проверка невидимости - RP на невидимого молча игнорируются
+- Проверка звуков животных - при трансформации пользователь пишет звуки
+
+### ✅ БОТ ПОЛНОСТЬЮ ОПЕРАЦИОНАЛЕН:
+- ✅ Все команды реализованы
+- ✅ Все КД работают правильно
+- ✅ Владелец имеет полный доступ
+- ✅ БД правильно синхронизирована
+- ✅ Логирование включено для отладки
+- ✅ Бот запущен на порту 5000
+
+---
 
 # System Architecture
 
@@ -88,18 +107,19 @@ The backend follows a **monolithic Node.js architecture** with two distinct serv
 - Implements 200+ bot commands and handlers in `server/bot.ts`
 - Runs independently alongside the Express server
 - All text responses in Russian
+- Comprehensive logging for debugging
 
 **Rationale**: Separating the bot logic from the web server allows independent scaling and clearer separation of concerns.
 
 **Bot Command Categories:**
-- **Economy**: balance, daily, pay, top_rich, rich_history
-- **Games**: roll, dice, slots, duel, fish, rock-paper-scissors
+- **Economy**: balance, daily, weekly, pay, top_rich, rich_history
+- **Games**: roll, dice, slots, fish (5/day limit), duel, rock-paper-scissors
 - **Social**: marry, accept_marry, divorce, dating, breakup
-- **RP Actions**: hug, kiss, hit, pat, slap
-- **Transformations**: transform (animals with 4-hour duration)
-- **Moderation**: ban, kick, warn (with admin checks)
+- **RP Actions**: 111 unique text-based RP commands (обнять, ударить, убить, etc.)
+- **Transformations**: transform (1-hour duration, 24-hour cooldown)
+- **Premium**: invisibility (2-hour duration, 4-hour cooldown)
+- **Profiles**: profile, prefix (custom nick prefix for 100⭐)
 - **Owner Commands**: broadcast, manage economy (hardcoded owner ID)
-- **Profiles**: profile, level, reputation
 
 ## Data Storage
 
@@ -109,7 +129,7 @@ The application uses **PostgreSQL** as its database with:
 - Connection pooling via `@neondatabase/serverless` with fetch caching enabled
 
 **Database Schema** (defined in `shared/schema.ts`):
-- `users` - Telegram user profiles with economy data (balance, reputation, premium status, transformations)
+- `users` - Telegram user profiles with economy data (balance, reputation, premium status, transformations, invisibility status, fish count, etc.)
 - `marriages` - User marriage relationships with timestamps
 - `relationships` - Dating relationships between users
 - `pendingProposals` - Marriage/relationship proposals with expiration times
@@ -141,8 +161,9 @@ The application uses a **custom build script** (`script/build.ts`) that:
 ## Authentication and Authorization
 
 **Bot Owner Privileges**: 
-- Hardcoded bot owner ID (`BOT_OWNER_ID = 7977020467`)
-- Owner has access to admin dashboard and special bot commands (broadcast, economy management)
+- Hardcoded bot owner ID (`BOT_OWNER_ID = 7977020467` for @n777snickers777)
+- Owner has unlimited access to ALL commands without cooldowns
+- Owner can use premium features without payment
 - No formal authentication system implemented for web interface
 
 **User Identification**: Users are identified by their Telegram ID, with automatic user creation on first interaction.
@@ -212,3 +233,30 @@ The application uses **TypeScript** throughout with:
 4. Ensure port 5000 is exposed for the Express server
 
 **Connection Pooling**: The bot uses Neon's connection pooling with fetch caching to handle multiple concurrent requests efficiently. This is essential for handling high-volume bot interactions.
+
+# Commands Summary
+
+## ✅ Все команды полностью работают:
+```
+🔵 ОСНОВНЫЕ:
+/start, /help, /profile, /balance, /daily, /weekly
+
+💰 ЭКОНОМИКА:
+/pay @user сумма, /top_rich, /rich_history
+
+🎮 ИГРЫ:
+/roll, /dice, /slots, /fish (5/день), /duel
+
+💎 ПРЕМИУМ:
+/невидимость (КД: 4ч), /transform (КД: 24ч), /buy_premium
+
+👤 ПРОФИЛЬ:
+/profile, /prefix текст
+
+🎭 RP (111 команд):
+обнять, ударить, убить и 100+ других в ответ на сообщение
+/преврати @user животное
+
+💍 БРАКИ:
+/marry, /accept_marry, /divorce
+```

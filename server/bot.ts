@@ -133,6 +133,29 @@ const rpVerbsPastTense: Record<string, string> = {
   взломать_замок: "взломал замок", написать_письмо: "написал письмо", прошептать_на_ухо: "прошептал на ухо", догнать: "догнал", обернуться: "обернулся", отступить: "отступил",
 };
 
+// Описания действий для красивого формата
+const rpActionDescriptions: Record<string, string[]> = {
+  выебать: ["жёсткий интим", "страстный момент", "горячее действие"],
+  сосать: ["интимный момент", "минет сцена", "минет"],
+  трахать: ["интим", "страсть", "жаркий момент"],
+  ебать: ["интимный момент", "жаркая сцена", "страсть"],
+  лизать: ["ласка", "ласковый момент", "нежность"],
+  задрочить: ["дрочка", "ласка", "интимный момент"],
+  дрочить: ["ласка", "стимуляция", "интимный момент"],
+  доминировать: ["доминирование", "власть", "контроль"],
+  подчиняться: ["подчинение", "слабость", "послушание"],
+  обнять: ["объятия", "ласка", "нежность"],
+  поцеловать: ["поцелуй", "ласка", "страсть"],
+  целовать: ["поцелуи", "ласка", "нежность"],
+  ударить: ["боевое действие", "удар", "конфликт"],
+  убить: ["боевое действие", "смертельный удар", "конец"],
+  заморозить: ["магия", "ледяной удар", "волшебство"],
+  поджечь: ["магия", "огненный удар", "волшебство"],
+  засмеяться: ["эмоция", "смех", "веселье"],
+  заплакать: ["эмоция", "слёзы", "грусть"],
+  побежать: ["движение", "бег", "экшн"],
+};
+
 // Обработать RP действие
 async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
   const text = (ctx.message as any)?.text || (ctx.message as any)?.caption || '';
@@ -157,7 +180,12 @@ async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
   const targetName = targetUser.username ? `@${targetUser.username}` : targetUser.first_name || "Юзер";
   const pastTenseVerb = rpVerbsPastTense[actionKey] || actionKey;
   
-  const message = `${sticker} ${senderName} ${pastTenseVerb} ${targetName}`;
+  // Получить описание действия (если есть) или использовать случайное
+  const descriptions = rpActionDescriptions[actionKey];
+  const description = descriptions ? descriptions[Math.floor(Math.random() * descriptions.length)] : "RP сцена";
+  
+  // Красивый формат: эмодзи | Описание сцены | Контекст
+  const message = `${sticker} | ${senderName} ${pastTenseVerb} ${targetName} | ${description}`;
   
   await ctx.reply(message);
 }

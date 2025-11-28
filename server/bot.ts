@@ -677,7 +677,8 @@ bot.command('transform', async (ctx) => {
     `${ANIMAL_EMOJIS[animal]} <b>Превращение!</b>\n\n` +
     `Животное: <b>${animal}</b>\n` +
     `Длительность: 4 часа\n` +
-    `${isOwner(user.telegramId) ? 'Стоимость: БЕСПЛАТНО (ВЛАДЕЛЕЦ)' : 'Стоимость: -500⭐'}`
+    `${isOwner(user.telegramId) ? 'Стоимость: БЕСПЛАТНО (ВЛАДЕЛЕЦ)' : 'Стоимость: -500⭐'}\n` +
+    `⏳ <b>КД:</b> 24ч`
   );
 });
 
@@ -689,6 +690,23 @@ async function handleTransformOther(ctx: Context) {
   const replyTo = (ctx.message as any)?.reply_to_message;
   if (!replyTo || !replyTo.from) {
     return await ctx.reply('❌ Ответьте на сообщение пользователя и укажите животное');
+  }
+  
+  // Проверка кулдауна (только для не-владельца)
+  if (!isOwner(user.telegramId)) {
+    if (user.lastTransformAt) {
+      const lastTransform = new Date(user.lastTransformAt);
+      const now = new Date();
+      const hoursSince = (now.getTime() - lastTransform.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSince < TRANSFORM_COOLDOWN_HOURS) {
+        const hoursLeft = Math.ceil(TRANSFORM_COOLDOWN_HOURS - hoursSince);
+        const minutesLeft = Math.ceil((TRANSFORM_COOLDOWN_HOURS - hoursSince) * 60);
+        return await ctx.replyWithHTML(
+          `⏳ <b>КД:</b> ${hoursLeft}ч ${minutesLeft % 60}м\n❌ Вы уже использовали превращение!`
+        );
+      }
+    }
   }
   
   const msg = ctx.message as any;
@@ -710,8 +728,12 @@ async function handleTransformOther(ctx: Context) {
     lastTransformAt: new Date(),
   }).where(eq(users.id, targetUser.id));
   
+  await db.update(users).set({
+    lastTransformAt: new Date(),
+  }).where(eq(users.id, user.id));
+  
   await ctx.replyWithHTML(
-    `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${animal}!</b>`
+    `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${animal}!</b>\n\n⏳ <b>КД:</b> 24ч`
   );
 }
 
@@ -728,7 +750,12 @@ async function handleInvisibility(ctx: Context) {
   
   const now = new Date();
   if (user.isInvisible && user.invisibilityUntil && new Date(user.invisibilityUntil) > now) {
-    return await ctx.reply('❌ Вы уже невидимы!');
+    const timeLeft = new Date(user.invisibilityUntil).getTime() - now.getTime();
+    const minutesLeft = Math.ceil(timeLeft / (1000 * 60));
+    const hoursLeft = Math.floor(minutesLeft / 60);
+    return await ctx.replyWithHTML(
+      `⏳ <b>КД:</b> ${hoursLeft}ч ${minutesLeft % 60}м\n❌ Вы уже невидимы!`
+    );
   }
   
   const invisibilityUntil = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 часа
@@ -740,8 +767,9 @@ async function handleInvisibility(ctx: Context) {
   await ctx.replyWithHTML(
     `👻 <b>ВЫ НЕВИДИМЫ!</b>\n\n` +
     `Длительность: 2 часа\n` +
-    `Статус: <b>ПРИЗРАК</b>\n\n` +
-    `Все RP команды больше на вас не работают!`
+    `Статус: <b>ПРИЗРАК</b> 👻\n\n` +
+    `Все RP команды больше на вас не работают!\n` +
+    `⏳ <b>КД:</b> 2ч`
   );
 }
 

@@ -69,6 +69,8 @@ const rpActions: Record<string, string> = {
   пнуть: "🦵", связать: "🔗", запереть: "🔐", подвергнуть_пыткам: "⚔️", закопать: "⛏️",
   обезглавить: "🪓", расстрелять: "🔫🔫", сбросить_с_высоты: "📉", укусить: "🦷", оглушить: "💫",
   обезвредить: "🛡️", разоружить: "🔓", швырнуть_об_стену: "🧱", прижать_к_стене: "📍", наступить_на_ногу: "👞",
+  выебать: "🍆", сосать: "🍑", трахать: "🔥", ебать: "💦", лизать: "👅",
+  задрочить: "👋", дрочить: "👊", доминировать: "👑", подчиняться: "🔗", приковать: "🔗",
   
   // ❤️ Социальные/Позитивные (20)
   обнять: "🤗", поцеловать: "💋", целовать: "💋", погладить_по_голове: "🤚", улыбнуться: "😊",
@@ -117,11 +119,10 @@ async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
     return; // Молча игнорируем действие
   }
   
-  const actionText = rpActions[actionKey] || emoji;
-  await ctx.reply(
-    `${emoji} <b>@${user.username || user.firstName}</b> ${actionKey}(а) <b>@${targetUser.username || targetUser.first_name}</b> ${actionText}`,
-    { parse_mode: 'HTML' }
-  );
+  const sticker = rpActions[actionKey] || emoji;
+  const message = `<b>@${user.username || user.firstName}</b> ${actionKey}(а) <b>@${targetUser.username || targetUser.first_name}</b>`;
+  
+  await ctx.replyWithHTML(`${sticker} ${message}`);
 }
 
 // Проверить лимит трансформации (НО НЕ ДЛЯ ВЛАДЕЛЬЦА)

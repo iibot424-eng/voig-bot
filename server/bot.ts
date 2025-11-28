@@ -596,6 +596,7 @@ bot.command('daily', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[DAILY] ${user.username} вызвал /daily`);
   const now = new Date();
   const lastDaily = user.dailyBonusAt ? new Date(user.dailyBonusAt) : null;
   
@@ -1017,13 +1018,13 @@ bot.command('prefix', async (ctx) => {
   
   if (!prefix) {
     return await ctx.replyWithHTML(
-      `<b>Использование:</b> /prefix ✨\n\n` +
+      `<b>Использование:</b> /prefix текст\n\n` +
       `Префикс будет показываться рядом с вашим ником в группе\n` +
       `<b>Стоимость:</b> 10,000⭐\n` +
       `\n<b>Примеры:</b>\n` +
-      `✨ КОРОЛЕВА ✨\n` +
-      `👑 КОРОЛЬ 👑\n` +
-      `💎 ЛЕГЕНДА 💎`
+      `/prefix ✨ КОРОЛЕВА ✨\n` +
+      `/prefix 👑 КОРОЛЬ 👑\n` +
+      `/prefix 💎 ЛЕГЕНДА 💎`
     );
   }
   
@@ -1041,14 +1042,32 @@ bot.command('prefix', async (ctx) => {
   
   console.log(`[PREFIX] Префикс установлен: ${user.username} (${user.telegramId}) -> "${prefix}"`);
   
+  // Устанавливаем custom title в группе если бот администратор
+  if (ctx.chat && ctx.chat.type !== 'private') {
+    try {
+      await (ctx.telegram as any).promoteChatMember(ctx.chat.id, user.telegramId, {
+        can_edit_messages: false,
+        can_delete_messages: false,
+        can_promote_members: false,
+        can_manage_chat: false,
+        can_manage_video_chats: false,
+        can_restrict_members: false,
+        can_post_stories: false,
+        can_edit_stories: false,
+        can_delete_stories: false,
+        is_anonymous: false
+      });
+      await (ctx.telegram as any).setChatAdministratorCustomTitle(ctx.chat.id, user.telegramId, prefix);
+      console.log(`[PREFIX] Custom title установлен в группе`);
+    } catch (e: any) {
+      console.log(`[PREFIX] Не удалось установить title: ${e.message}`);
+    }
+  }
+  
   await ctx.replyWithHTML(
     `✅ <b>Префикс установлен!</b>\n\n` +
     `<b>${prefix}</b> теперь показывается рядом с вашим ником\n` +
-    `Стоимость: -10,000⭐\n\n` +
-    `Префикс появится в:\n` +
-    `• RP командах\n` +
-    `• Профиле\n` +
-    `• Топе богачей`
+    `Стоимость: -10,000⭐`
   );
 });
 

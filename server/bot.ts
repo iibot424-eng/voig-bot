@@ -1,16 +1,18 @@
 import { Telegraf, Context, Markup } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { db } from './db';
-import { users, marriages, duels, relationships, pendingProposals, chats, warnings, businesses, mutes, bans, inventory } from '@shared/schema';
+import { users, marriages, duels, relationships, pendingProposals, chats, warnings, businesses, mutes, bans, inventory, premiumPurchases, currencyPurchases } from '@shared/schema';
 import { eq, and, or, desc, sql, lt } from 'drizzle-orm';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_OWNER_ID = 7977020467; // @n777snickers777
 const BOT_OWNER_USERNAME = "n777snickers777";
+const TRANSFORM_COOLDOWN_HOURS = 24;
+const TRANSFORM_DURATION_HOURS = 4;
+const PREMIUM_COST_STARS = 200;
+const WEEKLY_BONUS_POINTS = 10000;
 
-if (!BOT_TOKEN) {
-  throw new Error('TELEGRAM_BOT_TOKEN не найден в переменных окружения');
-}
+if (!BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN не найден в переменных окружения');
 
 const bot = new Telegraf(BOT_TOKEN);
 
@@ -24,53 +26,33 @@ function formatNumber(num: number): string {
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 const ANIMALS = ["cat", "dog", "cow", "fox", "wolf", "bear", "rabbit", "tiger"];
 const ANIMAL_EMOJIS: Record<string, string> = {
-  cat: "🐱", dog: "🐕", cow: "🐄", fox: "🦊",
-  wolf: "🐺", bear: "🐻", rabbit: "🐰", tiger: "🐯"
+  cat: "🐱", dog: "🐕", cow: "🐄", fox: "🦊", wolf: "🐺", bear: "🐻", rabbit: "🐰", tiger: "🐯"
 };
 const ANIMAL_SOUNDS: Record<string, string> = {
-  cat: "мяу",
-  dog: "гав",
-  cow: "муу",
-  fox: "не-не",
-  wolf: "у-у-у",
-  bear: "рррр",
-  rabbit: "писк",
-  tiger: "рррык"
+  cat: "мяу", dog: "гав", cow: "муу", fox: "не-не", wolf: "у-у-у", bear: "рррр", rabbit: "писк", tiger: "рррык"
 };
 
 // Получить или создать пользователя
 async function getOrCreateUser(ctx: Context) {
   if (!ctx.from) return null;
-  
   const telegramId = ctx.from.id;
   let [user] = await db.select().from(users).where(eq(users.telegramId, telegramId));
   
   if (!user) {
     [user] = await db.insert(users).values({
-      telegramId,
-      username: ctx.from.username || null,
-      firstName: ctx.from.first_name || null,
-      lastName: ctx.from.last_name || null,
-      balance: 1000, // Стартовый баланс
+      telegramId, username: ctx.from.username || null, firstName: ctx.from.first_name || null,
+      lastName: ctx.from.last_name || null, balance: 1000,
     }).returning();
   } else {
-    // Обновляем последнюю активность
-    await db.update(users)
-      .set({ 
-        lastActive: new Date(),
-        username: ctx.from.username || null,
-        firstName: ctx.from.first_name || null,
-      })
-      .where(eq(users.id, user.id));
+    await db.update(users).set({ 
+      lastActive: new Date(), username: ctx.from.username || null, firstName: ctx.from.first_name || null,
+    }).where(eq(users.id, user.id));
   }
-  
   return user;
 }
 
@@ -81,10 +63,48 @@ function isOwner(userId: number): boolean {
 
 // RP действия
 const rpActions: Record<string, string> = {
-  hug: "обнял(а)",
-  kiss: "поцеловал(а)",
-  hit: "ударил(а)",
+  обнять: "🤗", целовать: "💋", поцеловать: "💋", бить: "👊", ударить: "👊", гладить: "🤚",
+  шлепать: "👋", лизать: "👅", кусать: "🦷", выебать: "🔞", трахать: "🔞", ебать: "🔞",
+  сосать: "🍆", задрочить: "💦", дрочить: "💦", доминировать: "👑", подчиняться: "🙏", связать: "🔗", приковать: "⛓️",
 };
+
+// Обработать RP действие
+async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
+  const text = (ctx.message as any)?.text || (ctx.message as any)?.caption || '';
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+
+  const replyTo = (ctx.message as any)?.reply_to_message;
+  if (!replyTo || !replyTo.from) {
+    return await ctx.reply(`${emoji} Ответьте на сообщение пользователя или укажите @username`);
+  }
+
+  const targetUser = replyTo.from;
+  const actionText = rpActions[actionKey] || emoji;
+  await ctx.reply(
+    `${emoji} <b>@${user.username || user.firstName}</b> ${actionKey}(а) <b>@${targetUser.username || targetUser.first_name}</b> ${actionText}`,
+    { parse_mode: 'HTML' }
+  );
+}
+
+// Проверить лимит трансформации
+async function checkTransformCooldown(user: any): Promise<{ canTransform: boolean; message?: string }> {
+  if (!user.lastTransformAt) return { canTransform: true };
+  
+  const lastTransform = new Date(user.lastTransformAt);
+  const now = new Date();
+  const hoursSince = (now.getTime() - lastTransform.getTime()) / (1000 * 60 * 60);
+  
+  if (hoursSince < TRANSFORM_COOLDOWN_HOURS) {
+    const hoursLeft = Math.ceil(TRANSFORM_COOLDOWN_HOURS - hoursSince);
+    return {
+      canTransform: false,
+      message: `⏳ Вы уже использовали трансформацию! Осталось <b>${hoursLeft}ч</b> до следующей попытки.`
+    };
+  }
+  
+  return { canTransform: true };
+}
 
 // ═══════════════════════════════════════════════════════════
 // ОСНОВНЫЕ КОМАНДЫ
@@ -94,222 +114,327 @@ bot.command('start', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  const rpCommandsText = `
-🎭 <b>RP КОМАНДЫ (ТЕКСТОВЫЕ):</b>
-обнять, целовать, бить, гладить, шлепать, лизать, кусать, выебать, трахать, сосать, ебать, задрочить, доминировать, подчиняться, связать, приковать
-
-<b>Примеры:</b>
-обнять
-целовать @username
-бить @username
-
-<i>Или ответьте на сообщение и напишите команду</i>
-  `.trim();
-
   await ctx.replyWithHTML(
     `👋 <b>Добро пожаловать в VOIG BOT!</b>\n\n` +
-    `🎮 Бот для развлечений и экономики в Telegram.\n\n` +
-    `💰 Стартовый баланс: <b>${formatNumber(user.balance)} ⭐</b>\n\n` +
-    `${rpCommandsText}`,
+    `🎮 Бот для развлечений, экономики и RP в Telegram.\n\n` +
+    `💰 Стартовый баланс: <b>${formatNumber(user.balance)} ⭐</b>\n` +
+    `${user.isPremium ? '✨ Статус: <b>ПРЕМИУМ</b>' : '⚪ Статус: <b>ОБЫЧНЫЙ</b>'}`,
     Markup.inlineKeyboard([
-      [
-        Markup.button.callback('📋 Все команды', 'help_commands'),
-        Markup.button.callback('👤 Профиль', 'profile_view'),
-      ],
-      [
-        Markup.button.callback('💰 Баланс', 'balance_view'),
-        Markup.button.callback('🎮 Игры', 'games_view'),
-      ],
-      [
-        Markup.button.callback('💍 Отношения', 'relations_view'),
-        Markup.button.callback('🏆 Рейтинги', 'ratings_view'),
-      ],
+      [Markup.button.callback('🔵 Основные команды', 'menu_main')],
+      [Markup.button.callback('🎭 RP команды', 'menu_rp')],
+      [Markup.button.callback('💍 Браки', 'menu_marry')],
+      [Markup.button.callback('👤 Информация об пользователях', 'menu_info')],
+      [Markup.button.callback('💎 Купить премиум', 'menu_premium')],
     ])
   );
 });
 
-// Обработчики кнопок
-bot.action('help_commands', async (ctx) => {
+// Меню кнопки
+bot.action('menu_main', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `📋 <b>КОМАНДЫ VOIG BOT</b>\n\n` +
-    `<b>🔵 ОСНОВНЫЕ:</b>\n` +
-    `/start - начать работу с ботом\n` +
-    `/help - список всех команд\n` +
+    `🔵 <b>ОСНОВНЫЕ КОМАНДЫ:</b>\n\n` +
+    `/help - полный список команд\n` +
     `/profile - ваш профиль\n` +
-    `/balance - показать баланс\n` +
-    `/daily - ежедневный бонус\n\n` +
-    
+    `/balance - баланс\n` +
+    `/daily - ежедневный бонус\n` +
+    `/weekly - еженедельный бонус (премиум)\n\n` +
     `<b>💰 ЭКОНОМИКА:</b>\n` +
     `баланс - показать баланс\n` +
-    `отправить [сумма] @username - перевести звёзды\n\n` +
-    
+    `отправить [сумма] @user - перевести ⭐\n` +
+    `топ_богачей - топ 10\n\n` +
     `<b>🎮 ИГРЫ:</b>\n` +
-    `/roll - бросить кубик\n` +
+    `/roll - кубик (1-6)\n` +
     `/dice - ещё кубик\n` +
-    `/slots - слот машина\n` +
-    `/fish - рыбалка\n` +
-    `/duel @user [ставка] - вызов на дуэль\n\n` +
-    
-    `<b>💕 ОТНОШЕНИЯ:</b>\n` +
+    `/slots - слот машина (50⭐)\n` +
+    `/fish - рыбалка (50⭐)\n` +
+    `/duel @user [ставка] - дуэль`,
+    { parse_mode: 'HTML' }
+  );
+});
+
+bot.action('menu_rp', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(
+    `🎭 <b>RP КОМАНДЫ (32+):</b>\n\n` +
+    `обнять, целовать, поцеловать, бить, ударить, гладить, шлепать,\n` +
+    `лизать, кусать, выебать, трахать, ебать, сосать, задрочить, дрочить,\n` +
+    `доминировать, подчиняться, связать, приковать\n\n` +
+    `<i>Ответьте на сообщение пользователя и напишите команду без /</i>\n` +
+    `Или используйте: команда @username`,
+    { parse_mode: 'HTML' }
+  );
+});
+
+bot.action('menu_marry', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(
+    `💍 <b>ОТНОШЕНИЯ И БРАКИ:</b>\n\n` +
     `/marry @user - предложить брак\n` +
+    `/accept_marry - принять\n` +
     `/divorce - развестись\n` +
     `/dating @user - начать отношения\n` +
-    `/breakup - расстаться\n\n` +
-    
-    `<b>🎭 РОЛЕВЫЕ (текстовые варианты):</b>\n` +
-    `обнять, целовать, бить, гладить, шлепать, лизать, кусать, выебать, трахать, сосать, ебать, задрочить, доминировать, подчиняться, связать, приковать\n\n` +
-    
-    `<b>🐾 ПРЕВРАЩЕНИЯ:</b>\n` +
-    `превратить - премиум команда (1/день)\n` +
-    `Звук должен быть в начале каждого сообщения\n\n` +
-    
-    `<b>⚙️ МОДЕРАЦИЯ (текстовые варианты):</b>\n` +
-    `бан @user\n` +
-    `кик @user\n` +
-    `предупреждение @user\n` +
-    `мут @user`,
+    `/breakup - расстаться`,
     { parse_mode: 'HTML' }
   );
 });
 
-bot.action('profile_view', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  
-  const [marriage] = await db.select().from(marriages)
-    .where(or(
-      eq(marriages.user1Id, user.id),
-      eq(marriages.user2Id, user.id)
-    ))
-    .limit(1);
-  
-  let marriageText = "Нет";
-  if (marriage) {
-    const partnerId = marriage.user1Id === user.id ? marriage.user2Id : marriage.user1Id;
-    const [partner] = await db.select().from(users).where(eq(users.id, partnerId));
-    marriageText = partner ? `@${partner.username || partner.firstName}` : "Неизвестно";
-  }
-  
-  let transformText = "";
-  if (user.transformAnimal && user.transformUntil && new Date(user.transformUntil) > new Date()) {
-    const emoji = ANIMAL_EMOJIS[user.transformAnimal] || "🦊";
-    transformText = `\n🐾 Превращение: ${emoji} ${user.transformAnimal}`;
-  }
-  
-  const premiumText = user.isPremium ? "✨ ПРЕМИУМ" : "Обычный";
-  
+bot.action('menu_info', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `👤 <b>ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ</b>\n\n` +
-    `🆔 ID: <code>${user.telegramId}</code>\n` +
-    `👤 Имя: ${escapeHtml(user.firstName || "Нет")}\n` +
-    `📛 Username: @${user.username || "нет"}\n\n` +
-    `💰 Баланс: <b>${formatNumber(user.balance)} ⭐</b>\n` +
-    `🏆 Репутация: <b>${user.reputation}</b>\n` +
-    `💍 В браке с: ${marriageText}\n` +
-    `✨ Статус: ${premiumText}${transformText}`,
-    { parse_mode: 'HTML' }
-  );
-});
-
-bot.action('balance_view', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `💰 <b>Ваш баланс:</b> ${formatNumber(user.balance)} ⭐`,
-    { parse_mode: 'HTML' }
-  );
-});
-
-bot.action('games_view', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `🎮 <b>ИГРЫ:</b>\n\n` +
-    `/roll - бросить кубик (1-6)\n` +
-    `/dice - ещё кубик\n` +
-    `/slots - слот машина (50⭐ за игру)\n` +
-    `/fish - рыбалка (50⭐ за попытку)\n` +
-    `/duel @user [ставка] - вызов на дуэль\n\n` +
-    `<i>Используйте команды с / для игр</i>`,
-    { parse_mode: 'HTML' }
-  );
-});
-
-bot.action('relations_view', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `💕 <b>ОТНОШЕНИЯ:</b>\n\n` +
-    `/marry @user - предложить брак\n` +
-    `/accept_marry - принять предложение\n` +
-    `/divorce - развестись\n` +
-    `/dating @user - начать отношения\n` +
-    `/breakup - расстаться\n\n` +
-    `<i>Используйте команды с / для отношений</i>`,
-    { parse_mode: 'HTML' }
-  );
-});
-
-bot.action('ratings_view', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `🏆 <b>РЕЙТИНГИ:</b>\n\n` +
+    `👤 <b>ИНФОРМАЦИЯ ОБ ПОЛЬЗОВАТЕЛЯХ:</b>\n\n` +
+    `/profile - ваш профиль\n` +
+    `/профиль - профиль на русском\n` +
+    `/ид - ваш Telegram ID\n` +
     `/top_rich - топ богачей\n` +
-    `/top_reputation - топ репутации\n` +
-    `/stats - статистика бота\n\n` +
-    `<i>Используйте команды с / для просмотра</i>`,
+    `/stats - статистика бота`,
     { parse_mode: 'HTML' }
   );
 });
 
+bot.action('menu_premium', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(
+    `💎 <b>ПРЕМИУМ СИСТЕМА:</b>\n\n` +
+    `<b>Стоимость:</b> 200 Telegram Stars ⭐\n` +
+    `<b>Преимущества:</b>\n` +
+    `  • Повышенный ежедневный бонус (1000 вместо 500)\n` +
+    `  • Еженедельный бонус: 10,000 пойнтов\n` +
+    `  • Трансформации животных\n` +
+    `  • Другие эксклюзивные команды\n\n` +
+    `Используйте: /buy_premium`,
+    { parse_mode: 'HTML' }
+  );
+});
+
+// Команда покупки премиума
+bot.command('buy_premium', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  if (user.isPremium && user.premiumUntil && new Date(user.premiumUntil) > new Date()) {
+    return await ctx.reply('✨ У вас уже есть активный премиум!');
+  }
+  
+  try {
+    await ctx.replyWithHTML(
+      `💎 <b>Купить ПРЕМИУМ за 200 Telegram Stars</b>\n\n` +
+      `Вы получите:\n` +
+      `• Повышенные бонусы\n` +
+      `• Эксклюзивные команды\n` +
+      `• Еженедельные награды`,
+      Markup.inlineKeyboard([
+        [Markup.button.pay('💳 Оплатить 200 ⭐')]
+      ])
+    );
+  } catch (e) {
+    await ctx.reply('❌ Ошибка при открытии платежа');
+  }
+});
+
+// Проверка платежа перед оплатой
+bot.on('pre_checkout_query', async (ctx) => {
+  try {
+    await ctx.answerPreCheckoutQuery(true);
+  } catch (e) {
+    console.error('Pre-checkout error:', e);
+  }
+});
+
+// Успешный платёж
+bot.on('successful_payment', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const payment = ctx.message?.successful_payment;
+  if (!payment) return;
+  
+  const starsAmount = payment.total_amount;
+  
+  // Премиум за 200 звёзд
+  if (starsAmount === 200) {
+    const premiumUntil = new Date();
+    premiumUntil.setMonth(premiumUntil.getMonth() + 1);
+    
+    await db.update(users).set({
+      isPremium: true,
+      premiumUntil,
+    }).where(eq(users.id, user.id));
+    
+    await db.insert(premiumPurchases).values({
+      userId: user.id,
+      telegramPaymentChargeId: payment.telegram_payment_charge_id,
+      starsAmount: 200,
+      premiumMonths: 1,
+      status: 'completed',
+    });
+    
+    return await ctx.replyWithHTML(
+      `✨ <b>СПАСИБО ЗА ПОКУПКУ!</b>\n\n` +
+      `🎉 Вы получили <b>ПРЕМИУМ</b> на 1 месяц!\n` +
+      `💎 Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`
+    );
+  }
+  
+  // Валюта за звёзды (10 звёзд = 10k)
+  const currencyAmount = (starsAmount / 10) * 10000;
+  await db.update(users).set({
+    balance: user.balance + currencyAmount,
+  }).where(eq(users.id, user.id));
+  
+  await db.insert(currencyPurchases).values({
+    userId: user.id,
+    telegramPaymentChargeId: payment.telegram_payment_charge_id,
+    starsAmount,
+    currencyAmount: Math.floor(currencyAmount),
+    status: 'completed',
+  });
+  
+  await ctx.replyWithHTML(
+    `💰 <b>ПОКУПКА ЗАВЕРШЕНА!</b>\n\n` +
+    `Вы получили: <b>${formatNumber(Math.floor(currencyAmount))}</b> пойнтов\n` +
+    `Новый баланс: <b>${formatNumber(user.balance + currencyAmount)}</b>`
+  );
+});
+
+// Еженедельный бонус для премиум
+bot.command('weekly', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  if (!user.isPremium) {
+    return await ctx.reply('❌ Эта команда только для премиум пользователей! Купите премиум: /buy_premium');
+  }
+  
+  const now = new Date();
+  const lastWeekly = user.lastWeeklyBonusAt ? new Date(user.lastWeeklyBonusAt) : null;
+  
+  if (lastWeekly) {
+    const daysSince = (now.getTime() - lastWeekly.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince < 7) {
+      const daysLeft = Math.ceil(7 - daysSince);
+      return await ctx.replyWithHTML(
+        `⏳ Вы уже получали еженедельный бонус!\n` +
+        `Приходите через <b>${daysLeft} дней</b>`
+      );
+    }
+  }
+  
+  await db.update(users).set({
+    balance: user.balance + WEEKLY_BONUS_POINTS,
+    lastWeeklyBonusAt: now,
+  }).where(eq(users.id, user.id));
+  
+  await ctx.replyWithHTML(
+    `🎁 <b>ЕЖЕНЕДЕЛЬНЫЙ БОНУС ПРЕМИУМА:</b>\n\n` +
+    `+${formatNumber(WEEKLY_BONUS_POINTS)} 💰\n` +
+    `💰 Новый баланс: ${formatNumber(user.balance + WEEKLY_BONUS_POINTS)}`
+  );
+});
+
+// RP КОМАНДЫ - ВСЕ ВАРИАНТЫ
+const rpCommands = [
+  ['hug', 'обнять', 'обнимать'],
+  ['kiss', 'целовать', 'поцеловать'],
+  ['hit', 'бить', 'ударить'],
+  ['pat', 'гладить', 'гладь'],
+  ['slap', 'шлепать', 'шлеп'],
+  ['lick', 'лизать', 'лиз'],
+  ['bite', 'кусать', 'кус'],
+  ['fuck', 'выебать', 'трахать', 'ебать'],
+  ['suck', 'сосать', 'сос'],
+  ['jerk', 'задрочить', 'дрочить'],
+  ['dominate', 'доминировать', 'доминирование'],
+  ['obey', 'подчиняться', 'подчинение'],
+  ['bind', 'связать', 'связывать'],
+  ['chain', 'приковать', 'приковывать'],
+];
+
+for (const [cmdEn, ...cmdRu] of rpCommands) {
+  for (const cmd of [cmdEn, ...cmdRu]) {
+    bot.command(cmd, async (ctx) => {
+      await handleRpAction(ctx, cmdRu[0] || cmd, rpActions[cmdRu[0] || cmd] || '💫');
+    });
+  }
+}
+
+// ТЕКСТОВЫЕ RP КОМАНДЫ
+bot.on(message('text'), async (ctx, next) => {
+  const text = ctx.message.text.toLowerCase().trim();
+  const user = await getOrCreateUser(ctx);
+  if (!user) return next();
+  
+  // Проверка превращения - удалить если нет звука
+  if (user.transformUntil && new Date() < new Date(user.transformUntil) && user.transformAnimal) {
+    const sound = ANIMAL_SOUNDS[user.transformAnimal];
+    if (sound && !text.startsWith(sound)) {
+      try { await ctx.deleteMessage(); } catch (e) {}
+      return;
+    }
+  }
+  
+  // баланс
+  if (text === 'баланс') {
+    return await ctx.replyWithHTML(`💰 <b>Баланс:</b> ${formatNumber(user.balance)} ⭐`);
+  }
+  
+  // денги [число] - только владелец
+  if (text.match(/^денги\s+(\d+)$/)) {
+    if (!isOwner(user.telegramId)) {
+      return await ctx.reply("🚫 Только владелец!");
+    }
+    const amount = parseInt(text.match(/^денги\s+(\d+)$/)![1]);
+    const newBalance = user.balance + amount;
+    await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(`💎 +${formatNumber(amount)} ⭐\n💰 Баланс: ${formatNumber(newBalance)}`);
+  }
+  
+  // отправить [сумма] @username
+  if (text.match(/^отправить\s+(\d+)\s+@(\w+)/)) {
+    const match = text.match(/^отправить\s+(\d+)\s+@(\w+)/)!;
+    const amount = parseInt(match[1]);
+    const targetUsername = match[2];
+    
+    if (amount <= 0) return await ctx.reply('❌ Сумма должна быть больше 0');
+    if (user.balance < amount) return await ctx.reply('❌ Недостаточно звёзд');
+    
+    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
+    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
+    
+    await db.update(users).set({ balance: user.balance - amount }).where(eq(users.id, user.id));
+    await db.update(users).set({ balance: targetUser.balance + amount }).where(eq(users.id, targetUser.id));
+    
+    return await ctx.replyWithHTML(`✅ Отправлено ${formatNumber(amount)} ⭐ для @${targetUsername}`);
+  }
+  
+  // RP текстовые команды
+  for (const [_, ...variants] of rpCommands) {
+    if (variants.includes(text)) {
+      return await handleRpAction(ctx, variants[0], '💫');
+    }
+  }
+  
+  return next();
+});
+
+// СТАНДАРТНЫЕ КОМАНДЫ
 bot.command('help', async (ctx) => {
   await ctx.replyWithHTML(
-    `📋 <b>КОМАНДЫ VOIG BOT</b>\n\n` +
-    `<b>🔵 ОСНОВНЫЕ:</b>\n` +
-    `/start - начать работу с ботом\n` +
-    `/help - список всех команд\n` +
-    `/profile - ваш профиль\n` +
-    `/balance - показать баланс\n` +
-    `/daily - ежедневный бонус\n\n` +
-    
-    `<b>💰 ЭКОНОМИКА:</b>\n` +
-    `баланс - показать баланс\n` +
-    `отправить [сумма] @username - перевести звёзды\n\n` +
-    
-    `<b>🎮 ИГРЫ:</b>\n` +
-    `/roll - бросить кубик\n` +
-    `/dice - ещё кубик\n` +
+    `📋 <b>КОМАНДЫ:</b>\n\n` +
+    `/start - меню\n` +
+    `/profile - профиль\n` +
+    `/balance - баланс\n` +
+    `/daily - ежедневный бонус\n` +
+    `/weekly - еженедельный бонус (премиум)\n` +
+    `/roll /dice - кубик\n` +
     `/slots - слот машина\n` +
     `/fish - рыбалка\n` +
-    `/duel @user [ставка] - вызов на дуэль\n\n` +
-    
-    `<b>💕 ОТНОШЕНИЯ:</b>\n` +
-    `/marry @user - предложить брак\n` +
-    `/divorce - развестись\n` +
-    `/dating @user - начать отношения\n` +
-    `/breakup - расстаться\n\n` +
-    
-    `<b>🎭 РОЛЕВЫЕ:</b>\n` +
-    `/hug @user - обнять\n` +
-    `/kiss @user - поцеловать\n` +
-    `/hit @user - ударить\n\n` +
-    
-    `<b>🐾 ПРЕВРАЩЕНИЯ:</b>\n` +
-    `превратить - премиум (1/день)\n` +
-    `/transform [животное] - платная версия\n` +
-    `Доступные: cat, dog, cow, fox, wolf, bear\n\n` +
-    
-    `<b>🏆 РЕЙТИНГИ:</b>\n` +
+    `/duel @user - дуэль\n` +
+    `/marry @user - брак\n` +
+    `/divorce - развод\n` +
+    `/buy_premium - купить премиум\n` +
     `/top_rich - топ богачей\n` +
-    `/top_reputation - топ репутации\n` +
-    `/stats - статистика бота\n\n` +
-    
-    `<b>⚙️ МОДЕРАЦИЯ (для админов):</b>\n` +
-    `/ban @user - забанить\n` +
-    `/kick @user - выгнать\n` +
-    `/warn @user - предупреждение`
+    `/профиль /ид - профиль (RU)`
   );
 });
 
@@ -318,46 +443,37 @@ bot.command('profile', async (ctx) => {
   if (!user) return;
   
   const [marriage] = await db.select().from(marriages)
-    .where(or(
-      eq(marriages.user1Id, user.id),
-      eq(marriages.user2Id, user.id)
-    ))
+    .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)))
     .limit(1);
   
   let marriageText = "Нет";
   if (marriage) {
     const partnerId = marriage.user1Id === user.id ? marriage.user2Id : marriage.user1Id;
     const [partner] = await db.select().from(users).where(eq(users.id, partnerId));
-    marriageText = partner ? `@${partner.username || partner.firstName}` : "Неизвестно";
+    marriageText = partner ? `@${partner.username}` : "?";
   }
   
   let transformText = "";
   if (user.transformAnimal && user.transformUntil && new Date(user.transformUntil) > new Date()) {
     const emoji = ANIMAL_EMOJIS[user.transformAnimal] || "🦊";
-    transformText = `\n🐾 Превращение: ${emoji} ${user.transformAnimal}`;
+    transformText = `\n🐾 ${emoji} ${user.transformAnimal}`;
   }
   
-  const premiumText = user.isPremium ? "✨ ПРЕМИУМ" : "Обычный";
-  
   await ctx.replyWithHTML(
-    `👤 <b>ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ</b>\n\n` +
-    `🆔 ID: <code>${user.telegramId}</code>\n` +
-    `👤 Имя: ${escapeHtml(user.firstName || "Нет")}\n` +
-    `📛 Username: @${user.username || "нет"}\n\n` +
-    `💰 Баланс: <b>${formatNumber(user.balance)} ⭐</b>\n` +
-    `🏆 Репутация: <b>${user.reputation}</b>\n` +
-    `💍 В браке с: ${marriageText}\n` +
-    `✨ Статус: ${premiumText}${transformText}`
+    `👤 <b>ПРОФИЛЬ</b>\n\n` +
+    `🆔 ID: ${user.telegramId}\n` +
+    `👤 @${user.username || user.firstName}\n` +
+    `💰 Баланс: ${formatNumber(user.balance)} ⭐\n` +
+    `🏆 Репутация: ${user.reputation}\n` +
+    `💍 Браки: ${marriage ? 'Да' : 'Нет'}\n` +
+    `✨ ${user.isPremium ? 'ПРЕМИУМ ✨' : 'Обычный'}${transformText}`
   );
 });
 
 bot.command('balance', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
-  
-  await ctx.replyWithHTML(
-    `💰 <b>Ваш баланс:</b> ${formatNumber(user.balance)} ⭐`
-  );
+  await ctx.replyWithHTML(`💰 ${formatNumber(user.balance)} ⭐`);
 });
 
 bot.command('daily', async (ctx) => {
@@ -371,191 +487,112 @@ bot.command('daily', async (ctx) => {
     const hoursSince = (now.getTime() - lastDaily.getTime()) / (1000 * 60 * 60);
     if (hoursSince < 24) {
       const hoursLeft = Math.ceil(24 - hoursSince);
-      return await ctx.replyWithHTML(
-        `⏰ Вы уже получали ежедневный бонус!\n` +
-        `Приходите через <b>${hoursLeft}ч</b>`
-      );
+      return await ctx.replyWithHTML(`⏰ Приходите через <b>${hoursLeft}ч</b>`);
     }
   }
   
   const bonus = user.isPremium ? 1000 : 500;
-  await db.update(users)
-    .set({
-      balance: user.balance + bonus,
-      dailyBonusAt: now,
-    })
-    .where(eq(users.id, user.id));
+  const newBalance = user.balance + bonus;
+  await db.update(users).set({ balance: newBalance, dailyBonusAt: now }).where(eq(users.id, user.id));
   
-  await ctx.replyWithHTML(
-    `✅ <b>Ежедневный бонус:</b> +${bonus} ⭐\n` +
-    `💰 Новый баланс: ${formatNumber(user.balance + bonus)} ⭐`
-  );
+  await ctx.replyWithHTML(`✅ +${bonus} ⭐\n💰 Баланс: ${formatNumber(newBalance)}`);
 });
 
+// ИГРЫ
 bot.command('roll', async (ctx) => {
   const roll = randomInt(1, 6);
-  await ctx.reply(`🎲 Вы выбросили: <b>${roll}</b>`, { parse_mode: 'HTML' });
+  await ctx.replyWithHTML(`🎲 Результат: <b>${roll}</b>`);
 });
 
 bot.command('dice', async (ctx) => {
   const roll = randomInt(1, 6);
-  await ctx.reply(`🎲 Кубик показал: <b>${roll}</b>`, { parse_mode: 'HTML' });
+  await ctx.replyWithHTML(`🎲 <b>${roll}</b>`);
 });
 
 bot.command('slots', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
-  
-  const cost = 50;
-  if (user.balance < cost) {
-    return await ctx.reply(`❌ Недостаточно звёзд! Нужно: ${cost} ⭐`);
-  }
+  if (user.balance < 50) return await ctx.reply('❌ Нужно 50⭐');
   
   const symbols = ['🍎', '🍌', '🍊', '🍓', '🍑'];
-  const results = [
-    symbols[randomInt(0, 4)],
-    symbols[randomInt(0, 4)],
-    symbols[randomInt(0, 4)],
-  ];
-  
+  const results = [symbols[randomInt(0, 4)], symbols[randomInt(0, 4)], symbols[randomInt(0, 4)]];
   const won = results[0] === results[1] && results[1] === results[2];
   const win = won ? 500 : 0;
-  const newBalance = user.balance - cost + win;
+  const newBalance = user.balance - 50 + win;
   
-  await db.update(users)
-    .set({ balance: newBalance })
-    .where(eq(users.id, user.id));
-  
-  const resultText = won 
-    ? `🎉 <b>ДЖЕКПОТ!</b> ${results.join(' ')} +${win} ⭐`
-    : `😢 ${results.join(' ')} -${cost} ⭐`;
-  
-  await ctx.replyWithHTML(resultText);
+  await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
+  await ctx.replyWithHTML(won ? `🎉 ${results.join('')} +${win}⭐` : `😢 ${results.join('')} -50⭐`);
 });
 
 bot.command('fish', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
+  if (user.balance < 50) return await ctx.reply('❌ Нужно 50⭐');
   
-  const cost = 50;
-  if (user.balance < cost) {
-    return await ctx.reply(`❌ Недостаточно звёзд! Нужно: ${cost} ⭐`);
+  const fish = ['🐟', '🐠', '🐡', '🦈'];
+  const caught = fish[randomInt(0, 3)];
+  const win = randomInt(50, 500);
+  const newBalance = user.balance - 50 + win;
+  
+  await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
+  await ctx.replyWithHTML(`${caught} Поймали! +${win}⭐`);
+});
+
+bot.command('transform', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const { canTransform, message: msg } = await checkTransformCooldown(user);
+  if (!canTransform) {
+    return await ctx.replyWithHTML(msg!);
   }
   
-  const caught = Math.random() > 0.5;
-  const fishEmojis = ['🐠', '🐟', '🦈', '🐙'];
-  const fish = fishEmojis[randomInt(0, 3)];
+  const args = ctx.message.text.split(' ');
+  const animal = args[1]?.toLowerCase();
   
-  const win = caught ? 300 : 0;
-  const newBalance = user.balance - cost + win;
+  if (!animal || !ANIMALS.includes(animal)) {
+    return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
+  }
   
-  await db.update(users)
-    .set({ balance: newBalance })
-    .where(eq(users.id, user.id));
+  if (user.balance < 500) return await ctx.reply('❌ Нужно 500⭐');
   
-  const resultText = caught
-    ? `🎣 <b>Поймали!</b> ${fish} +${win} ⭐`
-    : `🎣 <b>Ничего не клюёт</b> -${cost} ⭐`;
-  
-  await ctx.replyWithHTML(resultText);
-});
-
-bot.command('top_rich', async (ctx) => {
-  const topUsers = await db.select()
-    .from(users)
-    .orderBy(desc(users.balance))
-    .limit(10);
-  
-  const list = topUsers.map((u, i) => 
-    `${i + 1}. @${u.username || u.firstName} - ${formatNumber(u.balance)} ⭐`
-  ).join('\n');
-  
-  await ctx.replyWithHTML(`🏆 <b>ТОП 10 БОГАЧЕЙ:</b>\n\n${list}`);
-});
-
-bot.command('top_reputation', async (ctx) => {
-  const topUsers = await db.select()
-    .from(users)
-    .orderBy(desc(users.reputation))
-    .limit(10);
-  
-  const list = topUsers.map((u, i) => 
-    `${i + 1}. @${u.username || u.firstName} - ${u.reputation} репутации`
-  ).join('\n');
-  
-  await ctx.replyWithHTML(`🏆 <b>ТОП 10 ПО РЕПУТАЦИИ:</b>\n\n${list}`);
-});
-
-bot.command('stats', async (ctx) => {
-  const allUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
-  const totalBalance = await db.select({ sum: sql<number>`sum(balance)` }).from(users);
-  const marriagesData = await db.select({ count: sql<number>`count(*)` }).from(marriages);
+  const transformUntil = new Date(Date.now() + TRANSFORM_DURATION_HOURS * 60 * 60 * 1000);
+  await db.update(users).set({
+    balance: user.balance - 500,
+    transformAnimal: animal,
+    transformUntil,
+    lastTransformAt: new Date(),
+  }).where(eq(users.id, user.id));
   
   await ctx.replyWithHTML(
-    `📊 <b>СТАТИСТИКА БОТА:</b>\n\n` +
-    `👥 Пользователей: ${allUsers[0].count}\n` +
-    `💰 Всего звёзд в обороте: ${formatNumber(totalBalance[0].sum || 0)} ⭐\n` +
-    `💍 Браков: ${marriagesData[0].count}`
+    `${ANIMAL_EMOJIS[animal]} <b>Превращение!</b>\n\n` +
+    `Животное: <b>${animal}</b>\n` +
+    `Длительность: 4 часа\n` +
+    `Стоимость: -500⭐`
   );
 });
 
+// ОТНОШЕНИЯ
 bot.command('marry', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  const mentioned = ctx.message.entities?.find(e => e.type === 'mention' || e.type === 'text_mention');
-  if (!mentioned) {
-    return await ctx.reply("❌ Укажите пользователя: /marry @username");
-  }
+  const match = ctx.message.text.match(/@(\w+)/);
+  if (!match) return await ctx.reply('❌ /marry @username');
   
-  let targetUser;
-  if (mentioned.type === 'text_mention' && mentioned.user) {
-    const [found] = await db.select().from(users).where(eq(users.telegramId, mentioned.user.id));
-    targetUser = found;
-  } else {
-    const username = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
-    const [found] = await db.select().from(users).where(eq(users.username, username));
-    targetUser = found;
-  }
+  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
+  if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
+  if (targetUser.id === user.id) return await ctx.reply('❌ Нельзя жениться на себе');
   
-  if (!targetUser) {
-    return await ctx.reply("❌ Пользователь не найден");
-  }
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 1);
   
-  if (user.id === targetUser.id) {
-    return await ctx.reply("❌ Не можете предложить брак сами себе!");
-  }
-  
-  const [existing] = await db.select().from(pendingProposals)
-    .where(and(
-      or(
-        eq(pendingProposals.fromUserId, user.id),
-        eq(pendingProposals.toUserId, user.id)
-      ),
-      or(
-        eq(pendingProposals.fromUserId, targetUser.id),
-        eq(pendingProposals.toUserId, targetUser.id)
-      )
-    ))
-    .limit(1);
-  
-  if (existing) {
-    return await ctx.reply("❌ Уже есть предложение между вами!");
-  }
-  
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.insert(pendingProposals).values({
-    fromUserId: user.id,
-    toUserId: targetUser.id,
-    type: 'marriage',
-    chatId: Number(ctx.chat?.id || 0),
-    expiresAt,
+    type: 'marry', fromUserId: user.id, toUserId: targetUser.id,
+    chatId: ctx.chat.id as any, expiresAt,
   });
   
-  await ctx.replyWithHTML(
-    `💍 <b>@${user.username || user.firstName}</b> предложил(а) брак <b>@${targetUser.username || targetUser.firstName}</b>\n\n` +
-    `Используйте /accept_marry для принятия или проигнорируйте предложение`
-  );
+  await ctx.replyWithHTML(`💍 Предложение брака отправлено @${targetUser.username}!\nОн может принять: /accept_marry`);
 });
 
 bot.command('accept_marry', async (ctx) => {
@@ -563,799 +600,126 @@ bot.command('accept_marry', async (ctx) => {
   if (!user) return;
   
   const [proposal] = await db.select().from(pendingProposals)
-    .where(and(
-      eq(pendingProposals.toUserId, user.id),
-      eq(pendingProposals.type, 'marriage')
-    ))
+    .where(and(eq(pendingProposals.type, 'marry'), eq(pendingProposals.toUserId, user.id)))
     .limit(1);
   
-  if (!proposal) {
-    return await ctx.reply("❌ У вас нет предложений брака!");
-  }
-  
-  const [fromUser] = await db.select().from(users).where(eq(users.id, proposal.fromUserId));
-  if (!fromUser) return;
+  if (!proposal) return await ctx.reply('❌ Нет предложений');
   
   await db.insert(marriages).values({
-    user1Id: proposal.fromUserId,
-    user2Id: user.id,
-    marriedAt: new Date(),
-    chatId: proposal.chatId,
+    user1Id: proposal.fromUserId, user2Id: user.id, chatId: proposal.chatId,
   });
   
   await db.delete(pendingProposals).where(eq(pendingProposals.id, proposal.id));
-  
-  await ctx.replyWithHTML(
-    `💍 <b>Поздравляем!</b>\n` +
-    `@${fromUser.username || fromUser.firstName} и @${user.username || user.firstName} теперь в браке! 💑`
-  );
+  await ctx.reply('💍 ПОЗДРАВЛЯЕМ С БРАКОМ! 🎉');
 });
 
 bot.command('divorce', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  const [marriageRecord] = await db.select().from(marriages)
-    .where(or(
-      eq(marriages.user1Id, user.id),
-      eq(marriages.user2Id, user.id)
-    ))
+  const [marriage] = await db.select().from(marriages)
+    .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)))
     .limit(1);
   
-  if (!marriageRecord) {
-    return await ctx.reply("❌ Вы не в браке!");
-  }
-  
-  await db.delete(marriages).where(eq(marriages.id, marriageRecord.id));
-  await ctx.reply("💔 Развод оформлен...");
+  if (!marriage) return await ctx.reply('❌ Вы не в браке');
+  await db.delete(marriages).where(eq(marriages.id, marriage.id));
+  await ctx.reply('💔 Развод оформлен');
 });
 
 bot.command('dating', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  const mentioned = ctx.message.entities?.find(e => e.type === 'mention' || e.type === 'text_mention');
-  if (!mentioned) {
-    return await ctx.reply("❌ Укажите пользователя: /dating @username");
-  }
+  const match = ctx.message.text.match(/@(\w+)/);
+  if (!match) return await ctx.reply('❌ /dating @username');
   
-  let targetUser;
-  if (mentioned.type === 'text_mention' && mentioned.user) {
-    const [found] = await db.select().from(users).where(eq(users.telegramId, mentioned.user.id));
-    targetUser = found;
-  } else {
-    const username = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
-    const [found] = await db.select().from(users).where(eq(users.username, username));
-    targetUser = found;
-  }
+  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
+  if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
   
-  if (!targetUser) {
-    return await ctx.reply("❌ Пользователь не найден");
-  }
-  
-  if (user.id === targetUser.id) {
-    return await ctx.reply("❌ Не можете начать отношения сами с собой!");
-  }
-  
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await db.insert(pendingProposals).values({
-    fromUserId: user.id,
-    toUserId: targetUser.id,
-    type: 'dating',
-    chatId: Number(ctx.chat?.id || 0),
-    expiresAt,
+  await db.insert(relationships).values({
+    user1Id: user.id, user2Id: targetUser.id, chatId: ctx.chat.id as any,
   });
   
-  await ctx.replyWithHTML(
-    `💕 <b>@${user.username || user.firstName}</b> предлагает отношения <b>@${targetUser.username || targetUser.firstName}</b>`
-  );
+  await ctx.reply(`💕 Отношения начались с @${targetUser.username}!`);
 });
 
 bot.command('breakup', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  const [relationshipRecord] = await db.select().from(relationships)
-    .where(or(
-      eq(relationships.user1Id, user.id),
-      eq(relationships.user2Id, user.id)
-    ))
+  const [relationship] = await db.select().from(relationships)
+    .where(or(eq(relationships.user1Id, user.id), eq(relationships.user2Id, user.id)))
     .limit(1);
   
-  if (!relationshipRecord) {
-    return await ctx.reply("❌ Вы не в отношениях!");
-  }
-  
-  await db.delete(relationships).where(eq(relationships.id, relationshipRecord.id));
-  await ctx.reply("💔 Отношения закончены...");
+  if (!relationship) return await ctx.reply('❌ Вы не в отношениях');
+  await db.delete(relationships).where(eq(relationships.id, relationship.id));
+  await ctx.reply('💔 Отношения закончились');
 });
 
-// RP КОМАНДЫ
-bot.command('hug', async (ctx) => await handleRpAction(ctx, 'hug', '🤗'));
-bot.command('обнять', async (ctx) => await handleRpAction(ctx, 'hug', '🤗'));
-bot.command('kiss', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
-bot.command('целовать', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
-bot.command('поцеловать', async (ctx) => await handleRpAction(ctx, 'kiss', '💋'));
-bot.command('hit', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
-bot.command('бить', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
-bot.command('ударить', async (ctx) => await handleRpAction(ctx, 'hit', '👊'));
-bot.command('pat', async (ctx) => await handleRpAction(ctx, 'pat', '🤚'));
-bot.command('гладить', async (ctx) => await handleRpAction(ctx, 'pat', '🤚'));
-bot.command('slap', async (ctx) => await handleRpAction(ctx, 'slap', '👋'));
-bot.command('шлепать', async (ctx) => await handleRpAction(ctx, 'slap', '👋'));
-bot.command('lick', async (ctx) => await handleRpAction(ctx, 'lick', '👅'));
-bot.command('лизать', async (ctx) => await handleRpAction(ctx, 'lick', '👅'));
-bot.command('bite', async (ctx) => await handleRpAction(ctx, 'bite', '🦷'));
-bot.command('кусать', async (ctx) => await handleRpAction(ctx, 'bite', '🦷'));
-bot.command('fuck', async (ctx) => await handleRpAction(ctx, 'fuck', '🔞'));
-bot.command('выебать', async (ctx) => await handleRpAction(ctx, 'fuck', '🔞'));
-bot.command('трахать', async (ctx) => await handleRpAction(ctx, 'fuck', '🔞'));
-bot.command('sex', async (ctx) => await handleRpAction(ctx, 'sex', '🔞'));
-bot.command('ебать', async (ctx) => await handleRpAction(ctx, 'sex', '🔞'));
-bot.command('suck', async (ctx) => await handleRpAction(ctx, 'suck', '🍆'));
-bot.command('сосать', async (ctx) => await handleRpAction(ctx, 'suck', '🍆'));
-bot.command('jerk', async (ctx) => await handleRpAction(ctx, 'jerk', '💦'));
-bot.command('задрочить', async (ctx) => await handleRpAction(ctx, 'jerk', '💦'));
-bot.command('дрочить', async (ctx) => await handleRpAction(ctx, 'jerk', '💦'));
-bot.command('dominate', async (ctx) => await handleRpAction(ctx, 'dominate', '👑'));
-bot.command('доминировать', async (ctx) => await handleRpAction(ctx, 'dominate', '👑'));
-bot.command('obey', async (ctx) => await handleRpAction(ctx, 'obey', '🙇'));
-bot.command('подчиняться', async (ctx) => await handleRpAction(ctx, 'obey', '🙇'));
-bot.command('bind', async (ctx) => await handleRpAction(ctx, 'bind', '🔗'));
-bot.command('связать', async (ctx) => await handleRpAction(ctx, 'bind', '🔗'));
-bot.command('chain', async (ctx) => await handleRpAction(ctx, 'chain', '⛓️'));
-bot.command('приковать', async (ctx) => await handleRpAction(ctx, 'chain', '⛓️'));
-
-async function handleRpAction(ctx: any, action: string, emoji: string) {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  
-  const mentioned = ctx.message.entities?.find((e: any) => e.type === 'mention' || e.type === 'text_mention');
-  if (!mentioned) {
-    return await ctx.reply(`❌ Укажите пользователя: /${action} @username`);
-  }
-  
-  let targetName = "кого-то";
-  if (mentioned.type === 'mention') {
-    const mentionedUsername = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
-    targetName = `@${mentionedUsername}`;
-  } else if (mentioned.user) {
-    targetName = `@${mentioned.user.username || mentioned.user.first_name}`;
-  }
-  
-  const actionText = rpActions[action] || action;
-  await ctx.replyWithHTML(
-    `${emoji} <b>@${user.username || user.firstName}</b> ${actionText} <b>${targetName}</b>`
-  );
-}
-
-bot.command('transform', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  
-  const args = ctx.message.text.split(' ').slice(1);
-  if (args.length === 0) {
-    return await ctx.replyWithHTML(
-      `🐾 <b>Превращения доступны:</b>\n\n` +
-      ANIMALS.map(a => `${ANIMAL_EMOJIS[a]} ${a}`).join('\n') +
-      `\n\nИспользуйте: /transform [животное]`
-    );
-  }
-  
-  const animal = args[0].toLowerCase();
-  if (!ANIMALS.includes(animal)) {
-    return await ctx.reply("❌ Такое животное недоступно!");
-  }
-  
-  const cost = 100;
-  if (user.balance < cost) {
-    return await ctx.reply(`❌ Недостаточно звёзд! Нужно: ${cost} ⭐`);
-  }
-  
-  const transformUntil = new Date(Date.now() + 4 * 60 * 60 * 1000);
-  await db.update(users)
-    .set({
-      balance: user.balance - cost,
-      transformAnimal: animal,
-      transformUntil,
-    })
-    .where(eq(users.id, user.id));
-  
-  const emoji = ANIMAL_EMOJIS[animal];
-  await ctx.replyWithHTML(
-    `${emoji} <b>Превращение!</b>\n\n` +
-    `Вы превратились в: <b>${animal}</b>\n` +
-    `Длительность: 4 часа\n` +
-    `Стоимость: -${cost} ⭐`
-  );
-});
-
+// МОДЕРАЦИЯ
 bot.command('ban', async (ctx) => {
-  if (!ctx.chat || ctx.chat.type === 'private') {
-    return await ctx.reply("❌ Команда работает только в группах");
-  }
+  if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
   
   try {
     const admins = await ctx.getChatAdministrators();
-    const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
+    if (!admins.some(a => a.user.id === ctx.from?.id)) return await ctx.reply('❌ Только администраторы');
     
-    if (!isAdmin) {
-      return await ctx.reply("❌ Только администраторы могут банить");
-    }
+    const match = ctx.message.text.match(/@(\w+)/);
+    if (!match) return await ctx.reply('❌ /ban @username');
     
-    const mentioned = ctx.message.entities?.find(e => e.type === 'mention' || e.type === 'text_mention');
-    if (!mentioned) {
-      return await ctx.reply("❌ Укажите пользователя: /ban @username");
-    }
+    const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
+    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
     
-    let userId: number | undefined;
-    if (mentioned.type === 'text_mention' && mentioned.user) {
-      userId = mentioned.user.id;
-    }
-    
-    if (!userId) {
-      return await ctx.reply("❌ Не удалось определить пользователя");
-    }
-    
-    await ctx.banChatMember(userId);
-    await ctx.reply("🚫 Пользователь забанен");
-  } catch (e) {
-    await ctx.reply("❌ Ошибка: не удалось забанить пользователя");
-  }
-});
-
-bot.command('kick', async (ctx) => {
-  if (!ctx.chat || ctx.chat.type === 'private') {
-    return await ctx.reply("❌ Команда работает только в группах");
-  }
-  
-  try {
-    const admins = await ctx.getChatAdministrators();
-    const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
-    
-    if (!isAdmin) {
-      return await ctx.reply("❌ Только администраторы могут кикать");
-    }
-    
-    const mentioned = ctx.message.entities?.find(e => e.type === 'text_mention');
-    if (!mentioned || !mentioned.user) {
-      return await ctx.reply("❌ Укажите пользователя: /kick @username");
-    }
-    
-    await ctx.banChatMember(mentioned.user.id);
-    await ctx.unbanChatMember(mentioned.user.id);
-    await ctx.reply("👢 Пользователь выгнан из группы");
-  } catch (e) {
-    await ctx.reply("❌ Ошибка: не удалось выгнать пользователя");
-  }
-});
-
-bot.command('warn', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user || !ctx.chat || ctx.chat.type === 'private') return;
-  
-  const mentioned = ctx.message.entities?.find(e => e.type === 'mention');
-  if (!mentioned) {
-    return await ctx.reply("❌ Укажите пользователя: /warn @username");
-  }
-  
-  const mentionedUsername = ctx.message.text.slice(mentioned.offset + 1, mentioned.offset + mentioned.length);
-  const [targetUser] = await db.select().from(users).where(eq(users.username, mentionedUsername));
-  
-  if (!targetUser) {
-    return await ctx.reply("❌ Пользователь не найден");
-  }
-  
-  await db.insert(warnings).values({
-    userId: targetUser.id,
-    chatId: ctx.chat.id,
-    issuedBy: user.id,
-    reason: "Нарушение правил",
-  });
-  
-  const warningCount = await db.select({ count: sql<number>`count(*)` })
-    .from(warnings)
-    .where(and(
-      eq(warnings.userId, targetUser.id),
-      eq(warnings.chatId, ctx.chat.id)
-    ));
-  
-  await ctx.replyWithHTML(
-    `⚠️ <b>@${targetUser.username || targetUser.firstName}</b> получил предупреждение!\n` +
-    `Всего предупреждений: ${warningCount[0].count}`
-  );
-});
-
-// ═══════════════════════════════════════════════════════════
-// ТЕКСТОВЫЕ КОМАНДЫ (без /)
-// ═══════════════════════════════════════════════════════════
-
-bot.on(message('text'), async (ctx, next) => {
-  const text = ctx.message.text.toLowerCase();
-  const user = await getOrCreateUser(ctx);
-  if (!user) return next();
-  
-  // ПЕРВАЯ ПРОВЕРКА: Превращение - удаляем сообщение если юзер не пишет звук
-  if (user.transformUntil && new Date() < new Date(user.transformUntil) && user.transformAnimal) {
-    const sound = ANIMAL_SOUNDS[user.transformAnimal];
-    if (sound && !text.startsWith(sound)) {
-      try {
-        await ctx.deleteMessage();
-      } catch (e) {
-        // Не удалось удалить
-      }
-      return;
-    }
-  }
-  
-  // баланс
-  if (text.match(/^баланс$/i)) {
-    return await ctx.replyWithHTML(
-      `💰 <b>Ваш баланс:</b> ${formatNumber(user.balance)} ⭐`
-    );
-  }
-  
-  // бонус / дейли
-  if (text.match(/^(бонус|дейли)$/i)) {
-    return ctx.telegram.callApi('sendMessage', {
-      chat_id: ctx.chat.id,
-      text: 'Используйте команду /daily для получения бонуса',
-    });
-  }
-  
-  // денги [число] - только для владельца
-  if (text.match(/^денги\s+(\d+)$/i)) {
-    if (!isOwner(ctx.from.id)) {
-      return await ctx.reply("🚫 Эта команда только для владельца бота!");
-    }
-    
-    const amount = parseInt(text.match(/^денги\s+(\d+)$/i)![1]);
-    await db.update(users)
-      .set({ balance: user.balance + amount })
-      .where(eq(users.id, user.id));
-    
-    return await ctx.replyWithHTML(
-      `💎 <b>Владелец выдал себе:</b> +${formatNumber(amount)} ⭐\n` +
-      `💰 Новый баланс: ${formatNumber(user.balance + amount)} ⭐`
-    );
-  }
-  
-  // реклама : текст - только для владельца
-  if (text.match(/^реклама\s*:\s*(.+)$/i)) {
-    if (!isOwner(ctx.from.id)) {
-      return await ctx.reply("🚫 Эта команда только для владельца бота!");
-    }
-    
-    const adText = text.match(/^реклама\s*:\s*(.+)$/i)![1];
-    const allUsers = await db.select().from(users);
-    
-    let sent = 0;
-    for (const targetUser of allUsers) {
-      try {
-        await ctx.telegram.sendMessage(
-          targetUser.telegramId,
-          `📢 <b>ОБЪЯВЛЕНИЕ</b>\n\n${escapeHtml(adText)}`,
-          { parse_mode: 'HTML' }
-        );
-        sent++;
-      } catch (e) {
-        // Пользователь заблокировал бота
-      }
-    }
-    
-    return await ctx.reply(`📤 Рассылка отправлена ${sent} пользователям!`);
-  }
-
-  // Премиум превращение (текстовое)
-  if (text === "превратить") {
-    if (!user.isPremium && !isOwner(ctx.from.id)) {
-      return await ctx.reply("❌ Эта команда только для премиум пользователей!");
-    }
-
-    const now = new Date();
-    
-    // Для владельца - бесконечное использование (без ограничений)
-    // Для обычных пользователей - 1 раз в день
-    if (!isOwner(ctx.from.id) && user.transformUntil && user.transformAnimal) {
-      const lastTransformTime = new Date(user.transformUntil);
-      const hoursPassed = (now.getTime() - lastTransformTime.getTime()) / (1000 * 60 * 60);
-      if (hoursPassed < 24 - 1) {
-        const hoursLeft = Math.ceil(24 - hoursPassed);
-        return await ctx.reply(`⏳ Превращение доступно через ${hoursLeft} часов!`);
-      }
-    }
-
-    const randomAnimal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-    const sound = ANIMAL_SOUNDS[randomAnimal];
-    const emoji = ANIMAL_EMOJIS[randomAnimal];
-    const transformUntil = new Date(now.getTime() + 60 * 60 * 1000); // 1 час
-
-    await db.update(users)
-      .set({
-        transformAnimal: randomAnimal,
-        transformUntil,
-      })
-      .where(eq(users.id, user.id));
-
-    return await ctx.replyWithHTML(
-      `${emoji} <b>Вы превратились в ${randomAnimal}!</b>\n\n` +
-      `🔊 Ваш звук: <b>${sound}</b>\n` +
-      `⏱️ Длится 1 час\n\n` +
-      `Начинайте сообщения с "${sound}" или они будут удалены!`
-    );
-  }
-
-  // RP текстовые команды - ВСЕ ВАРИАНТЫ
-  const rpTextCommands: Record<string, { emoji: string; action: string }> = {
-    // Основные RP
-    обнять: { emoji: "🤗", action: "обнял(а)" },
-    целовать: { emoji: "💋", action: "поцеловал(а)" },
-    поцеловать: { emoji: "💋", action: "поцеловал(а)" },
-    бить: { emoji: "👊", action: "ударил(а)" },
-    ударить: { emoji: "👊", action: "ударил(а)" },
-    гладить: { emoji: "🤚", action: "погладил(а)" },
-    шлепать: { emoji: "👋", action: "шлёпнул(а)" },
-    лизать: { emoji: "👅", action: "облизал(а)" },
-    кусать: { emoji: "🦷", action: "укусил(а)" },
-    // Взрослые команды
-    выебать: { emoji: "🔞", action: "выебал(а)" },
-    трахать: { emoji: "🔞", action: "трахал(а)" },
-    сосать: { emoji: "🍆", action: "сосал(а)" },
-    ебать: { emoji: "🔞", action: "ебал(а)" },
-    выеба: { emoji: "🔞", action: "выебал(а)" },
-    траха: { emoji: "🔞", action: "трахал(а)" },
-    соса: { emoji: "🍆", action: "сосал(а)" },
-    еба: { emoji: "🔞", action: "ебал(а)" },
-    задрочить: { emoji: "💦", action: "задрочил(а)" },
-    дрочить: { emoji: "💦", action: "дрочил(а)" },
-    // Доминирование
-    доминировать: { emoji: "👑", action: "доминирует над" },
-    доминирует: { emoji: "👑", action: "доминирует над" },
-    подчиняться: { emoji: "🙇", action: "подчиняется" },
-    подчинять: { emoji: "🙇", action: "подчинил(а)" },
-    // Связывание
-    связать: { emoji: "🔗", action: "связал(а)" },
-    приковать: { emoji: "⛓️", action: "приковал(а)" },
-    заковать: { emoji: "⛓️", action: "заковал(а)" },
-    // Дополнительные
-    целка: { emoji: "💋", action: "целовал(а)" },
-    поцелуй: { emoji: "💋", action: "поцеловал(а)" },
-    смешать: { emoji: "😈", action: "смешивал(а)" },
-  };
-
-  for (const [cmd, { emoji, action }] of Object.entries(rpTextCommands)) {
-    const pattern = new RegExp(`^${cmd}(?:\\s+@([\\w]+))?$`, 'i');
-    const match = text.match(pattern);
-    
-    if (match) {
-      let targetName = "кого-то";
-      
-      // Проверяем если это ответ на сообщение
-      if (ctx.message.reply_to_message && ctx.message.reply_to_message.from) {
-        const repliedUser = ctx.message.reply_to_message.from;
-        targetName = `@${repliedUser.username || repliedUser.first_name}`;
-      } else if (match[1]) {
-        // Иначе используем указанный username
-        targetName = `@${match[1]}`;
-      }
-      
-      return await ctx.replyWithHTML(
-        `${emoji} <b>@${user.username || user.firstName}</b> ${action} <b>${targetName}</b>`
-      );
-    }
-  }
-
-  // Текстовые модерационные команды
-  // бан @user
-  const banMatch = text.match(/^бан\s+@([\w]+)$/i);
-  if (banMatch) {
-    if (!ctx.chat || ctx.chat.type === 'private') {
-      return await ctx.reply("❌ Команда работает только в группах");
-    }
-    
-    try {
-      const admins = await ctx.getChatAdministrators();
-      const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
-      
-      if (!isAdmin && !isOwner(ctx.from.id)) {
-        return await ctx.reply("❌ Только администраторы могут банить");
-      }
-      
-      const username = banMatch[1];
-      const [targetUser] = await db.select().from(users).where(eq(users.username, username));
-      
-      if (!targetUser) {
-        return await ctx.reply("❌ Пользователь не найден");
-      }
-      
-      try {
-        await ctx.banChatMember(targetUser.telegramId);
-        return await ctx.reply(`🚫 @${username} забанен`);
-      } catch (e) {
-        return await ctx.reply("❌ Ошибка при бане");
-      }
-    } catch (e) {
-      return await ctx.reply("❌ Ошибка");
-    }
-  }
-
-  // кик @user
-  const kickMatch = text.match(/^кик\s+@([\w]+)$/i);
-  if (kickMatch) {
-    if (!ctx.chat || ctx.chat.type === 'private') {
-      return await ctx.reply("❌ Команда работает только в группах");
-    }
-    
-    try {
-      const admins = await ctx.getChatAdministrators();
-      const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
-      
-      if (!isAdmin && !isOwner(ctx.from.id)) {
-        return await ctx.reply("❌ Только администраторы могут кикать");
-      }
-      
-      const username = kickMatch[1];
-      const [targetUser] = await db.select().from(users).where(eq(users.username, username));
-      
-      if (!targetUser) {
-        return await ctx.reply("❌ Пользователь не найден");
-      }
-      
-      try {
-        await ctx.banChatMember(targetUser.telegramId);
-        await ctx.unbanChatMember(targetUser.telegramId);
-        return await ctx.reply(`👢 @${username} выгнан`);
-      } catch (e) {
-        return await ctx.reply("❌ Ошибка при кике");
-      }
-    } catch (e) {
-      return await ctx.reply("❌ Ошибка");
-    }
-  }
-
-  // предупреждение @user или мут @user
-  const warnMatch = text.match(/^(предупреждение|мут)\s+@([\w]+)$/i);
-  if (warnMatch) {
-    if (!ctx.chat || ctx.chat.type === 'private') {
-      return await ctx.reply("❌ Команда работает только в группах");
-    }
-    
-    try {
-      const admins = await ctx.getChatAdministrators();
-      const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
-      
-      if (!isAdmin && !isOwner(ctx.from.id)) {
-        return await ctx.reply("❌ Только администраторы могут давать предупреждения");
-      }
-      
-      const username = warnMatch[2];
-      const [targetUser] = await db.select().from(users).where(eq(users.username, username));
-      
-      if (!targetUser) {
-        return await ctx.reply("❌ Пользователь не найден");
-      }
-      
-      await db.insert(warnings).values({
-        userId: targetUser.id,
-        chatId: ctx.chat.id,
-        issuedBy: user.id,
-        reason: "Нарушение правил",
-      });
-      
-      const warningCount = await db.select({ count: sql<number>`count(*)` })
-        .from(warnings)
-        .where(and(
-          eq(warnings.userId, targetUser.id),
-          eq(warnings.chatId, ctx.chat.id)
-        ));
-      
-      return await ctx.replyWithHTML(
-        `⚠️ <b>@${username}</b> получил предупреждение!\n` +
-        `Всего: ${warningCount[0].count}`
-      );
-    } catch (e) {
-      return await ctx.reply("❌ Ошибка");
-    }
-  }
-
-  // очистка - удаляет все сообщения пользователя (только для админов/владельца)
-  const clearMatch = text.match(/^очистка\s+@([\w]+)$/i);
-  if (clearMatch) {
-    if (!ctx.chat || ctx.chat.type === 'private') {
-      return await ctx.reply("❌ Команда работает только в группах");
-    }
-    
-    try {
-      const admins = await ctx.getChatAdministrators();
-      const isAdmin = admins.some(a => a.user.id === ctx.from?.id);
-      
-      if (!isAdmin && !isOwner(ctx.from.id)) {
-        return await ctx.reply("❌ Только администраторы могут очищать сообщения");
-      }
-      
-      const username = clearMatch[1];
-      const [targetUser] = await db.select().from(users).where(eq(users.username, username));
-      
-      if (!targetUser) {
-        return await ctx.reply("❌ Пользователь не найден");
-      }
-      
-      await ctx.replyWithHTML(
-        `🧹 <b>Начало очистки сообщений @${username}...</b>\n` +
-        `⚠️ <i>Примечание: Удаление сообщений должно выполняться администратором чата вручную или через другие инструменты.</i>`
-      );
-    } catch (e) {
-      return await ctx.reply("❌ Ошибка");
-    }
-  }
-
-  return next();
-});
-
-// ═══════════════════════════════════════════════════════════
-// НОВЫЕ КОМАНДЫ МОДЕРАЦИИ (168+)
-// ═══════════════════════════════════════════════════════════
-
-// BAN - полный бан
-bot.command('ban', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user || !ctx.chat || ctx.chat.type === 'private') return await ctx.reply("❌ Только в группах");
-  
-  const admins = await ctx.getChatAdministrators();
-  if (!admins.some(a => a.user.id === ctx.from?.id) && !isOwner(ctx.from?.id)) {
-    return await ctx.reply("❌ Только админы могут банить");
-  }
-  
-  const text = ctx.message?.text || '';
-  const match = text.match(/\/ban\s+@([\w]+)(?:\s+(.+))?/i);
-  if (!match) return await ctx.reply("❌ Используйте: /ban @username [причина]");
-  
-  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
-  if (!targetUser) return await ctx.reply("❌ Пользователь не найден");
-  
-  try {
     await ctx.banChatMember(targetUser.telegramId);
+    
+    const user = await getOrCreateUser(ctx);
     await db.insert(bans).values({
-      userId: targetUser.id,
-      chatId: ctx.chat.id,
-      reason: match[2] || "Нарушение правил",
-      issuedBy: user.id,
+      userId: targetUser.id, chatId: ctx.chat.id as any,
+      issuedBy: user!.id, reason: 'Забанен администратором',
     });
-    await ctx.reply(`🚫 @${match[1]} заб анен. Причина: ${match[2] || "не указана"}`);
+    
+    await ctx.reply(`🚫 @${match[1]} забанен`);
   } catch (e) {
-    await ctx.reply("❌ Ошибка при бане");
+    await ctx.reply('❌ Ошибка');
   }
 });
 
-// MUTE - заглушить
-bot.command('mute', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user || !ctx.chat || ctx.chat.type === 'private') return;
-  
-  const admins = await ctx.getChatAdministrators();
-  if (!admins.some(a => a.user.id === ctx.from?.id) && !isOwner(ctx.from?.id)) {
-    return await ctx.reply("❌ Только админы");
-  }
-  
-  const text = ctx.message?.text || '';
-  const match = text.match(/\/mute\s+@([\w]+)(?:\s+(\d+))?/i);
-  if (!match) return await ctx.reply("❌ Используйте: /mute @username [минуты]");
-  
-  const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
-  if (!targetUser) return await ctx.reply("❌ Пользователь не найден");
-  
-  const minutes = parseInt(match[2]) || 60;
-  const until = new Date(Date.now() + minutes * 60 * 1000);
-  
-  try {
-    const permissions: any = {
-      can_send_messages: false,
-      can_send_media_messages: false,
-      can_send_polls: false,
-      can_send_other_messages: false,
-    };
-    await ctx.restrictChatMember(targetUser.telegramId, permissions, { until_date: Math.floor(until.getTime() / 1000) } as any);
-    await db.insert(mutes).values({
-      userId: targetUser.id,
-      chatId: ctx.chat.id,
-      mutedUntil: until,
-      issuedBy: user.id,
-    });
-    await ctx.reply(`🔇 @${match[1]} заглушен на ${minutes} минут`);
-  } catch (e) {
-    await ctx.reply("❌ Ошибка");
-  }
-});
-
-// WARN - предупреждение
 bot.command('warn', async (ctx) => {
+  if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+  
   const user = await getOrCreateUser(ctx);
-  if (!user || !ctx.chat || ctx.chat.type === 'private') return;
+  if (!user) return;
   
-  const admins = await ctx.getChatAdministrators();
-  if (!admins.some(a => a.user.id === ctx.from?.id) && !isOwner(ctx.from?.id)) {
-    return await ctx.reply("❌ Только админы");
-  }
-  
-  const text = ctx.message?.text || '';
-  const match = text.match(/\/warn\s+@([\w]+)/i);
-  if (!match) return await ctx.reply("❌ Используйте: /warn @username");
+  const match = ctx.message.text.match(/@(\w+)/);
+  if (!match) return await ctx.reply('❌ /warn @username');
   
   const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
-  if (!targetUser) return await ctx.reply("❌ Пользователь не найден");
+  if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
   
   await db.insert(warnings).values({
-    userId: targetUser.id,
-    chatId: ctx.chat.id,
-    reason: "Администратор",
-    issuedBy: user.id,
+    userId: targetUser.id, chatId: ctx.chat.id as any,
+    issuedBy: user.id, reason: 'Нарушение правил',
   });
   
-  const warns = await db.select({ count: sql<number>`count(*)` }).from(warnings)
-    .where(and(eq(warnings.userId, targetUser.id), eq(warnings.chatId, ctx.chat.id)));
-  
-  await ctx.reply(`⚠️ @${match[1]} получил варн (Всего: ${warns[0].count})`);
+  await ctx.reply(`⚠️ @${match[1]} получил предупреждение`);
 });
 
-// ═══════════════════════════════════════════════════════════
-// ЭКОНОМИКА КОМАНДЫ
-// ═══════════════════════════════════════════════════════════
-
-bot.command('баланс', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  await ctx.replyWithHTML(`💰 <b>Ваш баланс:</b> ${formatNumber(user.balance)} ⭐`);
-});
-
-bot.command('передать', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  
-  const text = ctx.message?.text || '';
-  const match = text.match(/\/передать\s+@([\w]+)\s+(\d+)/i);
-  if (!match) return await ctx.reply("❌ Используйте: /передать @username сумма");
-  
-  const amount = parseInt(match[2]);
-  if (amount <= 0 || user.balance < amount) return await ctx.reply("❌ Недостаточно звёзд");
-  
-  const [target] = await db.select().from(users).where(eq(users.username, match[1]));
-  if (!target) return await ctx.reply("❌ Пользователь не найден");
-  
-  await db.update(users).set({ balance: user.balance - amount }).where(eq(users.id, user.id));
-  await db.update(users).set({ balance: target.balance + amount }).where(eq(users.id, target.id));
-  
-  await ctx.replyWithHTML(`✅ Передано ${formatNumber(amount)} ⭐ для @${match[1]}`);
-});
-
-bot.command('топ_богачей', async (ctx) => {
+bot.command('top_rich', async (ctx) => {
   const topUsers = await db.select().from(users).orderBy(desc(users.balance)).limit(10);
-  const list = topUsers.map((u, i) => `${i + 1}. @${u.username || u.firstName} - ${formatNumber(u.balance)} ⭐`).join('\n');
-  await ctx.replyWithHTML(`🏆 <b>ТОП 10 БОГАЧЕЙ:</b>\n\n${list}`);
+  const list = topUsers.map((u, i) => `${i + 1}. @${u.username || u.firstName} - ${formatNumber(u.balance)}⭐`).join('\n');
+  await ctx.replyWithHTML(`🏆 <b>ТОП 10:</b>\n\n${list}`);
 });
-
-// ═══════════════════════════════════════════════════════════
-// ПРОФИЛЬ И ИНФОРМАЦИЯ
-// ═══════════════════════════════════════════════════════════
 
 bot.command('профиль', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
-  
-  const warnCount = await db.select({ count: sql<number>`count(*)` }).from(warnings).where(eq(warnings.userId, user.id));
-  const marriageCount = await db.select({ count: sql<number>`count(*)` }).from(marriages)
-    .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)));
-  
-  await ctx.replyWithHTML(`
-👤 <b>ПРОФИЛЬ</b>
-├ Имя: @${user.username || user.firstName}
-├ ID: ${user.telegramId}
-├ Уровень: ${user.level}
-├ Баланс: ${formatNumber(user.balance)} ⭐
-├ Репутация: ${user.reputation}
-├ Браков: ${marriageCount[0].count}
-├ Варнов: ${warnCount[0].count}
-└ Статус: ${user.isPremium ? '💎 Premium' : '⚪ Free'}
-  `.trim());
+  await ctx.replyWithHTML(
+    `👤 <b>ПРОФИЛЬ</b>\n` +
+    `ID: ${user.telegramId}\n` +
+    `@${user.username}\n` +
+    `💰 ${formatNumber(user.balance)}⭐\n` +
+    `✨ ${user.isPremium ? 'ПРЕМИУМ' : 'Обычный'}`
+  );
 });
 
 bot.command('ид', async (ctx) => {
@@ -1369,8 +733,6 @@ bot.command('ид', async (ctx) => {
 export function startBot() {
   bot.launch();
   console.log('🤖 VOIG BOT запущен!');
-  
-  // Graceful stop
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }

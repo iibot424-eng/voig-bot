@@ -17,7 +17,9 @@ export const users = pgTable("users", {
   premiumUntil: timestamp("premium_until"),
   transformAnimal: text("transform_animal"),
   transformUntil: timestamp("transform_until"),
+  lastTransformAt: timestamp("last_transform_at"), // Для отслеживания кулдауна
   dailyBonusAt: timestamp("daily_bonus_at"),
+  lastWeeklyBonusAt: timestamp("last_weekly_bonus_at"), // Для еженедельного бонуса
   // Работа и бизнес
   job: text("job"),
   businessId: integer("business_id"),
@@ -214,3 +216,39 @@ export const insertInventorySchema = createInsertSchema(inventory).omit({
 });
 export type InsertInventory = z.infer<typeof insertInventorySchema>;
 export type Inventory = typeof inventory.$inferSelect;
+
+// Premium Purchases - покупки премиума за Telegram Stars
+export const premiumPurchases = pgTable("premium_purchases", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  telegramPaymentChargeId: text("telegram_payment_charge_id").notNull().unique(),
+  starsAmount: integer("stars_amount").notNull(), // 200 звёзд
+  premiumMonths: integer("premium_months").notNull().default(1),
+  status: text("status").notNull().default("completed"), // pending, completed, failed
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPremiumPurchaseSchema = createInsertSchema(premiumPurchases).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPremiumPurchase = z.infer<typeof insertPremiumPurchaseSchema>;
+export type PremiumPurchase = typeof premiumPurchases.$inferSelect;
+
+// Currency Purchases - покупка валюты за Telegram Stars (10 звёзд = 10k валюты)
+export const currencyPurchases = pgTable("currency_purchases", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  telegramPaymentChargeId: text("telegram_payment_charge_id").notNull().unique(),
+  starsAmount: integer("stars_amount").notNull(), // Сколько звёзд потрачено (10, 20, 50 и т.д.)
+  currencyAmount: integer("currency_amount").notNull(), // Сколько валюты получено (10k, 20k, 50k)
+  status: text("status").notNull().default("completed"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCurrencyPurchaseSchema = createInsertSchema(currencyPurchases).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCurrencyPurchase = z.infer<typeof insertCurrencyPurchaseSchema>;
+export type CurrencyPurchase = typeof currencyPurchases.$inferSelect;

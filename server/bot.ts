@@ -834,6 +834,7 @@ bot.command('marry', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[MARRY] ${user.username} (${user.telegramId}) вызвал /marry`);
   const match = ctx.message.text.match(/@(\w+)/);
   if (!match) return await ctx.reply('❌ /marry @username');
   
@@ -849,6 +850,7 @@ bot.command('marry', async (ctx) => {
     chatId: ctx.chat.id as any, expiresAt,
   });
   
+  console.log(`[MARRY] Предложение отправлено: ${user.username} -> ${targetUser.username}`);
   await ctx.replyWithHTML(`💍 Предложение брака отправлено @${targetUser.username}!\nОн может принять: /accept_marry`);
 });
 
@@ -856,6 +858,7 @@ bot.command('accept_marry', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[MARRY] ${user.username} (${user.telegramId}) вызвал /accept_marry`);
   const [proposal] = await db.select().from(pendingProposals)
     .where(and(eq(pendingProposals.type, 'marry'), eq(pendingProposals.toUserId, user.id)))
     .limit(1);
@@ -867,6 +870,7 @@ bot.command('accept_marry', async (ctx) => {
   });
   
   await db.delete(pendingProposals).where(eq(pendingProposals.id, proposal.id));
+  console.log(`[MARRY] Брак создан между ID ${proposal.fromUserId} и ${user.id}`);
   await ctx.reply('💍 ПОЗДРАВЛЯЕМ С БРАКОМ! 🎉');
 });
 
@@ -874,12 +878,14 @@ bot.command('divorce', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
+  console.log(`[MARRY] ${user.username} (${user.telegramId}) вызвал /divorce`);
   const [marriage] = await db.select().from(marriages)
     .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)))
     .limit(1);
   
   if (!marriage) return await ctx.reply('❌ Вы не в браке');
   await db.delete(marriages).where(eq(marriages.id, marriage.id));
+  console.log(`[MARRY] Развод: ${user.username}`);
   await ctx.reply('💔 Развод оформлен');
 });
 
@@ -1033,24 +1039,16 @@ bot.command('prefix', async (ctx) => {
     nickPrefix: prefix,
   }).where(eq(users.id, user.id));
   
-  // Пытаемся установить custom title в группе (если это не приватный чат)
-  if (ctx.chat && ctx.chat.type !== 'private') {
-    try {
-      await (ctx.telegram as any).setChatMember(ctx.chat.id, user.telegramId, {
-        can_be_edited: true,
-        custom_title: prefix,
-      });
-      console.log(`[PREFIX] Установлен префикс для ${user.username} (${user.telegramId}): ${prefix}`);
-    } catch (e: any) {
-      console.log(`[PREFIX] Ошибка при установке custom title: ${e.message}`);
-      // Продолжаем даже если ошибка - префикс сохранен в БД
-    }
-  }
+  console.log(`[PREFIX] Префикс установлен: ${user.username} (${user.telegramId}) -> "${prefix}"`);
   
   await ctx.replyWithHTML(
     `✅ <b>Префикс установлен!</b>\n\n` +
-    `<b>${prefix}</b> показывается рядом с вашим ником\n` +
-    `Стоимость: -10,000⭐`
+    `<b>${prefix}</b> теперь показывается рядом с вашим ником\n` +
+    `Стоимость: -10,000⭐\n\n` +
+    `Префикс появится в:\n` +
+    `• RP командах\n` +
+    `• Профиле\n` +
+    `• Топе богачей`
   );
 });
 

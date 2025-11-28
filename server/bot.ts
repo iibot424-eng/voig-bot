@@ -110,6 +110,13 @@ async function handleRpAction(ctx: Context, actionKey: string, emoji: string) {
   }
 
   const targetUser = replyTo.from;
+  const [dbTargetUser] = await db.select().from(users).where(eq(users.telegramId, targetUser.id));
+  
+  // ПРОВЕРКА НЕВИДИМОСТИ: если жертва невидима, игнорируем RP действие
+  if (dbTargetUser && dbTargetUser.isInvisible && dbTargetUser.invisibilityUntil && new Date() < new Date(dbTargetUser.invisibilityUntil)) {
+    return; // Молча игнорируем действие
+  }
+  
   const actionText = rpActions[actionKey] || emoji;
   await ctx.reply(
     `${emoji} <b>@${user.username || user.firstName}</b> ${actionKey}(а) <b>@${targetUser.username || targetUser.first_name}</b> ${actionText}`,
@@ -330,19 +337,20 @@ bot.on('successful_payment', async (ctx) => {
   );
 });
 
-// Еженедельный бонус для премиум
+// Еженедельный бонус для премиум (БЕЗ ЛИМИТОВ ДЛЯ ВЛАДЕЛЬЦА)
 bot.command('weekly', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  if (!user.isPremium) {
+  if (!user.isPremium && !isOwner(user.telegramId)) {
     return await ctx.reply('❌ Эта команда только для премиум пользователей! Купите премиум: /buy_premium');
   }
   
   const now = new Date();
   const lastWeekly = user.lastWeeklyBonusAt ? new Date(user.lastWeeklyBonusAt) : null;
   
-  if (lastWeekly) {
+  // ВЛАДЕЛЕЦ БЕЗ ЛИМИТОВ
+  if (!isOwner(user.telegramId) && lastWeekly) {
     const daysSince = (now.getTime() - lastWeekly.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSince < 7) {
       const daysLeft = Math.ceil(7 - daysSince);
@@ -516,7 +524,8 @@ bot.command('daily', async (ctx) => {
   const now = new Date();
   const lastDaily = user.dailyBonusAt ? new Date(user.dailyBonusAt) : null;
   
-  if (lastDaily) {
+  // ВЛАДЕЛЕЦ БЕЗ ЛИМИТОВ
+  if (!isOwner(user.telegramId) && lastDaily) {
     const hoursSince = (now.getTime() - lastDaily.getTime()) / (1000 * 60 * 60);
     if (hoursSince < 24) {
       const hoursLeft = Math.ceil(24 - hoursSince);
@@ -571,6 +580,7 @@ bot.command('fish', async (ctx) => {
   await ctx.replyWithHTML(`${caught} Поймали! +${win}⭐`);
 });
 
+// ТРАНСФОРМАЦИЯ СЕБЯ
 bot.command('transform', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
@@ -587,11 +597,11 @@ bot.command('transform', async (ctx) => {
     return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
   }
   
-  if (user.balance < 500) return await ctx.reply('❌ Нужно 500⭐');
+  if (!isOwner(user.telegramId) && user.balance < 500) return await ctx.reply('❌ Нужно 500⭐');
   
   const transformUntil = new Date(Date.now() + TRANSFORM_DURATION_HOURS * 60 * 60 * 1000);
   await db.update(users).set({
-    balance: user.balance - 500,
+    balance: isOwner(user.telegramId) ? user.balance : user.balance - 500,
     transformAnimal: animal,
     transformUntil,
     lastTransformAt: new Date(),
@@ -601,7 +611,62 @@ bot.command('transform', async (ctx) => {
     `${ANIMAL_EMOJIS[animal]} <b>Превращение!</b>\n\n` +
     `Животное: <b>${animal}</b>\n` +
     `Длительность: 4 часа\n` +
-    `Стоимость: -500⭐`
+    `${isOwner(user.telegramId) ? 'Стоимость: БЕСПЛАТНО (ВЛАДЕЛЕЦ)' : 'Стоимость: -500⭐'}`
+  );
+});
+
+// ТРАНСФОРМАЦИЯ ДРУГИХ ПОЛЬЗОВАТЕЛЕЙ (на основе ответа)
+bot.command('преврати', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const replyTo = (ctx.message as any)?.reply_to_message;
+  if (!replyTo || !replyTo.from) {
+    return await ctx.reply('❌ Ответьте на сообщение пользователя');
+  }
+  
+  const args = ctx.message.text.split(' ');
+  const animal = args[1]?.toLowerCase();
+  
+  if (!animal || !ANIMALS.includes(animal)) {
+    return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
+  }
+  
+  const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
+  if (!targetUser) return;
+  
+  const transformUntil = new Date(Date.now() + TRANSFORM_DURATION_HOURS * 60 * 60 * 1000);
+  await db.update(users).set({
+    transformAnimal: animal,
+    transformUntil,
+    lastTransformAt: new Date(),
+  }).where(eq(users.id, targetUser.id));
+  
+  await ctx.replyWithHTML(
+    `👻 <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${ANIMAL_EMOJIS[animal]} ${animal}!</b>`
+  );
+});
+
+// ПРЕМИУМ КОМАНДА: НЕВИДИМОСТЬ (2 часа)
+bot.command('невидимость', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  if (!user.isPremium && !isOwner(user.telegramId)) {
+    return await ctx.reply('❌ Только для премиум пользователей');
+  }
+  
+  const invisibilityUntil = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 часа
+  await db.update(users).set({
+    isInvisible: true,
+    invisibilityUntil,
+  }).where(eq(users.id, user.id));
+  
+  await ctx.replyWithHTML(
+    `👻 <b>ВЫ НЕВИДИМЫ!</b>\n\n` +
+    `Длительность: 2 часа\n` +
+    `Статус: <b>ПРИЗРАК</b>\n\n` +
+    `Все RP команды больше на вас не работают!`
   );
 });
 

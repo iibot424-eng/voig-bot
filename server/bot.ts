@@ -617,16 +617,18 @@ bot.command('transform', async (ctx) => {
 });
 
 // ТРАНСФОРМАЦИЯ ДРУГИХ ПОЛЬЗОВАТЕЛЕЙ (на основе ответа)
-bot.command('преврати', async (ctx) => {
+async function handleTransformOther(ctx: Context) {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
   const replyTo = (ctx.message as any)?.reply_to_message;
   if (!replyTo || !replyTo.from) {
-    return await ctx.reply('❌ Ответьте на сообщение пользователя');
+    return await ctx.reply('❌ Ответьте на сообщение пользователя и укажите животное');
   }
   
-  const args = ctx.message.text.split(' ');
+  const msg = ctx.message as any;
+  const text = msg?.text || '';
+  const args = text.split(' ');
   const animal = args[1]?.toLowerCase();
   
   if (!animal || !ANIMALS.includes(animal)) {
@@ -644,17 +646,24 @@ bot.command('преврати', async (ctx) => {
   }).where(eq(users.id, targetUser.id));
   
   await ctx.replyWithHTML(
-    `👻 <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${ANIMAL_EMOJIS[animal]} ${animal}!</b>`
+    `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${animal}!</b>`
   );
-});
+}
+
+bot.command('преврати', handleTransformOther);
 
 // ПРЕМИУМ КОМАНДА: НЕВИДИМОСТЬ (2 часа)
-bot.command('невидимость', async (ctx) => {
+async function handleInvisibility(ctx: Context) {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
   if (!user.isPremium && !isOwner(user.telegramId)) {
-    return await ctx.reply('❌ Только для премиум пользователей');
+    return await ctx.reply('❌ Только для премиум пользователей! Купите премиум: /buy_premium');
+  }
+  
+  const now = new Date();
+  if (user.isInvisible && user.invisibilityUntil && new Date(user.invisibilityUntil) > now) {
+    return await ctx.reply('❌ Вы уже невидимы!');
   }
   
   const invisibilityUntil = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 часа
@@ -669,7 +678,9 @@ bot.command('невидимость', async (ctx) => {
     `Статус: <b>ПРИЗРАК</b>\n\n` +
     `Все RP команды больше на вас не работают!`
   );
-});
+}
+
+bot.command('невидимость', handleInvisibility);
 
 // ОТНОШЕНИЯ
 bot.command('marry', async (ctx) => {

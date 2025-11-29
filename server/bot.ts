@@ -564,7 +564,7 @@ bot.command('help', async (ctx) => {
   );
 });
 
-bot.command('profile', async (ctx) => {
+bot.command('инфо', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
@@ -732,9 +732,17 @@ async function handleTransformOther(ctx: Context) {
   if (!user) return;
   
   console.log(`[TRANSFORM_OTHER] Пользователь ${user.username} (${user.telegramId}) вызвал команду превратить`);
-  const replyTo = (ctx.message as any)?.reply_to_message;
+  const msg = ctx.message as any;
+  const text = msg?.text || '';
+  const args = text.split(' ');
+  const animal = args[1]?.toLowerCase();
+  
+  const replyTo = msg?.reply_to_message;
   if (!replyTo || !replyTo.from) {
-    return await ctx.reply('❌ Ответьте на сообщение пользователя и укажите животное');
+    if (!animal) {
+      return await ctx.reply('❌ Ответьте на сообщение пользователя или напишите: /преврати животное');
+    }
+    return await ctx.reply('❌ Ответьте на сообщение пользователя');
   }
   
   // Проверка кулдауна (только для не-владельца)
@@ -753,11 +761,6 @@ async function handleTransformOther(ctx: Context) {
       }
     }
   }
-  
-  const msg = ctx.message as any;
-  const text = msg?.text || '';
-  const args = text.split(' ');
-  const animal = args[1]?.toLowerCase();
   
   if (!animal || !ANIMALS.includes(animal)) {
     return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
@@ -955,6 +958,37 @@ bot.command('ban', async (ctx) => {
     await ctx.reply(`🚫 @${match[1]} забанен`);
   } catch (e) {
     await ctx.reply('❌ Ошибка');
+  }
+});
+
+// РАЗМУТ КОМАНДА
+bot.command('размут', async (ctx) => {
+  if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+  
+  try {
+    const admins = await ctx.getChatAdministrators();
+    if (!admins.some(a => a.user.id === ctx.from?.id)) return await ctx.reply('❌ Только администраторы');
+    
+    const replyTo = (ctx.message as any)?.reply_to_message;
+    if (!replyTo || !replyTo.from) {
+      return await ctx.reply('❌ Ответьте на сообщение пользователя');
+    }
+    
+    await ctx.restrictChatMember(replyTo.from.id, {
+      permissions: {
+        can_send_messages: true,
+        can_send_polls: true,
+        can_send_other_messages: true,
+        can_add_web_page_previews: true,
+        can_change_info: true,
+        can_invite_users: true,
+        can_pin_messages: true
+      }
+    });
+    
+    await ctx.replyWithHTML(`✅ <b>@${replyTo.from.username || replyTo.from.first_name} размучен!</b>`);
+  } catch (e: any) {
+    await ctx.reply(`❌ Ошибка: ${e.message}`);
   }
 });
 

@@ -387,7 +387,54 @@ bot.command('buy_premium', async (ctx) => {
       description: 'Получите повышенные бонусы, эксклюзивные команды и еженедельные награды',
       payload: 'premium_1month_200stars',
       currency: 'XTR',
-      prices: [{ label: 'ПРЕМИУМ 1 месяц', amount: 200 }]
+      prices: [{ label: 'ПРЕМИУМ 1 месяц', amount: 200 }],
+      provider_token: ''
+    });
+  } catch (e: any) {
+    console.error('❌ Ошибка при открытии платежа:', e?.message);
+    await ctx.reply('❌ Ошибка при открытии платежа. Попробуйте позже.');
+  }
+});
+
+// Команда покупки валюты (10 звёзд = 10k валюты)
+bot.command('buy_currency', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  try {
+    await ctx.telegram.callApi('sendInvoice', {
+      chat_id: ctx.chat!.id,
+      title: 'Купить валюту: 10,000⭐ за 10 звёзд',
+      description: 'Получите 10,000 единиц валюты для игры',
+      payload: 'currency_10k_10stars',
+      currency: 'XTR',
+      prices: [{ label: '10,000 валюты', amount: 10 }],
+      provider_token: ''
+    });
+  } catch (e: any) {
+    console.error('❌ Ошибка при открытии платежа:', e?.message);
+    await ctx.reply('❌ Ошибка при открытии платежа. Попробуйте позже.');
+  }
+});
+
+// Команда покупки защиты от трансформаций (400 звёзд = навсегда)
+bot.command('buy_transform_protection', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  if (user.transformProtectionUntil && new Date(user.transformProtectionUntil) > new Date()) {
+    return await ctx.reply('🛡️ У вас уже есть активная защита от трансформаций!');
+  }
+  
+  try {
+    await ctx.telegram.callApi('sendInvoice', {
+      chat_id: ctx.chat!.id,
+      title: 'Защита от трансформаций - навсегда',
+      description: 'Получите полную защиту от команды /transform на любой срок',
+      payload: 'transform_protection_permanent_400stars',
+      currency: 'XTR',
+      prices: [{ label: 'Защита навсегда', amount: 400 }],
+      provider_token: ''
     });
   } catch (e: any) {
     console.error('❌ Ошибка при открытии платежа:', e?.message);
@@ -418,8 +465,24 @@ bot.on('successful_payment', async (ctx) => {
     
     console.log(`💳 Платёж получен: ${starsAmount} звёзд от ${user.username} (${user.telegramId})`);
     
+    // Отправить звёзды владельцу (кроме премиума - это товар для бота)
+    if (invoicePayload !== 'premium_1month_200stars' && starsAmount > 0) {
+      try {
+        await ctx.telegram.sendMessage(
+          BOT_OWNER_ID,
+          `💰 <b>НОВЫЙ ПЛАТЁЖ!</b>\n\n` +
+          `👤 Пользователь: <a href="tg://user?id=${user.telegramId}">@${user.username || user.telegramId}</a>\n` +
+          `⭐ Сумма: ${starsAmount} звёзд\n` +
+          `📦 Товар: ${invoicePayload}`,
+          { parse_mode: 'HTML' }
+        );
+      } catch (e) {
+        console.error('Ошибка при отправке уведомления владельцу:', e);
+      }
+    }
+    
     // Премиум за 200 звёзд
-    if (starsAmount === 200 || invoicePayload === 'premium_1month') {
+    if (starsAmount === 200 || invoicePayload === 'premium_1month_200stars') {
       const premiumUntil = new Date();
       premiumUntil.setMonth(premiumUntil.getMonth() + 1);
       
@@ -443,7 +506,46 @@ bot.on('successful_payment', async (ctx) => {
       );
     }
     
+    // Защита от трансформаций (400 звёзд = навсегда)
+    if (starsAmount === 400 || invoicePayload === 'transform_protection_permanent_400stars') {
+      // Устанавливаем защиту на очень далёкую дату (практически навсегда)
+      const protectionUntil = new Date();
+      protectionUntil.setFullYear(protectionUntil.getFullYear() + 100); // 100 лет = навсегда
+      
+      await db.update(users).set({
+        transformProtectionUntil: protectionUntil,
+      }).where(eq(users.id, user.id));
+      
+      return await ctx.replyWithHTML(
+        `🛡️ <b>ЗАЩИТА АКТИВИРОВАНА!</b>\n\n` +
+        `✅ Вы защищены от трансформаций <b>НАВСЕГДА</b>!\n` +
+        `🎯 Теперь вас нельзя превратить в животное`
+      );
+    }
+    
     // Валюта за звёзды (10 звёзд = 10k)
+    if (invoicePayload === 'currency_10k_10stars' || starsAmount === 10) {
+      const currencyAmount = 10000;
+      await db.update(users).set({
+        balance: user.balance + currencyAmount,
+      }).where(eq(users.id, user.id));
+      
+      await db.insert(currencyPurchases).values({
+        userId: user.id,
+        telegramPaymentChargeId: payment.telegram_payment_charge_id,
+        starsAmount: 10,
+        currencyAmount: currencyAmount,
+        status: 'completed',
+      });
+      
+      return await ctx.replyWithHTML(
+        `💰 <b>ПОКУПКА ЗАВЕРШЕНА!</b>\n\n` +
+        `Вы получили: <b>${formatNumber(currencyAmount)}</b> ⭐\n` +
+        `Новый баланс: <b>${formatNumber(user.balance + currencyAmount)}</b> ⭐`
+      );
+    }
+    
+    // Любые другие платежи = валюта
     const currencyAmount = (starsAmount / 10) * 10000;
     await db.update(users).set({
       balance: user.balance + currencyAmount,
@@ -459,8 +561,8 @@ bot.on('successful_payment', async (ctx) => {
     
     await ctx.replyWithHTML(
       `💰 <b>ПОКУПКА ЗАВЕРШЕНА!</b>\n\n` +
-      `Вы получили: <b>${formatNumber(Math.floor(currencyAmount))}</b> пойнтов\n` +
-      `Новый баланс: <b>${formatNumber(user.balance + currencyAmount)}</b>`
+      `Вы получили: <b>${formatNumber(Math.floor(currencyAmount))}</b> ⭐\n` +
+      `Новый баланс: <b>${formatNumber(user.balance + currencyAmount)}</b> ⭐`
     );
   } catch (e: any) {
     console.error('❌ Ошибка при обработке платежа:', e);
@@ -771,6 +873,14 @@ bot.command('transform', async (ctx) => {
   
   const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
   if (!targetUser) return;
+  
+  // ПРОВЕРКА ЗАЩИТЫ ОТ ТРАНСФОРМАЦИЙ
+  if (targetUser.transformProtectionUntil && new Date(targetUser.transformProtectionUntil) > new Date()) {
+    return await ctx.replyWithHTML(
+      `🛡️ <b>@${replyTo.from.username || replyTo.from.first_name} защищён от трансформаций!</b>\n\n` +
+      `Пользователь имеет активную защиту 🛡️`
+    );
+  }
   
   const transformUntil = new Date(Date.now() + TRANSFORM_DURATION_HOURS * 60 * 60 * 1000);
   await db.update(users).set({
@@ -1185,7 +1295,8 @@ bot.on('text', async (ctx) => {
     'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
     'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
     'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
-    'преврати', 'превратить', 'мут', 'очистка',
+    'преврати', 'превратить', 'мут', 'очистка', 'buy_premium', 'buy_currency', 'buy_transform_protection',
+    'купить валюту', 'защита от превращений',
     // ВСЕ 111+ RP команды
     ...Object.keys(rpActions)
   ];
@@ -1652,6 +1763,11 @@ export async function startBot() {
     { command: 'iscelity', description: 'Исцелить RP' },
     { command: 'voskreestit', description: 'Воскресить RP' },
     { command: 'prochetat', description: 'Прочитать мысли RP' },
+    
+    // Платежи
+    { command: 'buy_premium', description: '💎 Купить ПРЕМИУМ (200⭐)' },
+    { command: 'buy_currency', description: '💰 Купить валюту 10к (10⭐)' },
+    { command: 'buy_transform_protection', description: '🛡️ Защита от превращений (400⭐)' },
   ];
   
   try {

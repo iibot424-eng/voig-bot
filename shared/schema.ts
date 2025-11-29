@@ -41,6 +41,7 @@ export const users = pgTable("users", {
   lastFishAt: timestamp("last_fish_at"), // Последняя рыбалка
   fishCountToday: integer("fish_count_today").notNull().default(0), // Сколько раз рыбалка сегодня
   lastInvisibilityAt: timestamp("last_invisibility_at"), // Последний раз невидимость (для кулдауна)
+  transformProtectionUntil: timestamp("transform_protection_until"), // Защита от трансформаций
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

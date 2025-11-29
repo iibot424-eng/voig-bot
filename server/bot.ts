@@ -260,33 +260,13 @@ bot.command('start', async (ctx) => {
 bot.action('menu_all_commands', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `📋 <b>ВСЕ ДОСТУПНЫЕ КОМАНДЫ:</b>\n\n` +
-    `<b>🔹 ПРОФИЛЬ:</b>\n` +
-    `/инфо, инфо - профиль\n` +
-    `/balance, баланс - баланс\n` +
-    `/ид - ваш ID\n` +
-    `денги - выдача для владельца\n\n` +
-    `<b>💰 ЭКОНОМИКА:</b>\n` +
-    `/daily, daily - +500/1000⭐\n` +
-    `/weekly, weekly - +10000⭐ (премиум)\n` +
-    `/top_rich, топ - топ 10 богачей\n` +
-    `отправить [сумма] @user - перевод\n\n` +
-    `<b>🎮 ИГРЫ:</b>\n` +
-    `roll, dice, кубик, монета\n` +
-    `/slots, slots - слот машина (50⭐)\n` +
-    `/fish, fish - рыбалка (50⭐, 5/день)\n` +
-    `/казино, казино [ставка] - казино\n` +
-    `duel @user [ставка] - дуэль\n\n` +
-    `<b>💍 БРАКИ:</b>\n` +
-    `/marry @user, marry @user, брак @user\n` +
-    `/accept_marry - принять\n` +
-    `/divorce, развод - развод\n\n` +
-    `<b>💎 ПРЕМИУМ:</b>\n` +
-    `/невидимость, невидимость - (2ч, КД 4ч)\n` +
-    `/transform животное - (1ч, КД 24ч)\n` +
-    `/buy_premium, купить премиум\n\n` +
-    `<b>🎭 RP (111+):</b>\n` +
-    `обнять, ударить, целовать и 100+ других`,
+    `📋 <b>200+ КОМАНД</b>\n\n` +
+    `<b>👤 ПРОФИЛЬ:</b> инфо, баланс, ид, денги\n` +
+    `<b>💰 ЭКОНОМИКА:</b> daily, weekly, топ, отправить\n` +
+    `<b>🎮 ИГРЫ:</b> roll, dice, казино, fish, duel\n` +
+    `<b>💍 БРАКИ:</b> marry, accept_marry, divorce\n` +
+    `<b>💎 ПРЕМИУМ:</b> невидимость, transform, префикс\n` +
+    `<b>🎭 RP (111+):</b> обнять, ударить, целовать и др.`,
     { parse_mode: 'HTML' }
   );
 });
@@ -294,19 +274,16 @@ bot.action('menu_all_commands', async (ctx) => {
 bot.action('menu_main', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `🔵 <b>ОСНОВНЫЕ КОМАНДЫ:</b>\n\n` +
-    `/инфо, инфо - ваш профиль\n` +
-    `/balance, баланс - баланс\n` +
-    `/ид - ваш Telegram ID\n\n` +
-    `<b>💰 ЭКОНОМИКА:</b>\n` +
-    `/daily, daily - ежедневный бонус\n` +
-    `/weekly, weekly - еженедельный бонус (премиум)\n` +
-    `отправить [сумма] @user - перевести ⭐\n` +
-    `/top_rich, топ - топ 10 богачей\n\n` +
-    `<b>✨ ПРЕМИУМ:</b>\n` +
-    `/невидимость, невидимость - невидимость\n` +
-    `/transform животное - трансформация\n` +
-    `/buy_premium, купить премиум - купить`,
+    `🔵 <b>ОСНОВНЫЕ</b>\n\n` +
+    `👤 /инфо, инфо\n` +
+    `💰 /баланс, баланс\n` +
+    `🆔 /ид\n\n` +
+    `🎁 /daily, daily (+500/1000⭐)\n` +
+    `🎁 /weekly, weekly (+10k⭐)\n` +
+    `🏆 /топ, топ\n` +
+    `📤 отправить N @user\n\n` +
+    `✨ /невидимость (КД 4ч)\n` +
+    `🐾 /transform (КД 24ч)`,
     { parse_mode: 'HTML' }
   );
 });
@@ -314,14 +291,13 @@ bot.action('menu_main', async (ctx) => {
 bot.action('menu_games', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `🎮 <b>ИГРЫ И УДАЧА:</b>\n\n` +
-    `roll, dice, кубик - кубик (1-6)\n` +
-    `монета - орёл/решка\n\n` +
-    `/slots, slots [ставка] - слот машина\n` +
-    `/казино [ставка] - казино (50/50)\n` +
-    `/fish, fish - рыбалка (50⭐, 5/день)\n\n` +
-    `duel @user [ставка] - дуэль против игрока\n\n` +
-    `💡 <i>Для игр с БД используйте / или текст</i>`,
+    `🎮 <b>ИГРЫ</b>\n\n` +
+    `🎲 roll, кубик (1-6)\n` +
+    `🪙 dice, монета (орёл/решка)\n` +
+    `🎰 /slots, slots (50⭐)\n` +
+    `🎰 /казино N (50/50)\n` +
+    `🎣 /fish, fish (50⭐, 5/день)\n` +
+    `⚔️ duel @user N (PvP)`,
     { parse_mode: 'HTML' }
   );
 });
@@ -329,17 +305,13 @@ bot.action('menu_games', async (ctx) => {
 bot.action('menu_rp', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `🎭 <b>RP КОМАНДЫ (111+):</b>\n\n` +
-    `<b>⚔️ БОЕВЫЕ:</b>\n` +
-    `ударить, убить, выстрелить, взорвать, зарезать, сжечь, задушить и др.\n\n` +
-    `<b>❤️ ПОЗИТИВНЫЕ:</b>\n` +
-    `обнять, целовать, поцеловать, погладить, пожать руку и др.\n\n` +
-    `<b>🎭 ЭМОЦИИ:</b>\n` +
-    `засмеяться, заплакать, испугаться, удивиться и др.\n\n` +
-    `<b>✨ МАГИЯ:</b>\n` +
-    `заморозить, поджечь, наложить проклятие, исцелить и др.\n\n` +
-    `<i>Ответьте на сообщение и напишите команду БЕЗ /</i>\n` +
-    `Ответ нужен чтобы узнать на кого действие!`,
+    `🎭 <b>RP (111+)</b>\n\n` +
+    `⚔️ Боевые: ударить, убить, выстрелить...\n` +
+    `❤️ Позитив: обнять, целовать, погладить...\n` +
+    `🎭 Эмоции: смеяться, плакать, испугаться...\n` +
+    `✨ Магия: заморозить, поджечь, исцелить...\n` +
+    `🚀 Действия: прыгнуть, спрятаться, бежать...\n\n` +
+    `📝 Ответьте на сообщение и напишите команду БЕЗ /`,
     { parse_mode: 'HTML' }
   );
 });
@@ -347,17 +319,14 @@ bot.action('menu_rp', async (ctx) => {
 bot.action('menu_marry', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `💍 <b>ОТНОШЕНИЯ И БРАКИ:</b>\n\n` +
-    `<b>БРАК (Текст и /):</b>\n` +
-    `/marry @user\n` +
-    `marry @user\n` +
-    `брак @user\n` +
-    `жениться @user\n\n` +
-    `/accept_marry - принять предложение\n\n` +
-    `<b>РАЗВОД (Текст и /):</b>\n` +
-    `/divorce\n` +
-    `развод\n\n` +
-    `📝 <i>Команды браков текстом!</i>`,
+    `💍 <b>БРАКИ</b>\n\n` +
+    `💒 /marry @user\n` +
+    `💒 marry @user\n` +
+    `💒 брак @user\n` +
+    `💒 жениться @user\n\n` +
+    `✅ /accept_marry\n\n` +
+    `💔 /divorce\n` +
+    `💔 развод`,
     { parse_mode: 'HTML' }
   );
 });
@@ -386,18 +355,13 @@ bot.action('menu_info', async (ctx) => {
 bot.action('menu_premium', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `💎 <b>ПРЕМИУМ СИСТЕМА:</b>\n\n` +
-    `<b>Стоимость:</b> 200 Telegram Stars ⭐\n\n` +
-    `<b>ПРЕИМУЩЕСТВА:</b>\n` +
-    `  ✨ Ежедневный +1000⭐ (вместо 500)\n` +
-    `  ✨ Еженедельный +10,000⭐\n` +
-    `  ✨ Трансформация в животных (1ч, КД 24ч)\n` +
-    `  ✨ Невидимость (2ч, КД 4ч)\n` +
-    `  ✨ Специальные команды\n\n` +
-    `<b>КУПИТЬ:</b>\n` +
-    `/buy_premium\n` +
-    `купить премиум\n\n` +
-    `👑 Владелец (@n777snickers777) имеет неограниченный премиум!`,
+    `💎 <b>ПРЕМИУМ (200⭐)</b>\n\n` +
+    `✨ Daily: 1000⭐ (не 500)\n` +
+    `✨ Weekly: 10,000⭐\n` +
+    `✨ Трансформация (1ч, КД 24ч)\n` +
+    `✨ Невидимость (2ч, КД 4ч)\n\n` +
+    `🛍️ /buy_premium\n🛍️ купить премиум\n\n` +
+    `👑 Владелец - бесплатный премиум!`,
     { parse_mode: 'HTML' }
   );
 });
@@ -1193,16 +1157,20 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text.toLowerCase().trim();
   const replyTo = ctx.message.reply_to_message;
   
-  // СПИСОК ВСЕХ КОМАНД (текстовые вводы)
-  const allCommands = [
-    'денги', 'инфо', 'профиль', 'ид', 'баланс', 'balance',
+  // СПИСОК ВСЕХ ТЕКСТОВЫХ КОМАНД
+  const textCommands = [
+    'денги', 'инфо', 'профиль', 'ид', 'баланс', 'balance', 'prefix', 'префикс',
     'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
     'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
-    'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка'
+    'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
+    'преврати', 'превратить', 'мут', 'очистка'
   ];
   
+  // ВСЕ 111 RP команды тоже разрешены
+  const isRpCommand = Object.keys(rpActions).some(cmd => text === cmd);
+  
   // Проверяем, является ли это командой
-  const isCommand = allCommands.some(cmd => text === cmd || text.startsWith(cmd + ' '));
+  const isCommand = textCommands.some(cmd => text === cmd || text.startsWith(cmd + ' ')) || isRpCommand;
   
   // Проверка звуков животных для трансформированных пользователей (КРОМЕ КОМАНД)
   if (!isCommand && user.transformAnimal && user.transformUntil && new Date() < new Date(user.transformUntil)) {

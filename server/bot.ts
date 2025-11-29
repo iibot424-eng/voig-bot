@@ -778,7 +778,8 @@ bot.command('transform', async (ctx) => {
   
   await ctx.replyWithHTML(
     `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} превратился в ${animal}!</b>\n\n` +
-    `Длительность: ${TRANSFORM_DURATION_HOURS} час\n` +
+    `🔊 Издавай звуки: <b>${ANIMAL_SOUNDS[animal]}</b>\n` +
+    `⏳ Длительность: ${TRANSFORM_DURATION_HOURS} час\n` +
     `⏳ <b>КД:</b> 24ч`
   );
 });
@@ -838,7 +839,10 @@ async function handleTransformOther(ctx: Context) {
   }).where(eq(users.id, user.id));
   
   await ctx.replyWithHTML(
-    `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${animal}!</b>\n\n⏳ <b>КД:</b> 24ч`
+    `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} преобразился в ${animal}!</b>\n\n` +
+    `🔊 Издавай звуки: <b>${ANIMAL_SOUNDS[animal]}</b>\n` +
+    `⏳ Длительность: ${TRANSFORM_DURATION_HOURS} час\n` +
+    `⏳ <b>КД:</b> 24ч`
   );
 }
 

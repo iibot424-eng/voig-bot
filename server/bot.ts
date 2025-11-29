@@ -1654,7 +1654,22 @@ export async function startBot() {
     console.error('❌ Ошибка при обновлении команд:', e);
   }
   
-  bot.launch();
+  // Обработка ошибок подключения
+  bot.catch((err: any, ctx: any) => {
+    console.error('❌ Ошибка бота:', err);
+    console.error('Контекст:', ctx);
+  });
+
+  // Обработка ошибок при запуске
+  bot.launch().catch((err: any) => {
+    console.error('❌ Ошибка при запуске бота:', err);
+    // Переподключение через 5 секунд
+    setTimeout(() => {
+      console.log('🔄 Попытка переподключения...');
+      bot.launch().catch((e: any) => console.error('Ошибка при переподключении:', e));
+    }, 5000);
+  });
+
   console.log('🤖 VOIG BOT запущен!');
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));

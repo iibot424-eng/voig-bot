@@ -1521,7 +1521,62 @@ bot.on('text', async (ctx) => {
 // ЗАПУСК БОТА
 // ═══════════════════════════════════════════════════════════
 
-export function startBot() {
+export async function startBot() {
+  // Список всех команд для Telegram (только латинские буквы!)
+  const commands = [
+    { command: 'start', description: 'Главное меню бота' },
+    { command: 'help', description: 'Справка по всем командам' },
+    
+    // Профиль
+    { command: 'profile', description: 'Ваш профиль (инфо)' },
+    { command: 'balance', description: 'Баланс' },
+    { command: 'id', description: 'Ваш Telegram ID' },
+    
+    // Экономика
+    { command: 'daily', description: 'Ежедневный бонус (+500/1000)' },
+    { command: 'weekly', description: 'Еженедельный бонус (+10k)' },
+    { command: 'top_rich', description: 'Топ 10 богачей' },
+    { command: 'pay', description: 'Перевести деньги' },
+    
+    // Игры
+    { command: 'roll', description: 'Кубик (1-6)' },
+    { command: 'dice', description: 'Орёл или решка' },
+    { command: 'slots', description: 'Слот машина (50)' },
+    { command: 'casino', description: 'Казино (50/50)' },
+    { command: 'fish', description: 'Рыбалка (50, 5/день)' },
+    { command: 'duel', description: 'Дуэль с игроком' },
+    
+    // Браки
+    { command: 'marry', description: 'Предложение руки' },
+    { command: 'accept_marry', description: 'Принять предложение' },
+    { command: 'divorce', description: 'Развод' },
+    
+    // Премиум
+    { command: 'invisibility', description: 'Невидимость (2ч, КД 4ч)' },
+    { command: 'transform', description: 'Превратить игрока' },
+    { command: 'prefix', description: 'Установить префикс (10k)' },
+    { command: 'buy_premium', description: 'Купить премиум (200)' },
+    
+    // RP команды (самые популярные)
+    { command: 'hug', description: 'Обнять (RP)' },
+    { command: 'kick', description: 'Ударить (RP)' },
+    { command: 'kiss', description: 'Целовать (RP)' },
+    { command: 'kill', description: 'Убить (RP)' },
+    { command: 'shoot', description: 'Выстрелить (RP)' },
+    { command: 'laugh', description: 'Засмеяться (RP)' },
+    { command: 'cry', description: 'Заплакать (RP)' },
+    { command: 'scare', description: 'Испугаться (RP)' },
+    { command: 'hide', description: 'Спрятаться (RP)' },
+    { command: 'run', description: 'Побежать (RP)' },
+  ];
+  
+  try {
+    await bot.telegram.setMyCommands(commands);
+    console.log('✅ Команды обновлены в Telegram');
+  } catch (e) {
+    console.error('❌ Ошибка при обновлении команд:', e);
+  }
+  
   bot.launch();
   console.log('🤖 VOIG BOT запущен!');
   process.once('SIGINT', () => bot.stop('SIGINT'));

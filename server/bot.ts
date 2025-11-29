@@ -1159,8 +1159,14 @@ bot.on('text', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  const text = ctx.message.text.toLowerCase().trim();
+  let text = ctx.message.text.toLowerCase().trim();
   const replyTo = ctx.message.reply_to_message;
+  
+  // Обработка команд с двойным слэшем - конвертируем в обычный текст
+  // //prefix → prefix
+  if (text.startsWith('//')) {
+    text = text.substring(1); // Убираем один слэш
+  }
   
   // СПИСОК ВСЕХ ТЕКСТОВЫХ КОМАНД
   const textCommands = [

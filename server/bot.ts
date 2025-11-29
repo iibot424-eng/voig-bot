@@ -1132,6 +1132,50 @@ bot.on('text', async (ctx) => {
   
   // КОМАНДЫ БЕЗ ОТВЕТА НА СООБЩЕНИЕ:
   
+  // денги - только для владельца (9,999,999)
+  if (text === 'денги') {
+    if (!isOwner(user.telegramId)) {
+      return await ctx.reply('❌ Только для владельца');
+    }
+    await db.update(users).set({ balance: 9999999 }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(`✅ <b>ВЫДАНО!</b>\n\n💰 Баланс: <b>9,999,999⭐</b>`);
+  }
+  
+  // инфо / профиль
+  if (text === 'инфо' || text === 'профиль') {
+    const [marriage] = await db.select().from(marriages)
+      .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)))
+      .limit(1);
+    
+    let marriageText = "Нет";
+    if (marriage) {
+      const partnerId = marriage.user1Id === user.id ? marriage.user2Id : marriage.user1Id;
+      const [partner] = await db.select().from(users).where(eq(users.id, partnerId));
+      marriageText = partner ? `@${partner.username}` : "?";
+    }
+    
+    let transformText = "";
+    if (user.transformAnimal && user.transformUntil && new Date(user.transformUntil) > new Date()) {
+      const emoji = ANIMAL_EMOJIS[user.transformAnimal] || "🦊";
+      transformText = `\n🐾 ${emoji} ${user.transformAnimal}`;
+    }
+    
+    return await ctx.replyWithHTML(
+      `👤 <b>ПРОФИЛЬ</b>\n\n` +
+      `🆔 ID: ${user.telegramId}\n` +
+      `👤 @${user.username || user.firstName}\n` +
+      `💰 Баланс: ${formatNumber(user.balance)} ⭐\n` +
+      `🏆 Репутация: ${user.reputation}\n` +
+      `💍 Браки: ${marriage ? 'Да' : 'Нет'}\n` +
+      `✨ ${user.isPremium ? 'ПРЕМИУМ ✨' : 'Обычный'}${transformText}`
+    );
+  }
+  
+  // ид
+  if (text === 'ид') {
+    return await ctx.replyWithHTML(`🆔 Ваш ID: <code>${ctx.from?.id}</code>`);
+  }
+  
   // баланс
   if (text === 'баланс' || text === 'balance') {
     return await ctx.replyWithHTML(`💰 <b>Баланс:</b> ${formatNumber(user.balance)} ⭐`);
@@ -1350,7 +1394,7 @@ bot.on('text', async (ctx) => {
   }
   
   // ИГРЫ (текстом) - только локальные, без БД
-  if (text === 'кубик' || text === 'roll' || text === 'roll_dice') {
+  if (text === 'кубик' || text === 'roll') {
     const num = Math.floor(Math.random() * 6) + 1;
     await ctx.replyWithHTML(`🎲 <b>@${user.username}</b> выбросил: <b>${num}</b>`);
     return;
@@ -1360,6 +1404,63 @@ bot.on('text', async (ctx) => {
     const result = Math.random() > 0.5 ? 'Орёл' : 'Решка';
     await ctx.replyWithHTML(`🪙 <b>@${user.username}</b> выбросил: <b>${result}</b>`);
     return;
+  }
+  
+  // duel @user [ставка] (текстом)
+  if (text.match(/^duel\s+@(\w+)/) || text.match(/^дуэль\s+@(\w+)/)) {
+    const match = text.match(/@(\w+)/)!;
+    const targetUsername = match[1];
+    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
+    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
+    
+    const parts = text.split(' ');
+    let bet = 100;
+    if (parts[2]) {
+      const parsedBet = parseInt(parts[2]);
+      if (!isNaN(parsedBet) && parsedBet > 0) bet = parsedBet;
+    }
+    
+    if (user.balance < bet) return await ctx.reply(`❌ Нужно ${formatNumber(bet)}⭐`);
+    if (targetUser.balance < bet) return await ctx.reply(`❌ У @${targetUsername} нет ${formatNumber(bet)}⭐`);
+    
+    const winner = Math.random() > 0.5 ? user.id : targetUser.id;
+    const loser = winner === user.id ? targetUser.id : user.id;
+    
+    await db.update(users).set({ balance: sql`balance + ${bet}` }).where(eq(users.id, winner));
+    await db.update(users).set({ balance: sql`balance - ${bet}` }).where(eq(users.id, loser));
+    
+    return await ctx.replyWithHTML(
+      `⚔️ <b>ДУЭЛЬ:</b> @${winner === user.id ? user.username : targetUser.username} выиграл!\n\n` +
+      `+${formatNumber(bet)}⭐ для победителя\n` +
+      `-${formatNumber(bet)}⭐ для проигравшего`
+    );
+  }
+  
+  // marry @user (текстом)
+  if (text.match(/^marry\s+@(\w+)/) || text.match(/^жениться\s+@(\w+)/) || text.match(/^брак\s+@(\w+)/)) {
+    const match = text.match(/@(\w+)/)!;
+    const targetUsername = match[1];
+    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
+    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
+    
+    const [existingMarriage] = await db.select().from(marriages)
+      .where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)))
+      .limit(1);
+    
+    if (existingMarriage) return await ctx.reply('❌ Вы уже женаты');
+    
+    const [targetMarriage] = await db.select().from(marriages)
+      .where(or(eq(marriages.user1Id, targetUser.id), eq(marriages.user2Id, targetUser.id)))
+      .limit(1);
+    
+    if (targetMarriage) return await ctx.reply('❌ @' + targetUsername + ' уже женат(а)');
+    
+    await db.insert(marriages).values({
+      user1Id: user.id,
+      user2Id: targetUser.id,
+    });
+    
+    return await ctx.replyWithHTML(`💍 <b>@${user.username} и @${targetUsername} теперь женаты!</b>`);
   }
 });
 

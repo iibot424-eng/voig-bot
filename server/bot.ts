@@ -50,11 +50,21 @@ async function getOrCreateUser(ctx: Context) {
   let [user] = await db.select().from(users).where(eq(users.telegramId, telegramId));
   
   if (!user) {
-    [user] = await db.insert(users).values({
-      telegramId, username: ctx.from.username || null, firstName: ctx.from.first_name || null,
-      lastName: ctx.from.last_name || null, balance: 1000,
-    }).returning();
-    console.log(`[USER] Создан новый пользователь ID: ${telegramId}`);
+    try {
+      [user] = await db.insert(users).values({
+        telegramId, username: ctx.from.username || null, firstName: ctx.from.first_name || null,
+        lastName: ctx.from.last_name || null, balance: 1000,
+      }).returning();
+      console.log(`[USER] Создан новый пользователь ID: ${telegramId}`);
+    } catch (e: any) {
+      // Race condition - пользователь был создан в другом потоке
+      if (e.code === '23505') {
+        [user] = await db.select().from(users).where(eq(users.telegramId, telegramId));
+        console.log(`[USER] Найден после race condition ID: ${telegramId}`);
+      } else {
+        throw e;
+      }
+    }
   } else {
     await db.update(users).set({ 
       lastActive: new Date(), username: ctx.from.username || null, firstName: ctx.from.first_name || null,
@@ -1171,85 +1181,7 @@ bot.on('text', async (ctx) => {
     return;
   }
   
-  // БРАКИ И ОТНОШЕНИЯ (текстом)
-  if (text.match(/^жениться\s+@(\w+)/) || text.match(/^marry\s+@(\w+)/)) {
-    const match = text.match(/^(?:жениться|marry)\s+@(\w+)/)!;
-    const targetUsername = match[1];
-    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
-    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
-    if (user.telegramId === targetUser.telegramId) return await ctx.reply('❌ Нельзя жениться на себе');
-    
-    // Удалить старые предложения
-    await db.delete(pendingProposals).where(and(eq(pendingProposals.initiatorId, user.id), eq(pendingProposals.type, 'marriage')));
-    // Добавить новое
-    await db.insert(pendingProposals).values({ initiatorId: user.id, targetId: targetUser.id, type: 'marriage' });
-    await ctx.replyWithHTML(`💍 <b>@${user.username} предлагает руку @${targetUsername}</b>\n\nОтветьте: <b>принять_брак</b>`);
-    return;
-  }
-  
-  if (text === 'принять_брак' || text === 'accept_marry') {
-    const [proposal] = await db.select().from(pendingProposals).where(and(eq(pendingProposals.targetId, user.id), eq(pendingProposals.type, 'marriage')));
-    if (!proposal) return await ctx.reply('❌ Нет предложений браков');
-    
-    const [initiator] = await db.select().from(users).where(eq(users.id, proposal.initiatorId));
-    if (!initiator) return await ctx.reply('❌ Ошибка инициатора');
-    
-    // Создать брак
-    await db.insert(marriages).values({ user1Id: user.id, user2Id: initiator.id });
-    await db.delete(pendingProposals).where(eq(pendingProposals.id, proposal.id));
-    console.log(`[MARRY-TEXT] ${user.username} принял брак с ${initiator.username}`);
-    await ctx.replyWithHTML(`💒 <b>@${user.username} и @${initiator.username} в браке!</b> 💕`);
-    return;
-  }
-  
-  if (text === 'развод' || text === 'divorce') {
-    const [marriage] = await db.select().from(marriages).where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id)));
-    if (!marriage) return await ctx.reply('❌ Вы не в браке');
-    await db.delete(marriages).where(eq(marriages.id, marriage.id));
-    const other = marriage.user1Id === user.id ? marriage.user2Id : marriage.user1Id;
-    const [otherUser] = await db.select().from(users).where(eq(users.id, other));
-    console.log(`[DIVORCE-TEXT] ${user.username} развёлся с ${otherUser?.username}`);
-    await ctx.replyWithHTML(`💔 <b>@${user.username} и @${otherUser?.username} развелись</b>`);
-    return;
-  }
-  
-  if (text.match(/^встречаться\s+@(\w+)/) || text.match(/^dating\s+@(\w+)/)) {
-    const match = text.match(/^(?:встречаться|dating)\s+@(\w+)/)!;
-    const targetUsername = match[1];
-    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
-    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
-    if (user.telegramId === targetUser.telegramId) return await ctx.reply('❌ Нельзя встречаться с собой');
-    
-    await db.delete(pendingProposals).where(and(eq(pendingProposals.initiatorId, user.id), eq(pendingProposals.type, 'dating')));
-    await db.insert(pendingProposals).values({ initiatorId: user.id, targetId: targetUser.id, type: 'dating' });
-    await ctx.replyWithHTML(`💕 <b>@${user.username} предлагает встречаться @${targetUsername}</b>\n\nОтветьте: <b>принять_отношения</b>`);
-    return;
-  }
-  
-  if (text === 'принять_отношения' || text === 'accept_dating') {
-    const [proposal] = await db.select().from(pendingProposals).where(and(eq(pendingProposals.targetId, user.id), eq(pendingProposals.type, 'dating')));
-    if (!proposal) return await ctx.reply('❌ Нет предложений отношений');
-    
-    const [initiator] = await db.select().from(users).where(eq(users.id, proposal.initiatorId));
-    if (!initiator) return await ctx.reply('❌ Ошибка инициатора');
-    
-    await db.insert(relationships).values({ user1Id: user.id, user2Id: initiator.id });
-    await db.delete(pendingProposals).where(eq(pendingProposals.id, proposal.id));
-    await ctx.replyWithHTML(`💘 <b>@${user.username} и @${initiator.username} вместе!</b> 💕`);
-    return;
-  }
-  
-  if (text === 'разорвать' || text === 'breakup') {
-    const [rel] = await db.select().from(relationships).where(or(eq(relationships.user1Id, user.id), eq(relationships.user2Id, user.id)));
-    if (!rel) return await ctx.reply('❌ Вы не в отношениях');
-    await db.delete(relationships).where(eq(relationships.id, rel.id));
-    const other = rel.user1Id === user.id ? rel.user2Id : rel.user1Id;
-    const [otherUser] = await db.select().from(users).where(eq(users.id, other));
-    await ctx.replyWithHTML(`💔 <b>@${user.username} и @${otherUser?.username} разорвали отношения</b>`);
-    return;
-  }
-  
-  // ИГРЫ (текстом)
+  // ИГРЫ (текстом) - только локальные, без БД
   if (text === 'кубик' || text === 'roll' || text === 'roll_dice') {
     const num = Math.floor(Math.random() * 6) + 1;
     await ctx.replyWithHTML(`🎲 <b>@${user.username}</b> выбросил: <b>${num}</b>`);
@@ -1259,74 +1191,6 @@ bot.on('text', async (ctx) => {
   if (text === 'монета' || text === 'dice') {
     const result = Math.random() > 0.5 ? 'Орёл' : 'Решка';
     await ctx.replyWithHTML(`🪙 <b>@${user.username}</b> выбросил: <b>${result}</b>`);
-    return;
-  }
-  
-  if (text === 'ежедневно' || text === 'daily') {
-    if (!isOwner(user.telegramId) && user.lastDailyAt && new Date() < new Date(user.lastDailyAt.getTime() + 24*60*60*1000)) {
-      return await ctx.reply('❌ Уже получали вознаграждение. Ждите завтра');
-    }
-    const amount = 1000;
-    await db.update(users).set({
-      balance: user.balance + amount,
-      lastDailyAt: new Date(),
-    }).where(eq(users.id, user.id));
-    await ctx.replyWithHTML(`✅ <b>Ежедневный бонус:</b> +${formatNumber(amount)} ⭐`);
-    return;
-  }
-  
-  if (text === 'еженедельно' || text === 'weekly') {
-    if (!isOwner(user.telegramId) && user.lastWeeklyAt && new Date() < new Date(user.lastWeeklyAt.getTime() + 7*24*60*60*1000)) {
-      return await ctx.reply('❌ Уже получали вознаграждение. Ждите неделю');
-    }
-    const amount = 5000;
-    await db.update(users).set({
-      balance: user.balance + amount,
-      lastWeeklyAt: new Date(),
-    }).where(eq(users.id, user.id));
-    await ctx.replyWithHTML(`✅ <b>Еженедельный бонус:</b> +${formatNumber(amount)} ⭐`);
-    return;
-  }
-  
-  if (text === 'рыба' || text === 'fish') {
-    if (!isOwner(user.telegramId)) {
-      const today = new Date().toDateString();
-      const lastFishDate = user.lastFishAt?.toDateString();
-      if (lastFishDate === today && user.fishCount >= 5) return await ctx.reply('❌ Лимит рыбы: 5 в день');
-    }
-    
-    const caught = Math.random() > 0.7 ? Math.floor(Math.random() * 3000) + 500 : Math.floor(Math.random() * 500) + 50;
-    const newFishCount = user.lastFishAt?.toDateString() === new Date().toDateString() ? (user.fishCount || 0) + 1 : 1;
-    
-    await db.update(users).set({
-      balance: user.balance + caught,
-      lastFishAt: new Date(),
-      fishCount: newFishCount,
-    }).where(eq(users.id, user.id));
-    
-    await ctx.replyWithHTML(`🐟 <b>Поймали!</b> +${formatNumber(caught)} ⭐\n(Осталось: ${5 - newFishCount} попыток)`);
-    return;
-  }
-  
-  if (text.match(/^дуэль\s+@(\w+)\s+(\d+)/) || text.match(/^duel\s+@(\w+)\s+(\d+)/)) {
-    const match = text.match(/^(?:дуэль|duel)\s+@(\w+)\s+(\d+)/)!;
-    const amount = parseInt(match[2]);
-    if (amount <= 0) return await ctx.reply('❌ Сумма должна быть > 0');
-    if (user.balance < amount) return await ctx.reply('❌ Недостаточно звёзд');
-    
-    const [targetUser] = await db.select().from(users).where(eq(users.username, match[1]));
-    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
-    if (targetUser.balance < amount) return await ctx.reply('❌ У противника недостаточно звёзд');
-    
-    const winner = Math.random() > 0.5 ? 'user1' : 'user2';
-    const gainUser = winner === 'user1' ? user : targetUser;
-    const loseUser = winner === 'user1' ? targetUser : user;
-    
-    await db.insert(duels).values({ user1Id: user.id, user2Id: targetUser.id, amount, winnerId: gainUser.id });
-    await db.update(users).set({ balance: gainUser.balance + amount }).where(eq(users.id, gainUser.id));
-    await db.update(users).set({ balance: loseUser.balance - amount }).where(eq(users.id, loseUser.id));
-    
-    await ctx.replyWithHTML(`⚔️ <b>Дуэль!</b>\n🏆 <b>@${gainUser.username}</b> победил!\n+${formatNumber(amount)} ⭐`);
     return;
   }
 });

@@ -381,20 +381,17 @@ bot.command('buy_premium', async (ctx) => {
   }
   
   try {
-    await ctx.replyWithHTML(
-      `💎 <b>Купить ПРЕМИУМ за 200 Telegram Stars</b>\n\n` +
-      `Вы получите:\n` +
-      `• Повышенные бонусы\n` +
-      `• Эксклюзивные команды\n` +
-      `• Еженедельные награды`,
-      Markup.inlineKeyboard([
-        [Markup.button.pay('💳 Оплатить 200 ⭐')]
-      ])
-    );
+    await ctx.telegram.callApi('sendInvoice', {
+      chat_id: ctx.chat!.id,
+      title: 'ПРЕМИУМ на 1 месяц',
+      description: 'Получите повышенные бонусы, эксклюзивные команды и еженедельные награды',
+      payload: 'premium_1month_200stars',
+      currency: 'XTR',
+      prices: [{ label: 'ПРЕМИУМ 1 месяц', amount: 200 }]
+    });
   } catch (e: any) {
-    console.error('❌ Ошибка при открытии платежа:', e);
-    console.error('Stack:', e.stack);
-    await ctx.reply('❌ Ошибка при открытии платежа');
+    console.error('❌ Ошибка при открытии платежа:', e?.message);
+    await ctx.reply('❌ Ошибка при открытии платежа. Попробуйте позже.');
   }
 });
 

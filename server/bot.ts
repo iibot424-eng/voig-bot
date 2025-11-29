@@ -1168,14 +1168,13 @@ bot.on('text', async (ctx) => {
     'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
     'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
     'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
-    'преврати', 'превратить', 'мут', 'очистка'
+    'преврати', 'превратить', 'мут', 'очистка',
+    // ВСЕ 111+ RP команды
+    ...Object.keys(rpActions)
   ];
   
-  // ВСЕ 111 RP команды тоже разрешены
-  const isRpCommand = Object.keys(rpActions).some(cmd => text === cmd);
-  
   // Проверяем, является ли это командой
-  const isCommand = textCommands.some(cmd => text === cmd || text.startsWith(cmd + ' ')) || isRpCommand;
+  const isCommand = textCommands.some(cmd => text === cmd || text.startsWith(cmd + ' '));
   
   // Проверка звуков животных для трансформированных пользователей (КРОМЕ КОМАНД)
   if (!isCommand && user.transformAnimal && user.transformUntil && new Date() < new Date(user.transformUntil)) {

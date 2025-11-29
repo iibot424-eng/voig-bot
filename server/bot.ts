@@ -1193,8 +1193,19 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text.toLowerCase().trim();
   const replyTo = ctx.message.reply_to_message;
   
-  // Проверка звуков животных для трансформированных пользователей
-  if (user.transformAnimal && user.transformUntil && new Date() < new Date(user.transformUntil)) {
+  // СПИСОК ВСЕХ КОМАНД (текстовые вводы)
+  const allCommands = [
+    'денги', 'инфо', 'профиль', 'ид', 'баланс', 'balance',
+    'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
+    'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
+    'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка'
+  ];
+  
+  // Проверяем, является ли это командой
+  const isCommand = allCommands.some(cmd => text === cmd || text.startsWith(cmd + ' '));
+  
+  // Проверка звуков животных для трансформированных пользователей (КРОМЕ КОМАНД)
+  if (!isCommand && user.transformAnimal && user.transformUntil && new Date() < new Date(user.transformUntil)) {
     const expectedSound = ANIMAL_SOUNDS[user.transformAnimal];
     if (expectedSound && !text.includes(expectedSound)) {
       try {

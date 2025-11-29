@@ -244,7 +244,7 @@ bot.command('start', async (ctx) => {
     `🎮 Бот для развлечений, экономики, игр и RP в Telegram.\n\n` +
     `💰 Стартовый баланс: <b>${formatNumber(user.balance)} ⭐</b>\n` +
     `${user.isPremium ? '✨ Статус: <b>ПРЕМИУМ</b>' : '⚪ Статус: <b>ОБЫЧНЫЙ</b>'}\n\n` +
-    `<b>200+ команд доступно!</b>`,
+    `<b>130+ команд доступно!</b> (82 официальные + 51+ RP)`,
     Markup.inlineKeyboard([
       [Markup.button.callback('📋 Все команды', 'menu_all_commands')],
       [Markup.button.callback('🔵 Основные', 'menu_main')],
@@ -260,7 +260,7 @@ bot.command('start', async (ctx) => {
 bot.action('menu_all_commands', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `📋 <b>200+ КОМАНД</b>\n\n` +
+    `📋 <b>130+ КОМАНД</b> (82 официальные + 51 RP)\n\n` +
     `<b>👤 ПРОФИЛЬ:</b> инфо, баланс, ид, денги\n` +
     `<b>💰 ЭКОНОМИКА:</b> daily, weekly, топ, отправить\n` +
     `<b>🎮 ИГРЫ:</b> roll, dice, казино, fish, duel\n` +

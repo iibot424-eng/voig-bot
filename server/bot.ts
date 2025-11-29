@@ -770,40 +770,46 @@ bot.command('fish', async (ctx) => {
   await ctx.replyWithHTML(`${caught} Поймали! +${win}⭐\n\n🎣 <b>Рыбалка:</b> ${fishCount + 1}/${FISH_LIMIT_PER_DAY}`);
 });
 
-// ТРАНСФОРМАЦИЯ СЕБЯ
+// ТРАНСФОРМАЦИЯ ДРУГОГО ПОЛЬЗОВАТЕЛЯ В РАНДОМНОЕ ЖИВОТНОЕ
 bot.command('transform', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  console.log(`[TRANSFORM] Пользователь ${user.username} (${user.telegramId}) вызвал команду трансформация`);
+  console.log(`[TRANSFORM] Пользователь ${user.username} (${user.telegramId}) вызвал /transform`);
+  
   const { canTransform, message: msg } = await checkTransformCooldown(user);
   if (!canTransform) {
     console.log(`[TRANSFORM] КД: ${msg}`);
     return await ctx.replyWithHTML(msg!);
   }
   
-  const args = ctx.message.text.split(' ');
-  const animal = args[1]?.toLowerCase();
+  const msg_obj = ctx.message as any;
+  const replyTo = msg_obj?.reply_to_message;
   
-  if (!animal || !ANIMALS.includes(animal)) {
-    return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
+  if (!replyTo || !replyTo.from) {
+    return await ctx.reply('❌ Ответьте на сообщение пользователя чтобы его превратить!');
   }
   
-  if (!isOwner(user.telegramId) && user.balance < 500) return await ctx.reply('❌ Нужно 500⭐');
+  // РАНДОМНОЕ животное
+  const animal = ANIMALS[randomInt(0, ANIMALS.length - 1)];
+  
+  const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
+  if (!targetUser) return;
   
   const transformUntil = new Date(Date.now() + TRANSFORM_DURATION_HOURS * 60 * 60 * 1000);
   await db.update(users).set({
-    balance: isOwner(user.telegramId) ? user.balance : user.balance - 500,
     transformAnimal: animal,
     transformUntil,
+    lastTransformAt: new Date(),
+  }).where(eq(users.id, targetUser.id));
+  
+  await db.update(users).set({
     lastTransformAt: new Date(),
   }).where(eq(users.id, user.id));
   
   await ctx.replyWithHTML(
-    `${ANIMAL_EMOJIS[animal]} <b>Превращение!</b>\n\n` +
-    `Животное: <b>${animal}</b>\n` +
+    `${ANIMAL_EMOJIS[animal]} <b>@${replyTo.from.username || replyTo.from.first_name} превратился в ${animal}!</b>\n\n` +
     `Длительность: ${TRANSFORM_DURATION_HOURS} час\n` +
-    `${isOwner(user.telegramId) ? 'Стоимость: БЕСПЛАТНО (ВЛАДЕЛЕЦ)' : 'Стоимость: -500⭐'}\n` +
     `⏳ <b>КД:</b> 24ч`
   );
 });

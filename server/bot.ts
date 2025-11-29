@@ -465,8 +465,8 @@ bot.on('successful_payment', async (ctx) => {
     
     console.log(`💳 Платёж получен: ${starsAmount} звёзд от ${user.username} (${user.telegramId})`);
     
-    // Отправить звёзды владельцу (кроме премиума - это товар для бота)
-    if (invoicePayload !== 'premium_1month_200stars' && starsAmount > 0) {
+    // Отправить уведомление владельцу ОБО ВСЕХ платежах
+    if (starsAmount > 0) {
       try {
         await ctx.telegram.sendMessage(
           BOT_OWNER_ID,

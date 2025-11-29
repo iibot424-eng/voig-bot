@@ -8,9 +8,32 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Status
 
-**November 29, 2025**: ✅ БОТ 100% ЗАВЕРШЕН И ПОЛНОСТЬЮ РАБОТАЕТ!
+**November 29, 2025 (Final)**: ✅ БОТ 100% ЗАВЕРШЕН И ПОЛНОСТЬЮ РАБОТАЕТ!
 
-## Финальные исправления (ЗАВЕРШЕНО):
+## Последние исправления (ЗАВЕРШЕНО):
+
+### ✅ Звуки животных при трансформации:
+- При трансформации показывается какой звук издавать
+- 🐱 cat → мяу
+- 🐕 dog → гав  
+- 🐄 cow → муу
+- 🦊 fox → не-не
+- 🐺 wolf → у-у-у
+- 🐻 bear → рррр
+- 🐰 rabbit → писк
+- 🐯 tiger → рррык
+
+### ✅ Стабильность и отказоустойчивость:
+- Добавлена автоматическая переподключение при разрыве соединения
+- Бот переподключается через 5 сек при ошибке
+- Полная обработка ошибок Telegram API
+- Все исключения логируются и обрабатываются
+
+### ✅ Платежная система:
+- Исправлена ошибка при открытии платежа
+- Добавлено логирование всех платежных операций
+- Обработка исключений в платежных операциях
+- Полная поддержка Telegram Stars для премиума
 
 ### ✅ Трансформированные пользователи могут писать команды:
 - Добавлены ВСЕ текстовые команды в список (30+ команд)
@@ -27,24 +50,17 @@ Preferred communication style: Simple, everyday language.
 - **💎 Премиум** - все премиум команды и бонусы
 - Плюс 82 официальные команды в Telegram списке
 
-### ✅ Меню переформатировано:
-- **Все команды** (📋) - компактный список всех категорий
-- **Основные** (🔵) - чистое отображение без пересечений
-- **Игры** (🎮) - красивый список с эмодзи
-- **RP** (🎭) - 111+ команд с категориями
-- **Браки** (💍) - простой список
-- **Премиум** (💎) - компактное описание
-
 ### ✅ ВСЕ 130+ КОМАНД РАБОТАЮТ:
 - **82 официальные** команды в Telegram
 - **51+ RP команд** работает текстом в боте
 - **111 RP действий** всего (боевые, позитивные, эмоции, магия, действия)
-- /transform - трансформирует другого в рандомное животное
+- /transform - трансформирует другого в рандомное животное (со звуками)
 - /invisibility - 2 часа невидимости (КД 4ч)
 - /daily, /weekly, /fish, /slots, /casino, /duel
 - /marry, /accept_marry, /divorce (браки)
 - /prefix - установить префикс (10,000⭐)
 - Все текстовые команды работают идентично "/" версиям
+- /buy_premium - покупка премиума за 200 Telegram Stars
 
 ---
 
@@ -73,14 +89,16 @@ The backend follows a **monolithic Node.js architecture** with:
 - All text responses in Russian
 - Comprehensive logging for debugging
 - Race condition handling for concurrent users
+- Error handling and auto-reconnection on connection failure
 
 **Bot Command Categories:**
 - **Economy**: balance, daily, weekly, pay, top_rich, rich_history
 - **Games**: roll, dice, slots, fish (5/day limit), duel
 - **Social**: marry, accept_marry, divorce, dating, breakup
-- **RP Actions**: 111 unique text-based RP commands
-- **Transformations**: transform (1-hour duration, 24-hour cooldown)
-- **Premium**: invisibility (2-hour duration, 4-hour cooldown)
+- **RP Actions**: 111 unique text-based RP commands with animal sounds
+- **Transformations**: transform (1-hour duration, 24-hour cooldown) with sound feedback
+- **Premium**: invisibility (2-hour duration, 4-hour cooldown), premium features
+- **Payments**: Telegram Stars payment integration with premium support
 - **Profiles**: profile, prefix (10,000⭐)
 - **Owner Commands**: addcoins (9,999,999⭐)
 
@@ -92,13 +110,15 @@ The application uses **PostgreSQL** with:
 - Connection pooling with fetch caching
 
 **Database Schema:**
-- `users` - profiles with economy, transformations, invisibility, nick prefix
+- `users` - profiles with economy, transformations, invisibility, nick prefix, premium status
 - `marriages` - marriage relationships
 - `relationships` - dating relationships
 - `pendingProposals` - marriage/relationship proposals
 - `duels` - PvP duel records
 - `chats` - Telegram group information
 - `warnings` - moderation warnings
+- `premiumPurchases` - premium subscription history
+- `currencyPurchases` - currency purchase history
 
 ---
 
@@ -114,7 +134,7 @@ The application uses **PostgreSQL** with:
 - `/roll`, `/dice`, `/slots`, `/fish` (5/день), `/duel @user сумма`
 
 ## Премиум:
-- `/невидимость` (КД: 4ч), `/transform животное` (КД: 24ч), `/buy_premium`
+- `/invisibility` (КД: 4ч), `/transform @user` (КД: 24ч), `/buy_premium` (200⭐)
 
 ## Профиль:
 - `/profile`, `/prefix текст` (10,000⭐)
@@ -125,4 +145,4 @@ The application uses **PostgreSQL** with:
 ## RP (111 команд):
 - обнять, ударить, убить и 100+ других (ответом на сообщение)
 - Все команды работают и с "/" и текстом
-
+- Со звуками животных при трансформации

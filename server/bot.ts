@@ -392,7 +392,8 @@ bot.command('buy_premium', async (ctx) => {
       ])
     );
   } catch (e: any) {
-    console.error('Ошибка при открытии платежа:', e);
+    console.error('❌ Ошибка при открытии платежа:', e);
+    console.error('Stack:', e.stack);
     await ctx.reply('❌ Ошибка при открытии платежа');
   }
 });

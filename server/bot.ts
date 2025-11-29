@@ -1522,52 +1522,115 @@ bot.on('text', async (ctx) => {
 // ═══════════════════════════════════════════════════════════
 
 export async function startBot() {
-  // Список всех команд для Telegram (только латинские буквы!)
+  // Список всех команд для Telegram (максимум 100)
   const commands = [
-    { command: 'start', description: 'Главное меню бота' },
-    { command: 'help', description: 'Справка по всем командам' },
+    { command: 'start', description: 'Главное меню' },
+    { command: 'help', description: 'Справка' },
     
-    // Профиль
-    { command: 'profile', description: 'Ваш профиль (инфо)' },
+    // Профиль (5)
+    { command: 'profile', description: 'Профиль' },
     { command: 'balance', description: 'Баланс' },
-    { command: 'id', description: 'Ваш Telegram ID' },
+    { command: 'id', description: 'ID' },
+    { command: 'top_rich', description: 'Топ 10' },
+    { command: 'prefix', description: 'Префикс' },
     
-    // Экономика
-    { command: 'daily', description: 'Ежедневный бонус (+500/1000)' },
-    { command: 'weekly', description: 'Еженедельный бонус (+10k)' },
-    { command: 'top_rich', description: 'Топ 10 богачей' },
-    { command: 'pay', description: 'Перевести деньги' },
+    // Экономика (4)
+    { command: 'daily', description: 'Ежедневный +500/1000' },
+    { command: 'weekly', description: 'Еженедельный +10k' },
+    { command: 'pay', description: 'Перевести' },
     
-    // Игры
-    { command: 'roll', description: 'Кубик (1-6)' },
-    { command: 'dice', description: 'Орёл или решка' },
-    { command: 'slots', description: 'Слот машина (50)' },
-    { command: 'casino', description: 'Казино (50/50)' },
-    { command: 'fish', description: 'Рыбалка (50, 5/день)' },
-    { command: 'duel', description: 'Дуэль с игроком' },
+    // Игры (6)
+    { command: 'roll', description: 'Кубик' },
+    { command: 'dice', description: 'Монета' },
+    { command: 'slots', description: 'Слоты' },
+    { command: 'casino', description: 'Казино' },
+    { command: 'fish', description: 'Рыбалка' },
+    { command: 'duel', description: 'Дуэль' },
     
-    // Браки
-    { command: 'marry', description: 'Предложение руки' },
-    { command: 'accept_marry', description: 'Принять предложение' },
+    // Браки (3)
+    { command: 'marry', description: 'Брак' },
+    { command: 'accept_marry', description: 'Принять' },
     { command: 'divorce', description: 'Развод' },
     
-    // Премиум
-    { command: 'invisibility', description: 'Невидимость (2ч, КД 4ч)' },
-    { command: 'transform', description: 'Превратить игрока' },
-    { command: 'prefix', description: 'Установить префикс (10k)' },
-    { command: 'buy_premium', description: 'Купить премиум (200)' },
+    // Премиум (3)
+    { command: 'invisibility', description: 'Невидимость' },
+    { command: 'transform', description: 'Трансформация' },
+    { command: 'buy_premium', description: 'Купить премиум' },
     
-    // RP команды (самые популярные)
-    { command: 'hug', description: 'Обнять (RP)' },
-    { command: 'kick', description: 'Ударить (RP)' },
-    { command: 'kiss', description: 'Целовать (RP)' },
-    { command: 'kill', description: 'Убить (RP)' },
-    { command: 'shoot', description: 'Выстрелить (RP)' },
-    { command: 'laugh', description: 'Засмеяться (RP)' },
-    { command: 'cry', description: 'Заплакать (RP)' },
-    { command: 'scare', description: 'Испугаться (RP)' },
-    { command: 'hide', description: 'Спрятаться (RP)' },
-    { command: 'run', description: 'Побежать (RP)' },
+    // ВСЕ 111+ RP КОМАНДЫ - добавляем примерно 60+ (максимум до 100)
+    // Агрессивные/боевые
+    { command: 'vystreltit', description: 'Выстрелить RP' },
+    { command: 'udarit', description: 'Ударить RP' },
+    { command: 'ubit', description: 'Убить RP' },
+    { command: 'arestovat', description: 'Арестовать RP' },
+    { command: 'zarezt', description: 'Зарезать RP' },
+    { command: 'otravit', description: 'Отравить RP' },
+    { command: 'vzvyt', description: 'Взорвать RP' },
+    { command: 'szhech', description: 'Сжечь RP' },
+    { command: 'zadushit', description: 'Задушить RP' },
+    { command: 'tolknut', description: 'Толкнуть RP' },
+    { command: 'pnut', description: 'Пнуть RP' },
+    { command: 'svyzt', description: 'Связать RP' },
+    { command: 'zaperet', description: 'Запереть RP' },
+    { command: 'obezglvt', description: 'Обезглавить RP' },
+    { command: 'rastrelyt', description: 'Расстрелять RP' },
+    
+    // Позитивные
+    { command: 'obnyt', description: 'Обнять RP' },
+    { command: 'poceltyt', description: 'Поцеловать RP' },
+    { command: 'celovat', description: 'Целовать RP' },
+    { command: 'pogldtg', description: 'Погладить RP' },
+    { command: 'ulybnutsya', description: 'Улыбнуться RP' },
+    { command: 'podmgnut', description: 'Подмигнуть RP' },
+    { command: 'pozhat', description: 'Пожать руку RP' },
+    { command: 'uteshtit', description: 'Утешить RP' },
+    { command: 'pohvalit', description: 'Похвалить RP' },
+    { command: 'prglshen', description: 'Пригласить танец RP' },
+    { command: 'kompliment', description: 'Комплимент RP' },
+    { command: 'prigotvt', description: 'Приготовить ужин RP' },
+    { command: 'podarit', description: 'Подарить цветы RP' },
+    { command: 'raskazat', description: 'Рассказать RP' },
+    { command: 'serenad', description: 'Серенада RP' },
+    
+    // Эмоции
+    { command: 'zasmeytsya', description: 'Засмеяться RP' },
+    { command: 'zaplakat', description: 'Заплакать RP' },
+    { command: 'vzdohnut', description: 'Вздохнуть RP' },
+    { command: 'nashmyrtsya', description: 'Нахмуриться RP' },
+    { command: 'udivitsya', description: 'Удивиться RP' },
+    { command: 'ispugatsya', description: 'Испугаться RP' },
+    { command: 'razozlitsya', description: 'Разозлиться RP' },
+    { command: 'voskhititsya', description: 'Восхититься RP' },
+    { command: 'vozmutitsya', description: 'Возмутиться RP' },
+    { command: 'usmekhutsya', description: 'Усмехнуться RP' },
+    { command: 'zakatitig', description: 'Закатить глаза RP' },
+    { command: 'podnyt', description: 'Поднять бровь RP' },
+    { command: 'nadut', description: 'Надуть губы RP' },
+    { command: 'hlopat', description: 'Хлопать RP' },
+    
+    // Действия
+    { command: 'pobezhaty', description: 'Побежать RP' },
+    { command: 'sprytatysya', description: 'Спрятаться RP' },
+    { command: 'zameraznyt', description: 'Замереть RP' },
+    { command: 'prisysti', description: 'Присесть RP' },
+    { command: 'prlyt', description: 'Прилечь RP' },
+    { command: 'vstat', description: 'Встать RP' },
+    { command: 'podpryginut', description: 'Подпрыгнуть RP' },
+    { command: 'nyrnut', description: 'Нырнуть RP' },
+    { command: 'kachnut', description: 'Качнуть головой RP' },
+    { command: 'kivnut', description: 'Кивнуть RP' },
+    
+    // Магия
+    { command: 'zamorozit', description: 'Заморозить RP' },
+    { command: 'podzhetg', description: 'Поджечь RP' },
+    { command: 'osleptg', description: 'Ослепить RP' },
+    { command: 'shokirovat', description: 'Шокировать RP' },
+    { command: 'molniya', description: 'Молния RP' },
+    { command: 'proklyatie', description: 'Проклятие RP' },
+    { command: 'snyat', description: 'Снять проклятие RP' },
+    { command: 'iscelity', description: 'Исцелить RP' },
+    { command: 'voskreestit', description: 'Воскресить RP' },
+    { command: 'prochetat', description: 'Прочитать мысли RP' },
   ];
   
   try {

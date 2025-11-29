@@ -391,7 +391,8 @@ bot.command('buy_premium', async (ctx) => {
         [Markup.button.pay('💳 Оплатить 200 ⭐')]
       ])
     );
-  } catch (e) {
+  } catch (e: any) {
+    console.error('Ошибка при открытии платежа:', e);
     await ctx.reply('❌ Ошибка при открытии платежа');
   }
 });
@@ -407,58 +408,66 @@ bot.on('pre_checkout_query', async (ctx) => {
 
 // Успешный платёж
 bot.on('successful_payment', async (ctx) => {
-  const user = await getOrCreateUser(ctx);
-  if (!user) return;
-  
-  const payment = ctx.message?.successful_payment;
-  if (!payment) return;
-  
-  const starsAmount = payment.total_amount;
-  
-  // Премиум за 200 звёзд
-  if (starsAmount === 200) {
-    const premiumUntil = new Date();
-    premiumUntil.setMonth(premiumUntil.getMonth() + 1);
+  try {
+    const user = await getOrCreateUser(ctx);
+    if (!user) return;
     
+    const payment = ctx.message?.successful_payment;
+    if (!payment) return;
+    
+    const starsAmount = payment.total_amount;
+    const invoicePayload = payment.invoice_payload;
+    
+    console.log(`💳 Платёж получен: ${starsAmount} звёзд от ${user.username} (${user.telegramId})`);
+    
+    // Премиум за 200 звёзд
+    if (starsAmount === 200 || invoicePayload === 'premium_1month') {
+      const premiumUntil = new Date();
+      premiumUntil.setMonth(premiumUntil.getMonth() + 1);
+      
+      await db.update(users).set({
+        isPremium: true,
+        premiumUntil,
+      }).where(eq(users.id, user.id));
+      
+      await db.insert(premiumPurchases).values({
+        userId: user.id,
+        telegramPaymentChargeId: payment.telegram_payment_charge_id,
+        starsAmount: 200,
+        premiumMonths: 1,
+        status: 'completed',
+      });
+      
+      return await ctx.replyWithHTML(
+        `✨ <b>СПАСИБО ЗА ПОКУПКУ!</b>\n\n` +
+        `🎉 Вы получили <b>ПРЕМИУМ</b> на 1 месяц!\n` +
+        `💎 Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`
+      );
+    }
+    
+    // Валюта за звёзды (10 звёзд = 10k)
+    const currencyAmount = (starsAmount / 10) * 10000;
     await db.update(users).set({
-      isPremium: true,
-      premiumUntil,
+      balance: user.balance + currencyAmount,
     }).where(eq(users.id, user.id));
     
-    await db.insert(premiumPurchases).values({
+    await db.insert(currencyPurchases).values({
       userId: user.id,
       telegramPaymentChargeId: payment.telegram_payment_charge_id,
-      starsAmount: 200,
-      premiumMonths: 1,
+      starsAmount,
+      currencyAmount: Math.floor(currencyAmount),
       status: 'completed',
     });
     
-    return await ctx.replyWithHTML(
-      `✨ <b>СПАСИБО ЗА ПОКУПКУ!</b>\n\n` +
-      `🎉 Вы получили <b>ПРЕМИУМ</b> на 1 месяц!\n` +
-      `💎 Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`
+    await ctx.replyWithHTML(
+      `💰 <b>ПОКУПКА ЗАВЕРШЕНА!</b>\n\n` +
+      `Вы получили: <b>${formatNumber(Math.floor(currencyAmount))}</b> пойнтов\n` +
+      `Новый баланс: <b>${formatNumber(user.balance + currencyAmount)}</b>`
     );
+  } catch (e: any) {
+    console.error('❌ Ошибка при обработке платежа:', e);
+    await ctx.reply('❌ Ошибка при обработке платежа');
   }
-  
-  // Валюта за звёзды (10 звёзд = 10k)
-  const currencyAmount = (starsAmount / 10) * 10000;
-  await db.update(users).set({
-    balance: user.balance + currencyAmount,
-  }).where(eq(users.id, user.id));
-  
-  await db.insert(currencyPurchases).values({
-    userId: user.id,
-    telegramPaymentChargeId: payment.telegram_payment_charge_id,
-    starsAmount,
-    currencyAmount: Math.floor(currencyAmount),
-    status: 'completed',
-  });
-  
-  await ctx.replyWithHTML(
-    `💰 <b>ПОКУПКА ЗАВЕРШЕНА!</b>\n\n` +
-    `Вы получили: <b>${formatNumber(Math.floor(currencyAmount))}</b> пойнтов\n` +
-    `Новый баланс: <b>${formatNumber(user.balance + currencyAmount)}</b>`
-  );
 });
 
 // Еженедельный бонус для премиум (БЕЗ ЛИМИТОВ ДЛЯ ВЛАДЕЛЬЦА)

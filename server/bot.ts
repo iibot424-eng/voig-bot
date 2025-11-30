@@ -1502,7 +1502,7 @@ bot.on('text', async (ctx) => {
     'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
     'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
     'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
-    'преврати', 'превратить', 'мут', 'очистка', 'buy_premium', 'buy_currency', 'buy_transform_protection',
+    'преврати', 'превратить', 'мут', 'buy_premium', 'buy_currency', 'buy_transform_protection',
     'купить валюту', 'защита от превращений', 'gift_premium', 'подарить премиум', 'give_premium',
     // ВСЕ 111+ RP команды
     ...Object.keys(rpActions)
@@ -1762,18 +1762,6 @@ bot.on('text', async (ctx) => {
       await ctx.replyWithHTML(`🔇 <b>@${replyTo.from.username} замучен на ${minutes} минут</b>`);
     } catch (e: any) {
       await ctx.reply(`❌ Ошибка: ${e.message}`);
-    }
-    return;
-  }
-  
-  // очистка - удалить сообщение (как ответ на сообщение)
-  if (text === 'очистка' && replyTo) {
-    try {
-      await ctx.deleteMessage(replyTo.message_id);
-      console.log(`[CLEANUP] ${user.username} удалил сообщение ${replyTo.from.username}`);
-      await ctx.deleteMessage();
-    } catch (e: any) {
-      console.log('Ошибка при удалении сообщения:', e?.message);
     }
     return;
   }

@@ -365,7 +365,7 @@ bot.action('menu_premium', async (ctx) => {
     `<b>🛍️ КУПИТЬ ПРЕМИУМ:</b>\n` +
     `/buy_premium\n` +
     `купить премиум\n\n` +
-    `<b>👑 ВЛАДЕЛЕЦ (@n777snickers777):</b>\n` +
+    `<b>👑 ВЛАДЕЛЕЦ (KLABA):</b>\n` +
     `Бесплатный премиум навсегда + /addcoins`,
     { parse_mode: 'HTML' }
   );

@@ -1766,22 +1766,25 @@ bot.on('text', async (ctx) => {
     return;
   }
   
-  // очистка - удалить все о пользователе (как ответ на сообщение)
-  if (text === 'очистка' && replyTo) {
-    console.log(`[CLEANUP] ${user.username} очищает профиль ${replyTo.from.username}`);
-    const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
-    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
+  // очистка - очистить свой профиль (трансформацию, невидимость, префикс)
+  if (text === 'очистка') {
+    console.log(`[CLEANUP] ${user.username} очищает свой профиль`);
     
-    // Очистить данные
+    // Очистить данные СВОЕГО профиля
     await db.update(users).set({
       transformAnimal: null,
       transformUntil: null,
       isInvisible: false,
       invisibilityUntil: null,
       nickPrefix: null,
-    }).where(eq(users.id, targetUser.id));
+    }).where(eq(users.id, user.id));
     
-    await ctx.replyWithHTML(`✅ <b>Профиль @${replyTo.from.username} очищен</b>`);
+    await ctx.replyWithHTML(
+      `✅ <b>ВАШ ПРОФИЛЬ ОЧИЩЕН!</b>\n\n` +
+      `🐾 Трансформация: ❌ Удалена\n` +
+      `👁️ Невидимость: ❌ Удалена\n` +
+      `✨ Префикс: ❌ Удалён`
+    );
     return;
   }
   

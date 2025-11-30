@@ -4,7 +4,7 @@ services:
     env: node
     nodeVersion: 20
     plan: free
-    buildCommand: npm install --production=false && ./node_modules/.bin/tsx script/build.ts
+    buildCommand: npm install && node script/build.js
     startCommand: npm run start
     envVars:
       - key: NODE_ENV

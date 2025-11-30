@@ -20,9 +20,9 @@ Preferred communication style: Simple, everyday language.
 - `/no_sticker` - запретить стикеры в чате
 - `/allow_all` - разрешить всё медиа в чате
 
-### ✅ Префикс теперь для всех!
-- `/prefix текст` - установить префикс **БЕСПЛАТНО** для всех пользователей
-- Удален платеж за префикс (был 10,000⭐)
+### ✅ Префикс для всех!
+- `/prefix текст` - установить префикс за **10,000⭐**
+- Доступен всем пользователям (не только премиум)
 - Все могут иметь свой уникальный префикс
 
 ### ✅ Премиум стакирование:
@@ -124,7 +124,7 @@ The backend follows a **monolithic Node.js architecture** with:
 - **Transformations**: transform (1-hour duration, 24-hour cooldown) with sound feedback
 - **Premium**: invisibility (2-hour duration, 4-hour cooldown), premium features
 - **Payments**: Telegram Stars payment integration with premium support
-- **Profiles**: profile, prefix (FREE for all users now!)
+- **Profiles**: profile, prefix (10,000⭐ for everyone)
 - **Admin/Moderation**: ban, warn, no_video, no_photo, no_sticker, allow_all
 - **Owner Commands**: addcoins (9,999,999⭐), give_premium
 
@@ -163,7 +163,7 @@ The application uses **PostgreSQL** with:
 - `/invisibility` (КД: 4ч), `/transform @user` (КД: 24ч), `/buy_premium` (200⭐)
 
 ## Профиль:
-- `/profile`, `/prefix текст` (БЕСПЛАТНО для всех!)
+- `/profile`, `/prefix текст` (10,000⭐)
 
 ## Админ/Модерация:
 - `/ban @user` - забанить (только администраторы)

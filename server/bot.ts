@@ -1412,8 +1412,11 @@ bot.command('prefix', async (ctx) => {
     return await ctx.reply('❌ Префикс слишком длинный (максимум 20 символов)');
   }
   
+  if (user.balance < 10000) return await ctx.reply('❌ Нужно 10,000⭐');
+  
   // Сохраняем в БД
   await db.update(users).set({
+    balance: user.balance - 10000,
     nickPrefix: prefix,
   }).where(eq(users.id, user.id));
   
@@ -1422,7 +1425,8 @@ bot.command('prefix', async (ctx) => {
   await ctx.replyWithHTML(
     `✅ <b>Префикс установлен!</b>\n\n` +
     `<b>${prefix}</b> сохранён в профиле\n` +
-    `(Бот должен быть администратором для отображения в списке членов)`
+    `(Бот должен быть администратором для отображения в списке членов)\n` +
+    `Стоимость: -10,000⭐`
   );
 });
 

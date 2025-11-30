@@ -500,7 +500,7 @@ bot.command('give_premium', async (ctx) => {
   }
 });
 
-// Команда подарить премиум за 200 звезд
+// Команда подарить премиум за 200 Telegram Stars
 bot.command('gift_premium', async (ctx) => {
   const user = await getOrCreateUser(ctx);
   if (!user) return;
@@ -512,7 +512,7 @@ bot.command('gift_premium', async (ctx) => {
     return await ctx.replyWithHTML(
       `<b>Использование:</b> /gift_premium @username\n\n` +
       `💝 Подарить премиум на 1 месяц другому пользователю\n` +
-      `💰 Стоимость: <b>200⭐</b>`
+      `💰 Стоимость: <b>200 Telegram Stars</b> (настоящие звёзды!)`
     );
   }
   
@@ -525,56 +525,23 @@ bot.command('gift_premium', async (ctx) => {
       return await ctx.reply(`❌ Пользователь ${targetUsername} не найден!`);
     }
     
-    if (user.balance < 200) {
-      return await ctx.replyWithHTML(
-        `❌ <b>НЕДОСТАТОЧНО ЗВЁЗД!</b>\n\n` +
-        `💰 У вас: <b>${formatNumber(user.balance)} ⭐</b>\n` +
-        `💰 Нужно: <b>200 ⭐</b>`
-      );
-    }
-    
     if (targetUser.id === user.id) {
       return await ctx.reply('❌ Вы не можете подарить премиум сами себе!');
     }
     
-    // Если целевому уже есть премиум, продлим его ещё на месяц
-    const premiumUntil = targetUser.premiumUntil && new Date(targetUser.premiumUntil) > new Date()
-      ? new Date(targetUser.premiumUntil)
-      : new Date();
-    
-    premiumUntil.setMonth(premiumUntil.getMonth() + 1);
-    
-    // Снимаем звёзды с дарителя
-    await db.update(users).set({
-      balance: user.balance - 200
-    }).where(eq(users.id, user.id));
-    
-    // Даём премиум получателю
-    await db.update(users).set({
-      isPremium: true,
-      premiumUntil,
-    }).where(eq(users.id, targetUser.id));
-    
-    await ctx.replyWithHTML(
-      `💝 <b>ПРЕМИУМ ПОДАРЕН!</b>\n\n` +
-      `👤 Кому: <b>${targetUser.username}</b>\n` +
-      `💎 На 1 месяц до: <b>${premiumUntil.toLocaleDateString('ru-RU')}</b>\n` +
-      `💸 Вы потратили: <b>200 ⭐</b>`
-    );
-    
-    // Уведомление получателю
-    try {
-      await ctx.telegram.sendMessage(
-        targetUser.telegramId,
-        `💝 <b>ВАМ ПОДАРИЛИ ПРЕМИУМ!</b>\n\n🎉 <b>${user.username || 'Игрок'}</b> подарил вам премиум на 1 месяц!\n✨ Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`,
-        { parse_mode: 'HTML' }
-      );
-    } catch (e) {
-      console.error('Не удалось отправить сообщение пользователю');
-    }
+    // Открываем платёж через Telegram Stars
+    await ctx.telegram.callApi('sendInvoice', {
+      chat_id: ctx.chat!.id,
+      title: `Подарить премиум @${targetUser.username}`,
+      description: `Подарите премиум на 1 месяц пользователю @${targetUser.username}`,
+      payload: `gift_premium_${targetUser.id}`,
+      currency: 'XTR',
+      prices: [{ label: `Премиум для @${targetUser.username}`, amount: 200 }],
+      provider_token: ''
+    });
   } catch (e: any) {
-    console.error('❌ Ошибка при подарке премиума:', e?.message);
-    await ctx.reply('❌ Ошибка при подарке премиума');
+    console.error('❌ Ошибка при открытии платежа:', e?.message);
+    await ctx.reply('❌ Ошибка при открытии платежа. Попробуйте позже.');
   }
 });
 
@@ -640,6 +607,55 @@ bot.on('successful_payment', async (ctx) => {
         `🎉 Вы получили <b>ПРЕМИУМ</b> на 1 месяц!\n` +
         `💎 Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`
       );
+    }
+    
+    // Подарок премиума - payload: gift_premium_<targetUserId>
+    if (invoicePayload && invoicePayload.startsWith('gift_premium_')) {
+      try {
+        const targetUserId = parseInt(invoicePayload.replace('gift_premium_', ''));
+        const targetUser = await db.query.users.findFirst({
+          where: eq(users.id, targetUserId)
+        });
+        
+        if (!targetUser) {
+          return await ctx.reply('❌ Ошибка: целевой пользователь не найден');
+        }
+        
+        // Если целевому уже есть премиум, продлим его ещё на месяц
+        const premiumUntil = targetUser.premiumUntil && new Date(targetUser.premiumUntil) > new Date()
+          ? new Date(targetUser.premiumUntil)
+          : new Date();
+        
+        premiumUntil.setMonth(premiumUntil.getMonth() + 1);
+        
+        // Даём премиум получателю
+        await db.update(users).set({
+          isPremium: true,
+          premiumUntil,
+        }).where(eq(users.id, targetUser.id));
+        
+        await ctx.replyWithHTML(
+          `💝 <b>СПАСИБО ЗА ПОДАРОК!</b>\n\n` +
+          `🎉 Вы подарили премиум <b>@${targetUser.username}</b>!\n` +
+          `💎 Премиум действует до: <b>${premiumUntil.toLocaleDateString('ru-RU')}</b>`
+        );
+        
+        // Уведомление получателю
+        try {
+          await ctx.telegram.sendMessage(
+            targetUser.telegramId,
+            `💝 <b>ВАМ ПОДАРИЛИ ПРЕМИУМ!</b>\n\n🎉 <b>@${user.username || 'Игрок'}</b> подарил вам премиум на 1 месяц!\n✨ Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`,
+            { parse_mode: 'HTML' }
+          );
+        } catch (e) {
+          console.error('Не удалось отправить сообщение получателю');
+        }
+        
+        return;
+      } catch (e: any) {
+        console.error('❌ Ошибка при обработке подарка премиума:', e?.message);
+        return await ctx.reply('❌ Ошибка при обработке подарка премиума');
+      }
     }
     
     // Защита от трансформаций (400 звёзд = навсегда)

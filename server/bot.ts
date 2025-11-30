@@ -1446,7 +1446,8 @@ bot.on('sticker', async (ctx) => {
 // ═══════════════════════════════════════════════════════════
 
 bot.on('my_chat_member', async (ctx) => {
-  console.log(`[CHAT_MEMBER] Событие в чате: ${ctx.chat.title} (${ctx.chat.id}), Статус: ${ctx.myChatMember.new_chat_member.status}`);
+  const chatTitle = (ctx.chat as any).title || ctx.chat.id;
+  console.log(`[CHAT_MEMBER] Событие в чате: ${chatTitle} (${ctx.chat.id}), Статус: ${ctx.myChatMember.new_chat_member.status}`);
   
   if (ctx.chat.type === 'private') {
     console.log('[CHAT_MEMBER] Пропуск - приватный чат');

@@ -2,13 +2,10 @@ services:
   - type: web
     name: voig-bot
     env: node
+    nodeVersion: 20
     plan: free
-    buildCommand: npm ci && npm run build
-    startCommand: NODE_ENV=production node dist/index.cjs
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        scope: run
-      - key: TELEGRAM_BOT_TOKEN
-        scope: run

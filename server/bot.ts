@@ -2094,39 +2094,61 @@ export async function startBot() {
     console.error('❌ Ошибка при обновлении команд:', e);
   }
   
+  // Переменная для отслеживания состояния бота
+  let botRunning = true;
+  
   // Обработка ошибок подключения с переподключением
   bot.catch((err: any, ctx: any) => {
     console.error('❌ Ошибка бота:', err?.message || err);
     if (err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || err?.message?.includes('socket hang up')) {
-      console.log('🔄 Разрыв соединения - переподключаемся через 3 сек...');
+      console.log('🔄 Разрыв соединения - переподключаемся через 2 сек...');
+      botRunning = false;
       setTimeout(() => {
         console.log('🔄 Попытка переподключения...');
-        bot.launch().catch((e: any) => console.error('Ошибка переподключения:', e?.message));
-      }, 3000);
+        botRunning = true;
+        bot.launch().catch((e: any) => {
+          console.error('Ошибка переподключения:', e?.message);
+          botRunning = false;
+        });
+      }, 2000);
     }
   });
 
   // Обработка ошибок при запуске
   bot.launch().catch((err: any) => {
     console.error('❌ Ошибка при запуске бота:', err?.message || err);
+    botRunning = false;
     setTimeout(() => {
-      console.log('🔄 Попытка переподключения (5 сек)...');
-      bot.launch().catch((e: any) => console.error('Ошибка переподключения:', e?.message));
-    }, 5000);
+      console.log('🔄 Попытка переподключения (3 сек)...');
+      botRunning = true;
+      bot.launch().catch((e: any) => {
+        console.error('Ошибка переподключения:', e?.message);
+        botRunning = false;
+      });
+    }, 3000);
   });
 
-  // Проверка соединения каждые 30 секунд
+  // Проверка соединения каждые 10 секунд (вместо 30)
   const connectionCheckInterval = setInterval(() => {
     try {
+      if (!botRunning) return;
       bot.telegram.getMe().catch((e: any) => {
         console.warn('⚠️ Соединение потеряно, восстанавливаем...');
+        botRunning = false;
         clearInterval(connectionCheckInterval);
-        bot.launch().catch((err: any) => console.error('Ошибка восстановления:', err?.message));
+        setTimeout(() => {
+          console.log('🔄 Восстановление соединения (1 сек)...');
+          botRunning = true;
+          bot.launch().catch((err: any) => {
+            console.error('Ошибка восстановления:', err?.message);
+            botRunning = false;
+          });
+        }, 1000);
       });
     } catch (e: any) {
       console.warn('⚠️ Ошибка проверки соединения:', e?.message);
     }
-  }, 30000);
+  }, 10000);
 
   console.log('🤖 VOIG BOT запущен!');
   process.once('SIGINT', () => {

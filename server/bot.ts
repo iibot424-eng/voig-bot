@@ -1710,15 +1710,18 @@ bot.on('text', async (ctx) => {
   
   // КОМАНДЫ С ОТВЕТОМ НА СООБЩЕНИЕ:
   
-  if (!replyTo || !replyTo.from) return;
-  
-  // обнять, ударить, убить и т.д. - RP команды
+  // обнять, ударить, убить и т.д. - RP команды (требуют ответа на сообщение)
   for (const [command, emoji] of Object.entries(rpActions)) {
     if (text === command) {
+      if (!replyTo || !replyTo.from) {
+        return await ctx.reply('❌ RP команды используются в ответ на сообщение');
+      }
       await handleRpAction(ctx, command, emoji);
       return;
     }
   }
+  
+  if (!replyTo || !replyTo.from) return;
   
   // преврати животное (в ответ на его сообщение)
   if (text.match(/^преврати\s+(\w+)$/) || text.match(/^превратить\s+(\w+)$/)) {

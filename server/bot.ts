@@ -470,7 +470,10 @@ bot.command('give_premium', async (ctx) => {
       return await ctx.reply(`❌ Пользователь ${targetUsername} не найден!`);
     }
     
-    const premiumUntil = new Date();
+    // Если уже есть активный премиум - продлеваем от его конца, иначе создаём новый
+    const premiumUntil = targetUser.premiumUntil && new Date(targetUser.premiumUntil) > new Date()
+      ? new Date(targetUser.premiumUntil)
+      : new Date();
     premiumUntil.setMonth(premiumUntil.getMonth() + 1);
     
     await db.update(users).set({

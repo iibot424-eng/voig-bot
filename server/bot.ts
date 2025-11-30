@@ -1273,6 +1273,58 @@ bot.command('prefix', async (ctx) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// ОБРАБОТЧИК УДАЛЕНИЯ ЗАПРЕЩЁННЫХ МЕДИА
+// ═══════════════════════════════════════════════════════════
+
+// Удаление видео если запрещено
+bot.on('video', async (ctx) => {
+  if (ctx.chat?.type !== 'private') {
+    const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+    if (chat?.settings?.forbidVideo) {
+      try {
+        await ctx.deleteMessage();
+        await ctx.reply('🚫 Видео запрещены в этом чате');
+      } catch (e) {
+        console.log('Ошибка при удалении видео:', e);
+      }
+      return;
+    }
+  }
+});
+
+// Удаление фото если запрещено
+bot.on('photo', async (ctx) => {
+  if (ctx.chat?.type !== 'private') {
+    const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+    if (chat?.settings?.forbidPhoto) {
+      try {
+        await ctx.deleteMessage();
+        await ctx.reply('🚫 Фото запрещены в этом чате');
+      } catch (e) {
+        console.log('Ошибка при удалении фото:', e);
+      }
+      return;
+    }
+  }
+});
+
+// Удаление стикеров если запрещены
+bot.on('sticker', async (ctx) => {
+  if (ctx.chat?.type !== 'private') {
+    const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+    if (chat?.settings?.forbidSticker) {
+      try {
+        await ctx.deleteMessage();
+        await ctx.reply('🚫 Стикеры запрещены в этом чате');
+      } catch (e) {
+        console.log('Ошибка при удалении стикера:', e);
+      }
+      return;
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 // ОБРАБОТЧИК ТЕКСТОВЫХ КОМАНД (БЕЗ "/" ПРЕФИКСА)
 // ═══════════════════════════════════════════════════════════
 
@@ -1559,8 +1611,8 @@ bot.on('text', async (ctx) => {
     return;
   }
   
-  // очистка - удалить все о пользователе
-  if (text === 'очистка') {
+  // очистка - удалить все о пользователе (как ответ на сообщение)
+  if (text === 'очистка' && replyTo) {
     console.log(`[CLEANUP] ${user.username} очищает профиль ${replyTo.from.username}`);
     const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
     if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
@@ -1575,6 +1627,82 @@ bot.on('text', async (ctx) => {
     }).where(eq(users.id, targetUser.id));
     
     await ctx.replyWithHTML(`✅ <b>Профиль @${replyTo.from.username} очищен</b>`);
+    return;
+  }
+  
+  // МОДЕРАЦИОННЫЕ КОМАНДЫ ДЛЯ УПРАВЛЕНИЯ ЧАТОМ
+  if (text === 'запретить видео' || text === 'no_video') {
+    if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+    if (isOwner(user.telegramId)) {
+      const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+      const settings = chat?.settings || {};
+      settings.forbidVideo = true;
+      
+      if (chat) {
+        await db.update(chats).set({ settings }).where(eq(chats.chatId, ctx.chat.id));
+      } else {
+        await db.insert(chats).values({ chatId: ctx.chat.id, title: ctx.chat.title || 'Group', type: ctx.chat.type, settings });
+      }
+      
+      console.log(`[MEDIA] Видео запрещено в чате ${ctx.chat.id}`);
+      await ctx.replyWithHTML(`🚫 <b>Видео запрещены в этом чате</b>`);
+    }
+    return;
+  }
+  
+  if (text === 'запретить фото' || text === 'no_photo') {
+    if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+    if (isOwner(user.telegramId)) {
+      const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+      const settings = chat?.settings || {};
+      settings.forbidPhoto = true;
+      
+      if (chat) {
+        await db.update(chats).set({ settings }).where(eq(chats.chatId, ctx.chat.id));
+      } else {
+        await db.insert(chats).values({ chatId: ctx.chat.id, title: ctx.chat.title || 'Group', type: ctx.chat.type, settings });
+      }
+      
+      console.log(`[MEDIA] Фото запрещены в чате ${ctx.chat.id}`);
+      await ctx.replyWithHTML(`🚫 <b>Фото запрещены в этом чате</b>`);
+    }
+    return;
+  }
+  
+  if (text === 'запретить стикеры' || text === 'no_sticker') {
+    if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+    if (isOwner(user.telegramId)) {
+      const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+      const settings = chat?.settings || {};
+      settings.forbidSticker = true;
+      
+      if (chat) {
+        await db.update(chats).set({ settings }).where(eq(chats.chatId, ctx.chat.id));
+      } else {
+        await db.insert(chats).values({ chatId: ctx.chat.id, title: ctx.chat.title || 'Group', type: ctx.chat.type, settings });
+      }
+      
+      console.log(`[MEDIA] Стикеры запрещены в чате ${ctx.chat.id}`);
+      await ctx.replyWithHTML(`🚫 <b>Стикеры запрещены в этом чате</b>`);
+    }
+    return;
+  }
+  
+  if (text === 'разрешить всё' || text === 'allow_all') {
+    if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+    if (isOwner(user.telegramId)) {
+      const [chat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+      const settings = { forbidVideo: false, forbidPhoto: false, forbidSticker: false };
+      
+      if (chat) {
+        await db.update(chats).set({ settings }).where(eq(chats.chatId, ctx.chat.id));
+      } else {
+        await db.insert(chats).values({ chatId: ctx.chat.id, title: ctx.chat.title || 'Group', type: ctx.chat.type, settings });
+      }
+      
+      console.log(`[MEDIA] Все медиа разрешены в чате ${ctx.chat.id}`);
+      await ctx.replyWithHTML(`✅ <b>Все медиа разрешены в этом чате</b>`);
+    }
     return;
   }
   
@@ -1768,6 +1896,12 @@ export async function startBot() {
     { command: 'buy_premium', description: '💎 Купить ПРЕМИУМ (200⭐)' },
     { command: 'buy_currency', description: '💰 Купить валюту 10к (10⭐)' },
     { command: 'buy_transform_protection', description: '🛡️ Защита от превращений (400⭐)' },
+    
+    // Модерация
+    { command: 'no_video', description: '🚫 Запретить видео' },
+    { command: 'no_photo', description: '🚫 Запретить фото' },
+    { command: 'no_sticker', description: '🚫 Запретить стикеры' },
+    { command: 'allow_all', description: '✅ Разрешить всё' },
   ];
   
   try {

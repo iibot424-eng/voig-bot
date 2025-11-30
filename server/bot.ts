@@ -1487,10 +1487,18 @@ bot.on('sticker', async (ctx) => {
 // ═══════════════════════════════════════════════════════════
 
 bot.on('text', async (ctx) => {
+  console.log(`[TEXT-HANDLER] Получено сообщение: "${ctx.message?.text}"`);
+  
   const user = await getOrCreateUser(ctx);
   if (!user) return;
   
-  let text = ctx.message.text.toLowerCase().trim();
+  let text = ctx.message?.text?.toLowerCase().trim();
+  if (!text) {
+    console.log('[TEXT-HANDLER] ❌ Текст пуст');
+    return;
+  }
+  
+  console.log(`[TEXT-HANDLER] Обработка: "${text}"`);
   const replyTo = ctx.message.reply_to_message;
   
   // Обработка команд с двойным слэшем - конвертируем в обычный текст
@@ -1954,10 +1962,6 @@ bot.on('text', async (ctx) => {
     return await ctx.replyWithHTML(`💍 <b>@${user.username} и @${targetUsername} теперь женаты!</b>`);
   }
 });
-
-// ═══════════════════════════════════════════════════════════
-// ЗАПУСК БОТА
-// ═══════════════════════════════════════════════════════════
 
 export async function startBot() {
   // Список всех команд для Telegram (максимум 100)

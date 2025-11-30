@@ -1483,10 +1483,10 @@ bot.on('sticker', async (ctx) => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// ЗАПУСК БОТА
+// ОБРАБОТЧИК ТЕКСТОВЫХ КОМАНД (БЕЗ "/" ПРЕФИКСА)
 // ═══════════════════════════════════════════════════════════
 
-export async function startBot() {
+bot.on('text', async (ctx) => {
   console.log(`[TEXT-HANDLER] Получено сообщение: "${ctx.message?.text}"`);
   
   const user = await getOrCreateUser(ctx);

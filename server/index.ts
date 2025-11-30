@@ -99,4 +99,38 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  // Graceful shutdown handler
+  const gracefulShutdown = async (signal: string) => {
+    console.log(`\n📍 Получен сигнал: ${signal}`);
+    console.log('🛑 Завершение приложения...');
+    
+    // Закрываем HTTP сервер
+    httpServer.close(() => {
+      console.log('✅ HTTP сервер закрыт');
+      process.exit(0);
+    });
+    
+    // Timeout на случай если что-то зависнет
+    setTimeout(() => {
+      console.error('❌ Принудительное завершение после 10 сек');
+      process.exit(1);
+    }, 10000);
+  };
+
+  // Обработка всех сигналов завершения
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+  
+  // Обработка необработанных исключений
+  process.on('uncaughtException', (err) => {
+    console.error('❌ Необработанное исключение:', err);
+    gracefulShutdown('uncaughtException');
+  });
+  
+  process.on('unhandledRejection', (reason) => {
+    console.error('❌ Необработанное отклонение:', reason);
+    gracefulShutdown('unhandledRejection');
+  });
 })();

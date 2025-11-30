@@ -1911,23 +1911,47 @@ export async function startBot() {
     console.error('❌ Ошибка при обновлении команд:', e);
   }
   
-  // Обработка ошибок подключения
+  // Обработка ошибок подключения с переподключением
   bot.catch((err: any, ctx: any) => {
-    console.error('❌ Ошибка бота:', err);
-    console.error('Контекст:', ctx);
+    console.error('❌ Ошибка бота:', err?.message || err);
+    if (err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || err?.message?.includes('socket hang up')) {
+      console.log('🔄 Разрыв соединения - переподключаемся через 3 сек...');
+      setTimeout(() => {
+        console.log('🔄 Попытка переподключения...');
+        bot.launch().catch((e: any) => console.error('Ошибка переподключения:', e?.message));
+      }, 3000);
+    }
   });
 
   // Обработка ошибок при запуске
   bot.launch().catch((err: any) => {
-    console.error('❌ Ошибка при запуске бота:', err);
-    // Переподключение через 5 секунд
+    console.error('❌ Ошибка при запуске бота:', err?.message || err);
     setTimeout(() => {
-      console.log('🔄 Попытка переподключения...');
-      bot.launch().catch((e: any) => console.error('Ошибка при переподключении:', e));
+      console.log('🔄 Попытка переподключения (5 сек)...');
+      bot.launch().catch((e: any) => console.error('Ошибка переподключения:', e?.message));
     }, 5000);
   });
 
+  // Проверка соединения каждые 30 секунд
+  const connectionCheckInterval = setInterval(() => {
+    try {
+      bot.telegram.getMe().catch((e: any) => {
+        console.warn('⚠️ Соединение потеряно, восстанавливаем...');
+        clearInterval(connectionCheckInterval);
+        bot.launch().catch((err: any) => console.error('Ошибка восстановления:', err?.message));
+      });
+    } catch (e: any) {
+      console.warn('⚠️ Ошибка проверки соединения:', e?.message);
+    }
+  }, 30000);
+
   console.log('🤖 VOIG BOT запущен!');
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  process.once('SIGINT', () => {
+    clearInterval(connectionCheckInterval);
+    bot.stop('SIGINT');
+  });
+  process.once('SIGTERM', () => {
+    clearInterval(connectionCheckInterval);
+    bot.stop('SIGTERM');
+  });
 }

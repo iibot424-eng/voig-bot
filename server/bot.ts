@@ -363,10 +363,12 @@ bot.action('menu_premium', async (ctx) => {
     `✨ Трансформация любого игрока\n` +
     `✨ Невидимость на 2 часа\n\n` +
     `<b>🛍️ КУПИТЬ ПРЕМИУМ:</b>\n` +
-    `/buy_premium\n` +
+    `/buy_premium (200⭐)\n` +
     `купить премиум\n\n` +
+    `<b>💝 ПОДАРИТЬ ПРЕМИУМ:</b>\n` +
+    `/gift_premium @user (200⭐) - подарить премиум другому\n\n` +
     `<b>👑 ВЛАДЕЛЕЦ (KLABA):</b>\n` +
-    `Бесплатный премиум навсегда + /addcoins`,
+    `Бесплатный премиум + /give_premium @user + /addcoins`,
     { parse_mode: 'HTML' }
   );
 });
@@ -439,6 +441,140 @@ bot.command('buy_transform_protection', async (ctx) => {
   } catch (e: any) {
     console.error('❌ Ошибка при открытии платежа:', e?.message);
     await ctx.reply('❌ Ошибка при открытии платежа. Попробуйте позже.');
+  }
+});
+
+// Команда выдачи премиума для владельца
+bot.command('give_premium', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user || !isOwner(user.telegramId)) {
+    return await ctx.reply('🚫 Только владелец!');
+  }
+  
+  const args = ctx.message?.text?.split(' ') || [];
+  const targetUsername = args[1];
+  
+  if (!targetUsername) {
+    return await ctx.replyWithHTML(
+      `<b>Использование:</b> /give_premium @username\n\n` +
+      `Выдать премиум на 1 месяц любому пользователю`
+    );
+  }
+  
+  try {
+    const targetUser = await db.query.users.findFirst({
+      where: sql`username = ${targetUsername.replace('@', '')}`
+    });
+    
+    if (!targetUser) {
+      return await ctx.reply(`❌ Пользователь ${targetUsername} не найден!`);
+    }
+    
+    const premiumUntil = new Date();
+    premiumUntil.setMonth(premiumUntil.getMonth() + 1);
+    
+    await db.update(users).set({
+      isPremium: true,
+      premiumUntil,
+    }).where(eq(users.id, targetUser.id));
+    
+    await ctx.replyWithHTML(
+      `✨ <b>ПРЕМИУМ ВЫДАН!</b>\n\n` +
+      `👤 Пользователю: <b>${targetUser.username}</b>\n` +
+      `⏱️ На 1 месяц до: <b>${premiumUntil.toLocaleDateString('ru-RU')}</b>`
+    );
+    
+    // Уведомление получателю
+    try {
+      await ctx.telegram.sendMessage(
+        targetUser.telegramId,
+        `✨ <b>ВАМ ВЫДАН ПРЕМИУМ!</b>\n\n🎉 ВЛАДЕЛЕЦ выдал вам премиум на 1 месяц!\n💎 Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`,
+        { parse_mode: 'HTML' }
+      );
+    } catch (e) {
+      console.error('Не удалось отправить сообщение пользователю');
+    }
+  } catch (e: any) {
+    console.error('❌ Ошибка при выдаче премиума:', e?.message);
+    await ctx.reply('❌ Ошибка при выдаче премиума');
+  }
+});
+
+// Команда подарить премиум за 200 звезд
+bot.command('gift_premium', async (ctx) => {
+  const user = await getOrCreateUser(ctx);
+  if (!user) return;
+  
+  const args = ctx.message?.text?.split(' ') || [];
+  const targetUsername = args[1];
+  
+  if (!targetUsername) {
+    return await ctx.replyWithHTML(
+      `<b>Использование:</b> /gift_premium @username\n\n` +
+      `💝 Подарить премиум на 1 месяц другому пользователю\n` +
+      `💰 Стоимость: <b>200⭐</b>`
+    );
+  }
+  
+  try {
+    const targetUser = await db.query.users.findFirst({
+      where: sql`username = ${targetUsername.replace('@', '')}`
+    });
+    
+    if (!targetUser) {
+      return await ctx.reply(`❌ Пользователь ${targetUsername} не найден!`);
+    }
+    
+    if (user.balance < 200) {
+      return await ctx.replyWithHTML(
+        `❌ <b>НЕДОСТАТОЧНО ЗВЁЗД!</b>\n\n` +
+        `💰 У вас: <b>${formatNumber(user.balance)} ⭐</b>\n` +
+        `💰 Нужно: <b>200 ⭐</b>`
+      );
+    }
+    
+    if (targetUser.id === user.id) {
+      return await ctx.reply('❌ Вы не можете подарить премиум сами себе!');
+    }
+    
+    // Если целевому уже есть премиум, продлим его ещё на месяц
+    const premiumUntil = targetUser.premiumUntil && new Date(targetUser.premiumUntil) > new Date()
+      ? new Date(targetUser.premiumUntil)
+      : new Date();
+    
+    premiumUntil.setMonth(premiumUntil.getMonth() + 1);
+    
+    // Снимаем звёзды с дарителя
+    await db.update(users).set({
+      balance: user.balance - 200
+    }).where(eq(users.id, user.id));
+    
+    // Даём премиум получателю
+    await db.update(users).set({
+      isPremium: true,
+      premiumUntil,
+    }).where(eq(users.id, targetUser.id));
+    
+    await ctx.replyWithHTML(
+      `💝 <b>ПРЕМИУМ ПОДАРЕН!</b>\n\n` +
+      `👤 Кому: <b>${targetUser.username}</b>\n` +
+      `💎 На 1 месяц до: <b>${premiumUntil.toLocaleDateString('ru-RU')}</b>\n` +
+      `💸 Вы потратили: <b>200 ⭐</b>`
+    );
+    
+    // Уведомление получателю
+    try {
+      await ctx.telegram.sendMessage(
+        targetUser.telegramId,
+        `💝 <b>ВАМ ПОДАРИЛИ ПРЕМИУМ!</b>\n\n🎉 <b>${user.username || 'Игрок'}</b> подарил вам премиум на 1 месяц!\n✨ Премиум закончится: ${premiumUntil.toLocaleDateString('ru-RU')}`,
+        { parse_mode: 'HTML' }
+      );
+    } catch (e) {
+      console.error('Не удалось отправить сообщение пользователю');
+    }
+  } catch (e: any) {
+    console.error('❌ Ошибка при подарке премиума:', e?.message);
+    await ctx.reply('❌ Ошибка при подарке премиума');
   }
 });
 
@@ -1348,7 +1484,7 @@ bot.on('text', async (ctx) => {
     'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
     'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
     'преврати', 'превратить', 'мут', 'очистка', 'buy_premium', 'buy_currency', 'buy_transform_protection',
-    'купить валюту', 'защита от превращений',
+    'купить валюту', 'защита от превращений', 'gift_premium', 'подарить премиум', 'give_premium',
     // ВСЕ 111+ RP команды
     ...Object.keys(rpActions)
   ];
@@ -1812,10 +1948,12 @@ export async function startBot() {
     { command: 'accept_marry', description: 'Принять' },
     { command: 'divorce', description: 'Развод' },
     
-    // Премиум (3)
+    // Премиум (5)
     { command: 'invisibility', description: 'Невидимость' },
     { command: 'transform', description: 'Трансформация' },
-    { command: 'buy_premium', description: 'Купить премиум' },
+    { command: 'buy_premium', description: '💎 Купить премиум (200⭐)' },
+    { command: 'gift_premium', description: '💝 Подарить премиум (200⭐)' },
+    { command: 'give_premium', description: '👑 Выдать премиум (владелец)' },
     
     // ВСЕ 111+ RP КОМАНДЫ - добавляем примерно 60+ (максимум до 100)
     // Агрессивные/боевые

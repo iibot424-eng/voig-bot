@@ -1446,26 +1446,41 @@ bot.on('sticker', async (ctx) => {
 // ═══════════════════════════════════════════════════════════
 
 bot.on('my_chat_member', async (ctx) => {
-  if (ctx.chat.type === 'private') return;
+  console.log(`[CHAT_MEMBER] Событие в чате: ${ctx.chat.title} (${ctx.chat.id}), Статус: ${ctx.myChatMember.new_chat_member.status}`);
+  
+  if (ctx.chat.type === 'private') {
+    console.log('[CHAT_MEMBER] Пропуск - приватный чат');
+    return;
+  }
   
   const isBotAdded = ctx.myChatMember.new_chat_member.status === 'member' || ctx.myChatMember.new_chat_member.status === 'administrator';
   const isBotRemoved = ctx.myChatMember.new_chat_member.status === 'left' || ctx.myChatMember.new_chat_member.status === 'kicked';
   
   if (isBotAdded) {
-    const existing = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
-    if (!existing.length) {
-      await db.insert(chats).values({
-        chatId: ctx.chat.id,
-        title: ctx.chat.title || 'Unknown',
-        type: ctx.chat.type,
-      });
-      console.log(`✅ Бот добавлен в чат: ${ctx.chat.title || ctx.chat.id}`);
+    try {
+      const existing = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+      if (!existing.length) {
+        await db.insert(chats).values({
+          chatId: ctx.chat.id,
+          title: ctx.chat.title || 'Unknown',
+          type: ctx.chat.type,
+        });
+        console.log(`✅ [CHAT_ADDED] Бот добавлен в чат: ${ctx.chat.title || ctx.chat.id}`);
+      } else {
+        console.log(`ℹ️ [CHAT_MEMBER] Чат уже существует в БД: ${ctx.chat.id}`);
+      }
+    } catch (e: any) {
+      console.error(`❌ [CHAT_MEMBER] Ошибка при добавлении чата: ${e?.message}`);
     }
   }
   
   if (isBotRemoved) {
-    await db.delete(chats).where(eq(chats.chatId, ctx.chat.id));
-    console.log(`❌ Бот удалён из чата: ${ctx.chat.title || ctx.chat.id}`);
+    try {
+      await db.delete(chats).where(eq(chats.chatId, ctx.chat.id));
+      console.log(`❌ [CHAT_REMOVED] Бот удалён из чата: ${ctx.chat.title || ctx.chat.id}`);
+    } catch (e: any) {
+      console.error(`❌ [CHAT_MEMBER] Ошибка при удалении чата: ${e?.message}`);
+    }
   }
 });
 
@@ -1477,6 +1492,23 @@ bot.on('text', async (ctx) => {
   const msgText = ctx.message?.text || 'NULL';
   console.log(`\n🎯 [TEXT-HANDLER] ПОЛУЧЕНО СООБЩЕНИЕ: "${msgText}"`);
   console.log(`👤 От: ${ctx.from?.username || ctx.from?.first_name || ctx.from?.id}`);
+  
+  // РЕЗЕРВНЫЙ СПОСОБ: Сохраняем чат при первом сообщении (если он не в приватном чате)
+  if (ctx.chat?.type !== 'private') {
+    try {
+      const [existingChat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+      if (!existingChat) {
+        await db.insert(chats).values({
+          chatId: ctx.chat.id,
+          title: ctx.chat.title || 'Unknown',
+          type: ctx.chat.type,
+        });
+        console.log(`✅ [AUTO-SAVE-CHAT] Чат сохранён при первом сообщении: ${ctx.chat.title || ctx.chat.id}`);
+      }
+    } catch (e: any) {
+      console.error(`⚠️ [AUTO-SAVE-CHAT] Ошибка: ${e?.message}`);
+    }
+  }
   
   const user = await getOrCreateUser(ctx);
   if (!user) {
@@ -1538,18 +1570,24 @@ bot.on('text', async (ctx) => {
     if (!message) return await ctx.reply('❌ Напишите сообщение: обявление текст сообщения');
     
     const allChats = await db.select().from(chats);
+    console.log(`[ANNOUNCEMENT] Начало рассылки. Найдено чатов в БД: ${allChats.length}`);
+    
     let sent = 0, failed = 0;
     
     for (const chat of allChats) {
       try {
+        console.log(`[ANNOUNCEMENT] Отправляю в чат: ${chat.chatId} (${chat.title})`);
         await bot.telegram.sendMessage(chat.chatId, `📢 <b>ОБЪЯВЛЕНИЕ</b>\n\n${message}`, { parse_mode: 'HTML' });
+        console.log(`[ANNOUNCEMENT] ✅ Успешно отправлено в ${chat.chatId}`);
         sent++;
-      } catch (e) {
+      } catch (e: any) {
+        console.error(`[ANNOUNCEMENT] ❌ Ошибка при отправке в ${chat.chatId}: ${e?.message}`);
         failed++;
       }
     }
     
-    return await ctx.replyWithHTML(`✅ <b>РАССЫЛКА ЗАВЕРШЕНА!</b>\n\n📤 Отправлено: <b>${sent}</b>\n❌ Ошибок: <b>${failed}</b>`);
+    console.log(`[ANNOUNCEMENT] Рассылка завершена! Отправлено: ${sent}, Ошибок: ${failed}`);
+    return await ctx.replyWithHTML(`✅ <b>РАССЫЛКА ЗАВЕРШЕНА!</b>\n\n📤 Отправлено: <b>${sent}</b>\n❌ Ошибок: <b>${failed}</b>\n\n📊 Всего чатов в БД: <b>${allChats.length}</b>`);
   }
   
   // денги - только для владельца (9,999,999)

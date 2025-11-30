@@ -471,6 +471,28 @@ bot.on('text', async (ctx) => {
     await ctx.replyWithHTML(`🪙 <b>@${user.username}</b> выбросил: <b>${result}</b>`);
     return;
   }
+  
+  // buy_transform_protection (текстом)
+  if (text === 'buy_transform_protection' || text === 'защита от превращений') {
+    if (user.transformProtectionUntil && new Date(user.transformProtectionUntil) > new Date()) {
+      return await ctx.reply('🛡️ У вас уже есть активная защита от трансформаций!');
+    }
+    try {
+      await ctx.telegram.callApi('sendInvoice', {
+        chat_id: ctx.chat!.id,
+        title: 'Защита от трансформаций - навсегда',
+        description: 'Получите полную защиту от команды /transform на любой срок',
+        payload: 'transform_protection_permanent_400stars',
+        currency: 'XTR',
+        prices: [{ label: 'Защита навсегда', amount: 400 }],
+        provider_token: ''
+      });
+    } catch (e: any) {
+      console.error('❌ Ошибка при открытии платежа:', e?.message);
+      await ctx.reply('❌ Ошибка при открытии платежа. Попробуйте позже.');
+    }
+    return;
+  }
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -1284,6 +1306,24 @@ async function handleTransformOther(ctx: Context) {
   
   const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
   if (!targetUser) return;
+  
+  // ❌ НЕ ТРАНСФОРМИРУЕМ БОТА
+  if (replyTo.from.is_bot) {
+    return await ctx.reply('❌ Нельзя трансформировать бота!');
+  }
+  
+  // ❌ НЕ ТРАНСФОРМИРУЕМ ВЛАДЕЛЬЦА
+  if (isOwner(replyTo.from.id)) {
+    return await ctx.reply('❌ Нельзя трансформировать владельца!');
+  }
+  
+  // ❌ ПРОВЕРКА ЗАЩИТЫ ОТ ТРАНСФОРМАЦИЙ
+  if (targetUser.transformProtectionUntil && new Date(targetUser.transformProtectionUntil) > new Date()) {
+    return await ctx.replyWithHTML(
+      `🛡️ <b>@${replyTo.from.username || replyTo.from.first_name} защищён от трансформаций!</b>\n\n` +
+      `Пользователь имеет активную защиту 🛡️`
+    );
+  }
   
   const transformUntil = new Date(Date.now() + TRANSFORM_DURATION_HOURS * 60 * 60 * 1000);
   await db.update(users).set({

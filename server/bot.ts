@@ -790,65 +790,6 @@ for (const [cmdEn, ...cmdRu] of rpCommands) {
   }
 }
 
-// ТЕКСТОВЫЕ RP КОМАНДЫ
-bot.on(message('text'), async (ctx, next) => {
-  const text = ctx.message.text.toLowerCase().trim();
-  const user = await getOrCreateUser(ctx);
-  if (!user) return next();
-  
-  // Проверка превращения - удалить если нет звука
-  if (user.transformUntil && new Date() < new Date(user.transformUntil) && user.transformAnimal) {
-    const sound = ANIMAL_SOUNDS[user.transformAnimal];
-    if (sound && !text.startsWith(sound)) {
-      try { await ctx.deleteMessage(); } catch (e) {}
-      return;
-    }
-  }
-  
-  // баланс
-  if (text === 'баланс') {
-    return await ctx.replyWithHTML(`💰 <b>Баланс:</b> ${formatNumber(user.balance)} ⭐`);
-  }
-  
-  // денги [число] - только владелец
-  if (text.match(/^денги\s+(\d+)$/)) {
-    if (!isOwner(user.telegramId)) {
-      return await ctx.reply("🚫 Только владелец!");
-    }
-    const amount = parseInt(text.match(/^денги\s+(\d+)$/)![1]);
-    const newBalance = user.balance + amount;
-    await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
-    return await ctx.replyWithHTML(`💎 +${formatNumber(amount)} ⭐\n💰 Баланс: ${formatNumber(newBalance)}`);
-  }
-  
-  // отправить [сумма] @username
-  if (text.match(/^отправить\s+(\d+)\s+@(\w+)/)) {
-    const match = text.match(/^отправить\s+(\d+)\s+@(\w+)/)!;
-    const amount = parseInt(match[1]);
-    const targetUsername = match[2];
-    
-    if (amount <= 0) return await ctx.reply('❌ Сумма должна быть больше 0');
-    if (user.balance < amount) return await ctx.reply('❌ Недостаточно звёзд');
-    
-    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
-    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
-    
-    await db.update(users).set({ balance: user.balance - amount }).where(eq(users.id, user.id));
-    await db.update(users).set({ balance: targetUser.balance + amount }).where(eq(users.id, targetUser.id));
-    
-    return await ctx.replyWithHTML(`✅ Отправлено ${formatNumber(amount)} ⭐ для @${targetUsername}`);
-  }
-  
-  // RP текстовые команды
-  for (const [_, ...variants] of rpCommands) {
-    if (variants.includes(text)) {
-      return await handleRpAction(ctx, variants[0], '💫');
-    }
-  }
-  
-  return next();
-});
-
 // СТАНДАРТНЫЕ КОМАНДЫ
 bot.command('help', async (ctx) => {
   await ctx.replyWithHTML(

@@ -1412,11 +1412,8 @@ bot.command('prefix', async (ctx) => {
     return await ctx.reply('❌ Префикс слишком длинный (максимум 20 символов)');
   }
   
-  if (user.balance < 10000) return await ctx.reply('❌ Нужно 10,000⭐');
-  
   // Сохраняем в БД
   await db.update(users).set({
-    balance: user.balance - 10000,
     nickPrefix: prefix,
   }).where(eq(users.id, user.id));
   
@@ -1425,8 +1422,7 @@ bot.command('prefix', async (ctx) => {
   await ctx.replyWithHTML(
     `✅ <b>Префикс установлен!</b>\n\n` +
     `<b>${prefix}</b> сохранён в профиле\n` +
-    `(Бот должен быть администратором для отображения в списке членов)\n` +
-    `Стоимость: -10,000⭐`
+    `(Бот должен быть администратором для отображения в списке членов)`
   );
 });
 
@@ -2038,11 +2034,14 @@ export async function startBot() {
     { command: 'buy_currency', description: '💰 Купить валюту 10к (10⭐)' },
     { command: 'buy_transform_protection', description: '🛡️ Защита от превращений (400⭐)' },
     
-    // Модерация
+    // Модерация и админ
+    { command: 'ban', description: '🚫 Забанить пользователя' },
+    { command: 'warn', description: '⚠️ Выдать предупреждение' },
     { command: 'no_video', description: '🚫 Запретить видео' },
     { command: 'no_photo', description: '🚫 Запретить фото' },
     { command: 'no_sticker', description: '🚫 Запретить стикеры' },
     { command: 'allow_all', description: '✅ Разрешить всё' },
+    { command: 'prefix', description: '✨ Установить префикс' },
   ];
   
   try {

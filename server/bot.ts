@@ -586,7 +586,10 @@ bot.on('successful_payment', async (ctx) => {
     
     // Премиум за 200 звёзд
     if (starsAmount === 200 || invoicePayload === 'premium_1month_200stars') {
-      const premiumUntil = new Date();
+      // Если уже есть активный премиум - продлеваем от его конца, иначе создаём новый
+      const premiumUntil = user.premiumUntil && new Date(user.premiumUntil) > new Date()
+        ? new Date(user.premiumUntil)
+        : new Date();
       premiumUntil.setMonth(premiumUntil.getMonth() + 1);
       
       await db.update(users).set({

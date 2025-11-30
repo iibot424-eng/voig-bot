@@ -1766,27 +1766,15 @@ bot.on('text', async (ctx) => {
     return;
   }
   
-  // очистка - очистить профиль пользователя (как ответ на сообщение)
+  // очистка - удалить сообщение (как ответ на сообщение)
   if (text === 'очистка' && replyTo) {
-    console.log(`[CLEANUP] ${user.username} очищает профиль ${replyTo.from.username}`);
-    const [targetUser] = await db.select().from(users).where(eq(users.telegramId, replyTo.from.id));
-    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
-    
-    // Очистить данные профиля
-    await db.update(users).set({
-      transformAnimal: null,
-      transformUntil: null,
-      isInvisible: false,
-      invisibilityUntil: null,
-      nickPrefix: null,
-    }).where(eq(users.id, targetUser.id));
-    
-    await ctx.replyWithHTML(
-      `✅ <b>ПРОФИЛЬ @${replyTo.from.username} ОЧИЩЕН!</b>\n\n` +
-      `🐾 Трансформация: ❌ Удалена\n` +
-      `👁️ Невидимость: ❌ Удалена\n` +
-      `✨ Префикс: ❌ Удалён`
-    );
+    try {
+      await ctx.deleteMessage(replyTo.message_id);
+      console.log(`[CLEANUP] ${user.username} удалил сообщение ${replyTo.from.username}`);
+      await ctx.deleteMessage();
+    } catch (e: any) {
+      console.log('Ошибка при удалении сообщения:', e?.message);
+    }
     return;
   }
   

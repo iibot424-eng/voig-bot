@@ -237,6 +237,13 @@ async function checkTransformCooldown(user: any): Promise<{ canTransform: boolea
 
 bot.on('text', async (ctx) => {
   const msgText = ctx.message?.text || 'NULL';
+  
+  // ❌ ПРОПУСКАЕМ КОМАНДЫ (со слешем) - пусть их обрабатывают bot.command()
+  if (msgText.startsWith('/')) {
+    console.log(`[TEXT-HANDLER] ⏭️ ПРОПУСК КОМАНДЫ: "${msgText}"`);
+    return;
+  }
+  
   console.log(`\n🎯 [TEXT-HANDLER] ПОЛУЧЕНО СООБЩЕНИЕ: "${msgText}"`);
   console.log(`👤 От: ${ctx.from?.username || ctx.from?.first_name || ctx.from?.id}`);
   

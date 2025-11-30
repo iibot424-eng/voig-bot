@@ -1720,6 +1720,45 @@ bot.on('text', async (ctx) => {
     return await ctx.reply('💔 Развод завершён');
   }
   
+  // prefix / префикс (текстом)
+  if (text === 'prefix' || text === 'префикс' || text.startsWith('prefix ') || text.startsWith('префикс ')) {
+    const args = text.split(' ');
+    const prefix = args.slice(1).join(' ');
+    
+    if (!prefix) {
+      return await ctx.replyWithHTML(
+        `<b>Использование:</b> prefix текст\n\n` +
+        `Префикс будет показываться рядом с вашим ником в группе\n` +
+        `<b>Стоимость:</b> 10,000⭐\n` +
+        `\n<b>Примеры:</b>\n` +
+        `prefix ✨ КОРОЛЕВА ✨\n` +
+        `prefix 👑 КОРОЛЬ 👑\n` +
+        `prefix 💎 ЛЕГЕНДА 💎`
+      );
+    }
+    
+    if (prefix.length > 20) {
+      return await ctx.reply('❌ Префикс слишком длинный (максимум 20 символов)');
+    }
+    
+    if (user.balance < 10000) return await ctx.reply('❌ Нужно 10,000⭐');
+    
+    // Сохраняем в БД
+    await db.update(users).set({
+      balance: user.balance - 10000,
+      nickPrefix: prefix,
+    }).where(eq(users.id, user.id));
+    
+    console.log(`[PREFIX-TEXT] Префикс установлен: ${user.username} (${user.telegramId}) -> "${prefix}"`);
+    
+    return await ctx.replyWithHTML(
+      `✅ <b>Префикс установлен!</b>\n\n` +
+      `<b>${prefix}</b> сохранён в профиле\n` +
+      `(Бот должен быть администратором для отображения в списке членов)\n` +
+      `Стоимость: -10,000⭐`
+    );
+  }
+  
   // КОМАНДЫ С ОТВЕТОМ НА СООБЩЕНИЕ:
   
   if (!replyTo || !replyTo.from) return;

@@ -1490,39 +1490,40 @@ bot.on('my_chat_member', async (ctx) => {
 // ═══════════════════════════════════════════════════════════
 
 bot.on('text', async (ctx) => {
-  const msgText = ctx.message?.text || 'NULL';
-  console.log(`\n🎯 [TEXT-HANDLER] ПОЛУЧЕНО СООБЩЕНИЕ: "${msgText}"`);
-  console.log(`👤 От: ${ctx.from?.username || ctx.from?.first_name || ctx.from?.id}`);
-  
-  // РЕЗЕРВНЫЙ СПОСОБ: Сохраняем чат при первом сообщении (если он не в приватном чате)
-  if (ctx.chat?.type !== 'private') {
-    try {
-      const [existingChat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
-      if (!existingChat) {
-        await db.insert(chats).values({
-          chatId: ctx.chat.id,
-          title: ctx.chat.title || 'Unknown',
-          type: ctx.chat.type,
-        });
-        console.log(`✅ [AUTO-SAVE-CHAT] Чат сохранён при первом сообщении: ${ctx.chat.title || ctx.chat.id}`);
+  try {
+    const msgText = ctx.message?.text || 'NULL';
+    console.log(`\n🎯 [TEXT-HANDLER] ПОЛУЧЕНО СООБЩЕНИЕ: "${msgText}"`);
+    console.log(`👤 От: ${ctx.from?.username || ctx.from?.first_name || ctx.from?.id}`);
+    
+    // РЕЗЕРВНЫЙ СПОСОБ: Сохраняем чат при первом сообщении (если он не в приватном чате)
+    if (ctx.chat?.type !== 'private') {
+      try {
+        const [existingChat] = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+        if (!existingChat) {
+          await db.insert(chats).values({
+            chatId: ctx.chat.id,
+            title: ctx.chat.title || 'Unknown',
+            type: ctx.chat.type,
+          });
+          console.log(`✅ [AUTO-SAVE-CHAT] Чат сохранён при первом сообщении: ${ctx.chat.title || ctx.chat.id}`);
+        }
+      } catch (e: any) {
+        console.error(`⚠️ [AUTO-SAVE-CHAT] Ошибка: ${e?.message}`);
       }
-    } catch (e: any) {
-      console.error(`⚠️ [AUTO-SAVE-CHAT] Ошибка: ${e?.message}`);
     }
-  }
-  
-  const user = await getOrCreateUser(ctx);
-  if (!user) {
-    console.log('[TEXT-HANDLER] ❌ Ошибка получения пользователя');
-    return;
-  }
-  console.log(`✅ [TEXT-HANDLER] Пользователь: ${user.username || user.firstName}`);
-  
-  let text = ctx.message?.text?.toLowerCase().trim();
-  if (!text) {
-    console.log('[TEXT-HANDLER] ❌ Текст пуст');
-    return;
-  }
+    
+    const user = await getOrCreateUser(ctx);
+    if (!user) {
+      console.log('[TEXT-HANDLER] ❌ Ошибка получения пользователя');
+      return;
+    }
+    console.log(`✅ [TEXT-HANDLER] Пользователь: ${user.username || user.firstName}`);
+    
+    let text = ctx.message?.text?.toLowerCase().trim();
+    if (!text) {
+      console.log('[TEXT-HANDLER] ❌ Текст пуст');
+      return;
+    }
   
   console.log(`[TEXT-HANDLER] Обработка: "${text}"`);
   const replyTo = ctx.message.reply_to_message;
@@ -2019,6 +2020,15 @@ bot.on('text', async (ctx) => {
     });
     
     return await ctx.replyWithHTML(`💍 <b>@${user.username} и @${targetUsername} теперь женаты!</b>`);
+  }
+  } catch (error: any) {
+    console.error(`❌ [TEXT-HANDLER] ОШИБКА: ${error?.message || error}`);
+    console.error(error);
+    try {
+      await ctx.reply(`❌ Ошибка обработки команды: ${error?.message || 'Неизвестная ошибка'}`);
+    } catch (replyError: any) {
+      console.error(`❌ [TEXT-HANDLER] Не удалось отправить ошибку: ${replyError?.message}`);
+    }
   }
 });
 

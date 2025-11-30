@@ -1,12 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile, writeFile } from "fs/promises";
-import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { rm, readFile } from "fs/promises";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// server deps to bundle to reduce openat(2) syscalls
 const allowlist = [
   "@neondatabase/serverless",
   "connect-pg-simple",

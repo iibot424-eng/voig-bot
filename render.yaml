@@ -4,7 +4,7 @@ services:
     env: node
     nodeVersion: 20
     plan: free
-    buildCommand: npm install && node script/build.js
+    buildCommand: npm install && node script/build.mjs
     startCommand: npm run start
     envVars:
       - key: NODE_ENV

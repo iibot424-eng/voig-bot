@@ -23,6 +23,11 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Health check endpoint для keep-alive
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -97,6 +102,21 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Keep-alive для Render: пингуем себя каждые 10 минут
+      if (process.env.NODE_ENV === "production") {
+        setInterval(async () => {
+          try {
+            const host = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
+            const response = await fetch(`${host}/health`);
+            if (response.ok) {
+              log("✅ Keep-alive ping успешен");
+            }
+          } catch (err) {
+            log(`⚠️ Keep-alive ping ошибка: ${err}`);
+          }
+        }, 10 * 60 * 1000); // 10 минут
+      }
     },
   );
 

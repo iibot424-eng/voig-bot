@@ -427,6 +427,15 @@ bot.on('text', async (ctx) => {
     return await ctx.replyWithHTML(`✅ <b>Префикс установлен!</b>\n\n<b>${prefix}</b> сохранён в профиле\n(Бот должен быть администратором для отображения в списке членов)\nСтоимость: -10,000⭐`);
   }
   
+  // преврати животное - ОБРАБОТКА ПЕРЕД ПРОВЕРКОЙ REPLYTО!
+  if (text.match(/^преврати\s+(\w+)$/) || text.match(/^превратить\s+(\w+)$/)) {
+    if (!replyTo || !replyTo.from) return await ctx.reply('❌ Ответьте на сообщение пользователя чтобы его превратить!');
+    const animal = text.split(' ')[1].toLowerCase();
+    if (!ANIMALS.includes(animal)) return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
+    console.log(`[TRANSFORM_TEXT] ${user.username} превращает через текст в ${animal}`);
+    return await handleTransformOther(ctx);
+  }
+  
   for (const [command, emoji] of Object.entries(rpActions)) {
     if (text === command) {
       if (!replyTo || !replyTo.from) return await ctx.reply('❌ RP команды используются в ответ на сообщение');
@@ -436,13 +445,6 @@ bot.on('text', async (ctx) => {
   }
   
   if (!replyTo || !replyTo.from) return;
-  
-  if (text.match(/^преврати\s+(\w+)$/) || text.match(/^превратить\s+(\w+)$/)) {
-    const animal = text.split(' ')[1].toLowerCase();
-    if (!ANIMALS.includes(animal)) return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
-    console.log(`[TRANSFORM_TEXT] ${user.username} превращает через текст в ${animal}`);
-    return await handleTransformOther(ctx);
-  }
   
   if (text.match(/^мут\s+(\d+)$/)) {
     const minutes = parseInt(text.split(' ')[1]);

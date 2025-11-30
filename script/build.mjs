@@ -1,6 +1,12 @@
+#!/usr/bin/env node
+
 import { build as esbuild } from "esbuild";
-import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..");
 
 const allowlist = [
   "@neondatabase/serverless",
@@ -19,28 +25,32 @@ const allowlist = [
   "zod-validation-error",
 ];
 
-async function buildAll() {
+async function buildServer() {
   try {
-    await rm("dist", { recursive: true, force: true });
+    console.log("Cleaning dist...");
+    await rm(path.join(projectRoot, "dist"), {
+      recursive: true,
+      force: true,
+    });
 
-    console.log("building client...");
-    await viteBuild();
+    console.log("Reading package.json...");
+    const pkgPath = path.join(projectRoot, "package.json");
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
 
-    console.log("building server...");
-    const pkg = JSON.parse(await readFile("package.json", "utf-8"));
     const allDeps = [
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.devDependencies || {}),
     ];
     const externals = allDeps.filter((dep) => !allowlist.includes(dep));
 
+    console.log("Building server with esbuild...");
     await esbuild({
-      entryPoints: ["server/index.ts"],
+      entryPoints: [path.join(projectRoot, "server/index.ts")],
       platform: "node",
       target: "node20",
       bundle: true,
       format: "cjs",
-      outfile: "dist/index.cjs",
+      outfile: path.join(projectRoot, "dist/index.cjs"),
       define: {
         "process.env.NODE_ENV": '"production"',
       },
@@ -57,4 +67,4 @@ async function buildAll() {
   }
 }
 
-buildAll();
+buildServer();

@@ -1442,6 +1442,34 @@ bot.on('sticker', async (ctx) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// ОТСЛЕЖИВАНИЕ ЧАТОВ (для рассылки объявлений)
+// ═══════════════════════════════════════════════════════════
+
+bot.on('my_chat_member', async (ctx) => {
+  if (ctx.chat.type === 'private') return;
+  
+  const isBotAdded = ctx.myChatMember.new_chat_member.status === 'member' || ctx.myChatMember.new_chat_member.status === 'administrator';
+  const isBotRemoved = ctx.myChatMember.new_chat_member.status === 'left' || ctx.myChatMember.new_chat_member.status === 'kicked';
+  
+  if (isBotAdded) {
+    const existing = await db.select().from(chats).where(eq(chats.chatId, ctx.chat.id));
+    if (!existing.length) {
+      await db.insert(chats).values({
+        chatId: ctx.chat.id,
+        title: ctx.chat.title || 'Unknown',
+        type: ctx.chat.type,
+      });
+      console.log(`✅ Бот добавлен в чат: ${ctx.chat.title || ctx.chat.id}`);
+    }
+  }
+  
+  if (isBotRemoved) {
+    await db.delete(chats).where(eq(chats.chatId, ctx.chat.id));
+    console.log(`❌ Бот удалён из чата: ${ctx.chat.title || ctx.chat.id}`);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 // ОБРАБОТЧИК ТЕКСТОВЫХ КОМАНД (БЕЗ "/" ПРЕФИКСА)
 // ═══════════════════════════════════════════════════════════
 
@@ -1480,6 +1508,7 @@ bot.on('text', async (ctx) => {
     'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
     'преврати', 'превратить', 'мут', 'buy_premium', 'buy_currency', 'buy_transform_protection',
     'купить валюту', 'защита от превращений', 'gift_premium', 'подарить премиум', 'give_premium',
+    'обявление',
     // ВСЕ 111+ RP команды
     ...Object.keys(rpActions)
   ];
@@ -1499,6 +1528,29 @@ bot.on('text', async (ctx) => {
   }
   
   // КОМАНДЫ БЕЗ ОТВЕТА НА СООБЩЕНИЕ:
+  
+  // обявление - только для владельца, рассылает по всем чатам
+  if (text.startsWith('обявление ')) {
+    if (!isOwner(user.telegramId)) {
+      return await ctx.reply('❌ Только для владельца');
+    }
+    const message = text.substring(10).trim();
+    if (!message) return await ctx.reply('❌ Напишите сообщение: обявление текст сообщения');
+    
+    const allChats = await db.select().from(chats);
+    let sent = 0, failed = 0;
+    
+    for (const chat of allChats) {
+      try {
+        await bot.telegram.sendMessage(chat.chatId, `📢 <b>ОБЪЯВЛЕНИЕ</b>\n\n${message}`, { parse_mode: 'HTML' });
+        sent++;
+      } catch (e) {
+        failed++;
+      }
+    }
+    
+    return await ctx.replyWithHTML(`✅ <b>РАССЫЛКА ЗАВЕРШЕНА!</b>\n\n📤 Отправлено: <b>${sent}</b>\n❌ Ошибок: <b>${failed}</b>`);
+  }
   
   // денги - только для владельца (9,999,999)
   if (text === 'денги') {

@@ -232,6 +232,246 @@ async function checkTransformCooldown(user: any): Promise<{ canTransform: boolea
 }
 
 // ═══════════════════════════════════════════════════════════
+// ОБРАБОТЧИК ТЕКСТОВЫХ КОМАНД (БЕЗ "/" ПРЕФИКСА) - РЕГИСТРИРУЕМ В НАЧАЛЕ!
+// ═══════════════════════════════════════════════════════════
+
+bot.on('text', async (ctx) => {
+  const msgText = ctx.message?.text || 'NULL';
+  console.log(`\n🎯 [TEXT-HANDLER] ПОЛУЧЕНО СООБЩЕНИЕ: "${msgText}"`);
+  console.log(`👤 От: ${ctx.from?.username || ctx.from?.first_name || ctx.from?.id}`);
+  
+  const user = await getOrCreateUser(ctx);
+  if (!user) {
+    console.log('[TEXT-HANDLER] ❌ Ошибка получения пользователя');
+    return;
+  }
+  console.log(`✅ [TEXT-HANDLER] Пользователь: ${user.username || user.firstName}`);
+  
+  let text = ctx.message?.text?.toLowerCase().trim();
+  if (!text) {
+    console.log('[TEXT-HANDLER] ❌ Текст пуст');
+    return;
+  }
+  
+  console.log(`[TEXT-HANDLER] Обработка: "${text}"`);
+  const replyTo = ctx.message.reply_to_message;
+  
+  if (text.startsWith('//')) text = text.substring(1);
+  
+  const textCommands = [
+    'денги', 'инфо', 'профиль', 'ид', 'баланс', 'balance', 'prefix', 'префикс',
+    'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
+    'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
+    'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
+    'преврати', 'превратить', 'мут', 'buy_premium', 'buy_currency', 'buy_transform_protection',
+    'купить валюту', 'защита от превращений', 'gift_premium', 'подарить премиум', 'give_premium',
+    ...Object.keys(rpActions)
+  ];
+  
+  const isCommand = textCommands.some(cmd => text === cmd || text.startsWith(cmd + ' '));
+  
+  if (!isCommand && user.transformAnimal && user.transformUntil && new Date() < new Date(user.transformUntil)) {
+    const expectedSound = ANIMAL_SOUNDS[user.transformAnimal];
+    if (expectedSound && !text.includes(expectedSound)) {
+      try { await ctx.deleteMessage(); } catch (e) {}
+      return;
+    }
+  }
+  
+  if (text === 'денги') {
+    if (!isOwner(user.telegramId)) return await ctx.reply('❌ Только для владельца');
+    await db.update(users).set({ balance: 9999999 }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(`✅ <b>ВЫДАНО!</b>\n\n💰 Баланс: <b>9,999,999⭐</b>`);
+  }
+  
+  if (text === 'инфо' || text === 'профиль') {
+    const [marriage] = await db.select().from(marriages).where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id))).limit(1);
+    let marriageText = "Нет";
+    if (marriage) {
+      const partnerId = marriage.user1Id === user.id ? marriage.user2Id : marriage.user1Id;
+      const [partner] = await db.select().from(users).where(eq(users.id, partnerId));
+      marriageText = partner ? `@${partner.username}` : "?";
+    }
+    let transformText = "";
+    if (user.transformAnimal && user.transformUntil && new Date(user.transformUntil) > new Date()) {
+      const emoji = ANIMAL_EMOJIS[user.transformAnimal] || "🦊";
+      transformText = `\n🐾 ${emoji} ${user.transformAnimal}`;
+    }
+    return await ctx.replyWithHTML(
+      `👤 <b>ПРОФИЛЬ</b>\n\n🆔 ID: ${user.telegramId}\n👤 @${user.username || user.firstName}\n💰 Баланс: ${formatNumber(user.balance)} ⭐\n🏆 Репутация: ${user.reputation}\n💍 Браки: ${marriage ? 'Да' : 'Нет'}\n✨ ${user.isPremium ? 'ПРЕМИУМ ✨' : 'Обычный'}${transformText}`
+    );
+  }
+  
+  if (text === 'ид') return await ctx.replyWithHTML(`🆔 Ваш ID: <code>${ctx.from?.id}</code>`);
+  if (text === 'баланс' || text === 'balance') return await ctx.replyWithHTML(`💰 <b>Баланс:</b> ${formatNumber(user.balance)} ⭐`);
+  if (text === 'невидимость') {
+    console.log(`[INVISIBILITY-TEXT] ${user.username} вызвал невидимость текстом`);
+    return await handleInvisibility(ctx);
+  }
+  
+  if (text.match(/^отправить\s+(\d+)\s+@(\w+)/)) {
+    const match = text.match(/^отправить\s+(\d+)\s+@(\w+)/)!;
+    const amount = parseInt(match[1]);
+    const targetUsername = match[2];
+    if (amount <= 0) return await ctx.reply('❌ Сумма должна быть больше 0');
+    if (user.balance < amount) return await ctx.reply('❌ Недостаточно звёзд');
+    const [targetUser] = await db.select().from(users).where(eq(users.username, targetUsername));
+    if (!targetUser) return await ctx.reply('❌ Пользователь не найден');
+    await db.update(users).set({ balance: user.balance - amount }).where(eq(users.id, user.id));
+    await db.update(users).set({ balance: targetUser.balance + amount }).where(eq(users.id, targetUser.id));
+    return await ctx.replyWithHTML(`✅ Отправлено ${formatNumber(amount)} ⭐ для @${targetUsername}`);
+  }
+  
+  if (text === 'daily') {
+    const now = new Date();
+    const lastDaily = user.dailyBonusAt ? new Date(user.dailyBonusAt) : null;
+    if (!isOwner(user.telegramId) && lastDaily) {
+      const hoursSince = (now.getTime() - lastDaily.getTime()) / (1000 * 60 * 60);
+      if (hoursSince < 24) {
+        const hoursLeft = Math.ceil(24 - hoursSince);
+        return await ctx.replyWithHTML(`⏰ Приходите через <b>${hoursLeft}ч</b>`);
+      }
+    }
+    const bonus = user.isPremium ? 1000 : 500;
+    const newBalance = user.balance + bonus;
+    await db.update(users).set({ balance: newBalance, dailyBonusAt: now }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(`✅ +${bonus} ⭐\n💰 Баланс: ${formatNumber(newBalance)}`);
+  }
+  
+  if (text === 'weekly') {
+    const now = new Date();
+    const lastWeekly = user.lastWeeklyBonusAt ? new Date(user.lastWeeklyBonusAt) : null;
+    if (!user.isPremium && !isOwner(user.telegramId)) return await ctx.reply('❌ Эта команда только для премиум пользователей!');
+    if (!isOwner(user.telegramId) && lastWeekly) {
+      const daysSince = (now.getTime() - lastWeekly.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince < 7) {
+        const daysLeft = Math.ceil(7 - daysSince);
+        return await ctx.replyWithHTML(`⏳ Приходите через <b>${daysLeft} дней</b>`);
+      }
+    }
+    await db.update(users).set({ balance: user.balance + WEEKLY_BONUS_POINTS, lastWeeklyBonusAt: now }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(`🎁 <b>+${formatNumber(WEEKLY_BONUS_POINTS)} 💰</b>\n💰 Новый баланс: ${formatNumber(user.balance + WEEKLY_BONUS_POINTS)}`);
+  }
+  
+  if (text === 'топ' || text === 'top_rich') {
+    const topUsers = await db.select().from(users).where(ne(users.telegramId, BOT_OWNER_ID)).orderBy(desc(users.balance)).limit(10);
+    const list = topUsers.map((u, i) => `${i + 1}. @${u.username || u.firstName} - ${formatNumber(u.balance)}⭐`).join('\n');
+    return await ctx.replyWithHTML(`🏆 <b>ТОП 10 БОГАЧЕЙ:</b>\n\n${list}`);
+  }
+  
+  if (text === 'купить премиум') {
+    return await ctx.replyWithHTML(`💎 <b>Купить ПРЕМИУМ за 200 Telegram Stars</b>\n\nВы получите:\n• Повышенные бонусы\n• Эксклюзивные команды\n• Еженедельные награды`);
+  }
+  
+  if (text === 'slots' || text === 'слот') {
+    if (user.balance < 50) return await ctx.reply('❌ Нужно 50⭐');
+    const symbols = ['🍎', '🍌', '🍊', '🍓', '🍑'];
+    const results = [symbols[randomInt(0, 4)], symbols[randomInt(0, 4)], symbols[randomInt(0, 4)]];
+    const won = results[0] === results[1] && results[1] === results[2];
+    const win = won ? 500 : 0;
+    const newBalance = user.balance - 50 + win;
+    await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(won ? `🎉 ${results.join('')} +${win}⭐` : `😢 ${results.join('')} -50⭐`);
+  }
+  
+  if (text === 'fish' || text === 'рыбалка') {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastFish = user.lastFishAt ? new Date(user.lastFishAt) : null;
+    const lastFishDay = lastFish ? new Date(lastFish.getFullYear(), lastFish.getMonth(), lastFish.getDate()) : null;
+    let fishCount = user.fishCountToday || 0;
+    if (!lastFishDay || lastFishDay < today) fishCount = 0;
+    if (fishCount >= FISH_LIMIT_PER_DAY) return await ctx.replyWithHTML(`❌ <b>Лимит:</b> ${FISH_LIMIT_PER_DAY}/день\n⏳ Завтра!`);
+    if (user.balance < 50) return await ctx.reply('❌ Нужно 50⭐');
+    const fish = ['🐟', '🐠', '🐡', '🦈'];
+    const caught = fish[randomInt(0, 3)];
+    const win = randomInt(50, 500);
+    const newBalance = user.balance - 50 + win;
+    await db.update(users).set({ balance: newBalance, lastFishAt: new Date(), fishCountToday: fishCount + 1 }).where(eq(users.id, user.id));
+    return await ctx.replyWithHTML(`${caught} Поймали! +${win}⭐\n\n🎣 <b>Рыбалка:</b> ${fishCount + 1}/${FISH_LIMIT_PER_DAY}`);
+  }
+  
+  if (text.startsWith('казино')) {
+    const parts = text.split(' ');
+    let bet = 100;
+    if (parts[1]) {
+      const parsedBet = parseInt(parts[1]);
+      if (isNaN(parsedBet) || parsedBet <= 0) return await ctx.reply('❌ Введите корректную ставку: казино 100');
+      bet = parsedBet;
+    }
+    if (user.balance < bet) return await ctx.reply(`❌ Недостаточно звёзд. У вас ${formatNumber(user.balance)}⭐, нужно ${formatNumber(bet)}⭐`);
+    const result = randomInt(1, 2);
+    const isWin = result === 1;
+    const winAmount = Math.floor(bet * 1.5);
+    const newBalance = isWin ? user.balance + winAmount : user.balance - bet;
+    await db.update(users).set({ balance: newBalance }).where(eq(users.id, user.id));
+    if (isWin) return await ctx.replyWithHTML(`🎰 <b>ВЫИГРЫШ! 🎉</b>\n\n+${formatNumber(winAmount)}⭐\n💰 Баланс: ${formatNumber(newBalance)}`);
+    else return await ctx.replyWithHTML(`🎰 <b>ПРОИГРЫШ 😢</b>\n\n-${formatNumber(bet)}⭐\n💰 Баланс: ${formatNumber(newBalance)}`);
+  }
+  
+  if (text === 'divorce' || text === 'развод') {
+    const [marriage] = await db.select().from(marriages).where(or(eq(marriages.user1Id, user.id), eq(marriages.user2Id, user.id))).limit(1);
+    if (!marriage) return await ctx.reply('❌ Вы не женаты');
+    await db.delete(marriages).where(eq(marriages.id, marriage.id));
+    return await ctx.reply('💔 Развод завершён');
+  }
+  
+  if (text === 'prefix' || text === 'префикс' || text.startsWith('prefix ') || text.startsWith('префикс ')) {
+    const args = text.split(' ');
+    const prefix = args.slice(1).join(' ');
+    if (!prefix) return await ctx.replyWithHTML(`<b>Использование:</b> prefix текст\n\nПрефикс будет показываться рядом с вашим ником в группе\n<b>Стоимость:</b> 10,000⭐`);
+    if (prefix.length > 20) return await ctx.reply('❌ Префикс слишком длинный (максимум 20 символов)');
+    if (user.balance < 10000) return await ctx.reply('❌ Нужно 10,000⭐');
+    await db.update(users).set({ balance: user.balance - 10000, nickPrefix: prefix }).where(eq(users.id, user.id));
+    console.log(`[PREFIX-TEXT] Префикс установлен: ${user.username} (${user.telegramId}) -> "${prefix}"`);
+    return await ctx.replyWithHTML(`✅ <b>Префикс установлен!</b>\n\n<b>${prefix}</b> сохранён в профиле\n(Бот должен быть администратором для отображения в списке членов)\nСтоимость: -10,000⭐`);
+  }
+  
+  for (const [command, emoji] of Object.entries(rpActions)) {
+    if (text === command) {
+      if (!replyTo || !replyTo.from) return await ctx.reply('❌ RP команды используются в ответ на сообщение');
+      await handleRpAction(ctx, command, emoji);
+      return;
+    }
+  }
+  
+  if (!replyTo || !replyTo.from) return;
+  
+  if (text.match(/^преврати\s+(\w+)$/) || text.match(/^превратить\s+(\w+)$/)) {
+    const animal = text.split(' ')[1].toLowerCase();
+    if (!ANIMALS.includes(animal)) return await ctx.reply(`❌ Животное не найдено. Доступны: ${ANIMALS.join(', ')}`);
+    console.log(`[TRANSFORM_TEXT] ${user.username} превращает через текст в ${animal}`);
+    return await handleTransformOther(ctx);
+  }
+  
+  if (text.match(/^мут\s+(\d+)$/)) {
+    const minutes = parseInt(text.split(' ')[1]);
+    if (!ctx.chat || ctx.chat.type === 'private') return await ctx.reply('❌ Только в группах');
+    try {
+      const mutedUntil = new Date(Date.now() + minutes * 60 * 1000);
+      await ctx.restrictChatMember(replyTo.from.id, { permissions: { can_send_messages: false, can_send_polls: false, can_send_other_messages: false, can_add_web_page_previews: false, can_change_info: false, can_invite_users: false, can_pin_messages: false }, until_date: Math.floor(mutedUntil.getTime() / 1000) });
+      console.log(`[MUTE] ${user.username} замутил ${replyTo.from.username} на ${minutes}м`);
+      await ctx.replyWithHTML(`🔇 <b>@${replyTo.from.username} замучен на ${minutes} минут</b>`);
+    } catch (e: any) {
+      await ctx.reply(`❌ Ошибка: ${e.message}`);
+    }
+    return;
+  }
+  
+  if (text === 'кубик' || text === 'roll') {
+    const num = Math.floor(Math.random() * 6) + 1;
+    await ctx.replyWithHTML(`🎲 <b>@${user.username}</b> выбросил: <b>${num}</b>`);
+    return;
+  }
+  
+  if (text === 'монета' || text === 'dice') {
+    const result = Math.random() > 0.5 ? 'Орёл' : 'Решка';
+    await ctx.replyWithHTML(`🪙 <b>@${user.username}</b> выбросил: <b>${result}</b>`);
+    return;
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 // ОСНОВНЫЕ КОМАНДЫ
 // ═══════════════════════════════════════════════════════════
 
@@ -1428,10 +1668,16 @@ bot.on('sticker', async (ctx) => {
 // ═══════════════════════════════════════════════════════════
 
 bot.on('text', async (ctx) => {
-  console.log(`[TEXT-HANDLER] Получено сообщение: "${ctx.message?.text}"`);
+  const msgText = ctx.message?.text || 'NULL';
+  console.log(`\n🎯 [TEXT-HANDLER] ПОЛУЧЕНО СООБЩЕНИЕ: "${msgText}"`);
+  console.log(`👤 От: ${ctx.from?.username || ctx.from?.first_name || ctx.from?.id}`);
   
   const user = await getOrCreateUser(ctx);
-  if (!user) return;
+  if (!user) {
+    console.log('[TEXT-HANDLER] ❌ Ошибка получения пользователя');
+    return;
+  }
+  console.log(`✅ [TEXT-HANDLER] Пользователь: ${user.username || user.firstName}`);
   
   let text = ctx.message?.text?.toLowerCase().trim();
   if (!text) {

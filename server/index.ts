@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startBot } from "./bot";
+import { initializeDatabase } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -66,6 +67,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Инициализируем БД - создаём таблицы если их нет
+  try {
+    await initializeDatabase();
+  } catch (err: any) {
+    console.error('❌ Ошибка инициализации БД:', err?.message || err);
+    // Продолжаем даже если БД не инициализирована - может быть временная ошибка
+  }
+  
   // Запускаем Telegram бота
   startBot();
   

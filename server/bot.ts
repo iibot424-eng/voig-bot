@@ -2024,10 +2024,26 @@ bot.on('text', async (ctx) => {
   } catch (error: any) {
     console.error(`❌ [TEXT-HANDLER] ОШИБКА: ${error?.message || error}`);
     console.error(error);
-    try {
-      await ctx.reply(`❌ Ошибка обработки команды: ${error?.message || 'Неизвестная ошибка'}`);
-    } catch (replyError: any) {
-      console.error(`❌ [TEXT-HANDLER] Не удалось отправить ошибку: ${replyError?.message}`);
+    // Только отправляем ошибку если это была КОМАНДА
+    const textCommands = [
+      'денги', 'инфо', 'профиль', 'ид', 'баланс', 'balance', 'prefix', 'префикс',
+      'daily', 'weekly', 'невидимость', 'отправить', 'roll', 'dice', 'кубик', 'монета',
+      'duel', 'дуэль', 'marry', 'брак', 'жениться', 'divorce', 'развод',
+      'top_rich', 'топ', 'купить премиум', 'казино', 'slots', 'слот', 'fish', 'рыбалка',
+      'преврати', 'превратить', 'мут', 'buy_premium', 'buy_currency', 'buy_transform_protection',
+      'купить валюту', 'защита от превращений', 'gift_premium', 'подарить премиум', 'give_premium',
+      'обявление',
+      ...Object.keys(rpActions)
+    ];
+    const text = ctx.message?.text?.toLowerCase().trim() || '';
+    const isCommand = textCommands.some(cmd => text === cmd || text.startsWith(cmd + ' '));
+    
+    if (isCommand) {
+      try {
+        await ctx.reply(`❌ Ошибка обработки команды: ${error?.message || 'Неизвестная ошибка'}`);
+      } catch (replyError: any) {
+        console.error(`❌ [TEXT-HANDLER] Не удалось отправить ошибку: ${replyError?.message}`);
+      }
     }
   }
 });

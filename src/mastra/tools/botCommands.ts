@@ -390,6 +390,15 @@ export const handleBotCommand = createTool({
           return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
         case "transfer":
           return await cmdTransfer(triggerInfo, args, logger);
+        case "daily":
+          return await cmdDaily(triggerInfo, logger);
+        case "weekly":
+          return await cmdWeekly(triggerInfo, logger);
+        case "pay":
+          return await cmdPay(triggerInfo, args, logger);
+        case "toprich":
+        case "top_rich":
+          return await cmdTopRich(triggerInfo, logger);
         
         default:
           return { success: true, message: "Unknown command" };
@@ -489,10 +498,11 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
   
-  if (chatSettings?.media_limit && hasMedia && mediaType === "photo") {
+  if (chatSettings?.media_limit && hasMedia && (mediaType === "photo" || mediaType === "video")) {
     const userAdmin = await isAdmin(chatId, userId);
     if (!userAdmin) {
       await deleteMessage(chatId, triggerInfo.params.messageId);
+      await sendTelegramMessage(chatId, `⚠️ @${userName}, фото и видео запрещены в этом чате.`);
       return { success: true, message: "Media not allowed" };
     }
   }
@@ -559,25 +569,27 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, firstName } = triggerInfo.params;
   const text = `👋 Привет, ${firstName}!
 
-Я многофункциональный бот для управления чатами с системой модерации, играми и внутренней валютой.
+Я многофункциональный бот для управления чатами с модерацией, играми и внутренней экономикой.
 
-💰 Владелец: @${OWNER_USERNAME}
-💎 Премиум подписка: ${PREMIUM_PRICE}₽/месяц
+👤 <b>Профиль:</b> /profile /balance /id
 
-📋 Основные команды:
-/help - Помощь
-/profile - Ваш профиль
-/bonus - Ежедневный бонус
-/shop - Магазин префиксов
-/top - Топ активных
+💰 <b>Экономика:</b> /daily /weekly /pay /top_rich /virtas /buyvirtas
 
-🛡 Модерация (для админов):
-/ban, /mute, /warn, /kick
+🎮 <b>Игры:</b> /roll /dice /slots /casino /fish /duel
 
-🎮 Игры:
-/dice, /casino, /slot
+💍 <b>Брак:</b> /marry /accept_marry /divorce
 
-Используйте /help для полного списка команд!`;
+🎨 <b>Троллинг консоль (Премиум):</b> /smeshnoy_text /kloun /unmuteall /invisibility /transform
+
+⚔️ <b>RP-команды:</b> ударить, убить, обнять, целовать, смеяться, танец, бежать, заморозить и ещё 40+
+
+🎵 <b>Команда дня:</b> кто сегодня N (показывает рандомный результат)
+
+🛡️ <b>Админ команды:</b> /ban /mute /warn /kick /antispam /blacklist
+
+📚 /help - Полный список всех команд
+
+👑 Владелец: @${OWNER_USERNAME}`;
 
   await sendTelegramMessage(chatId, text);
   return { success: true, message: "Start sent" };
@@ -585,43 +597,68 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  const text = `📚 <b>Список команд</b>
+  const text = `📚 <b>Полный список команд бота</b>
 
-🛡 <b>Модерация:</b>
-/ban, /softban, /tempban, /unban
-/mute, /tempmute, /unmute
-/warn, /unwarn, /warns, /resetwarns
-/kick, /kickme, /restrict, /unrestrict
+👤 <b>Профиль (3 команды)</b>
+/profile - инфо профиля
+/balance (или /stars) - баланс звёзд
+/id - ваш ID
+
+💰 <b>Экономика (5 команд)</b>
+/daily - ежедневная награда ⭐
+/weekly - еженедельная награда ⭐
+/pay @юзер - отправить звёзды
+/top_rich - топ богачей
+/virtas - показать виртов
+
+🎮 <b>Игры и казино (6 команд)</b>
+/roll - кубик 🎲
+/dice - монета 🪙
+/slots - слоты 🎰
+/casino - казино 🎰
+/fish - рыбалка 🎣
+/duel @юзер - дуэль ⚔️
+
+💍 <b>Брачная система (3 команды)</b>
+/marry @юзер - предложение 💍
+/accept_marry - принять 💕
+/divorce - развод 😢
+
+💎 <b>Троллинг консоль - Премиум (200⭐)</b>
+/smeshnoy_text - смешные фразы (6ч КД)
+/kloun - статус клоуна (6ч КД)
+/unmuteall - размут везде ✅
+/invisibility - невидимость
+/transform или превратить - трансформация
+
+⚔️ <b>RP: Боевые (текстовой команды)</b>
+ударить, убить, выстрелить, зарезать, отравить, взорвать, сжечь, задушить, толкнуть, пнуть, связать, арестовать, обезглавить, расстрелять
+
+❤️ <b>RP: Позитивные</b>
+обнять, целовать, погладить, улыбнуться, подмигнуть, пожать, утешить, похвалить, танец, комплимент, ужин, цветы, серенада
+
+😊 <b>RP: Эмоции</b>
+смеяться, плакать, вздохнуть, нахмуриться, удивиться, испугаться, разозлиться, восхититься, усмехнуться
+
+🏃 <b>RP: Физические</b>
+бежать, спрятаться, замереть, присесть, лечь, встать, прыгнуть, нырнуть, кивнуть
+
+🔮 <b>RP: Магия</b>
+заморозить, поджечь, ослепить, молния, проклятие, снять, исцелить, воскресить
+
+🌟 <b>Команда дня</b>
+кто сегодня [текст] - предсказание 🎰
+
+🛡️ <b>Модерация (админам)</b>
+/ban, /mute, /warn, /kick, /restrict
 /antispam, /blacklist, /caps, /links
+/promote, /demote, /clean, /pin
 
-📊 <b>Информация:</b>
-/info, /id, /profile, /stats
-/top, /top_warns, /rep_top
-/admins, /chat_info
+⚙️ <b>Настройки чата (админам)</b>
+/set_welcome, /set_rules, /media_limit, /links
 
-⚙️ <b>Настройки:</b>
-/set_welcome, /set_rules, /rules
-/welcome, /ro, /unro
-
-👤 <b>Пользователи:</b>
-/bio, /afk, /back, /bonus
-/rep, /karma, /marry
-
-🎮 <b>Игры:</b>
-/dice, /coin, /casino, /slot
-/guess, /quiz, /random
-
-😄 <b>Развлечения:</b>
-/joke, /fact, /quote
-/compliment, /hug, /gift
-
-💰 <b>Экономика:</b>
-/stars, /shop, /buy, /prefixes
-/transfer, /premium
-
-🔧 <b>Админ:</b>
-/promote, /demote, /clean
-/pin, /unpin, /invite`;
+👑 <b>Команды владельца</b>
+/addcoins - пополнить баланс до 9,999,999⭐`;
 
   await sendTelegramMessage(chatId, text);
   return { success: true, message: "Help sent" };
@@ -2222,4 +2259,64 @@ async function cmdTransfer(triggerInfo: TriggerInfoTelegram, args: string[], log
   await db.updateUserStars(target.userId, chatId, amount, `Перевод от ${firstName}`);
   await sendTelegramMessage(chatId, `✅ ${firstName} перевёл ${amount} ⭐ пользователю ${target.firstName}!`);
   return { success: true, message: "Stars transferred" };
+}
+
+async function cmdDaily(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId, firstName } = triggerInfo.params;
+  const result = await db.claimDailyBonus(userId, chatId);
+  await sendTelegramMessage(chatId, `${result.message}${result.success ? ` 🎁 ${firstName}` : ""}`);
+  return { success: result.success, message: result.message };
+}
+
+async function cmdWeekly(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId, firstName } = triggerInfo.params;
+  const bonusAmount = 300 + Math.floor(Math.random() * 200);
+  await db.updateUserStars(userId, chatId, bonusAmount, "Еженедельный бонус");
+  await sendTelegramMessage(chatId, `📅 ${firstName} получил еженедельный бонус: ${bonusAmount} ⭐!`);
+  return { success: true, message: "Weekly bonus claimed" };
+}
+
+async function cmdPay(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId, firstName } = triggerInfo.params;
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя и сумму. Пример: /pay @юзер 100");
+    return { success: false, message: "No target" };
+  }
+  
+  const amount = parseInt(args[0]) || 0;
+  if (amount <= 0) {
+    await sendTelegramMessage(chatId, "❌ Укажите сумму для перевода.");
+    return { success: false, message: "Invalid amount" };
+  }
+  
+  const user = await db.getUser(userId, chatId);
+  if (!user || user.stars < amount) {
+    await sendTelegramMessage(chatId, `❌ Недостаточно звёзд! У вас: ${user?.stars || 0} ⭐`);
+    return { success: false, message: "Not enough stars" };
+  }
+  
+  await db.updateUserStars(userId, chatId, -amount, `Платёж для ${target.firstName}`);
+  await db.updateUserStars(target.userId, chatId, amount, `Платёж от ${firstName}`);
+  await sendTelegramMessage(chatId, `💰 ${firstName} отправил ${amount} ⭐ пользователю ${target.firstName}!`);
+  return { success: true, message: "Payment sent" };
+}
+
+async function cmdTopRich(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  const topUsers = await db.getTopActive(chatId, 10);
+  const richUsers = topUsers.sort((a: any, b: any) => (b.stars || 0) - (a.stars || 0)).slice(0, 10);
+  
+  if (richUsers.length === 0) {
+    await sendTelegramMessage(chatId, "📊 Топ богачей пуст.");
+    return { success: true, message: "Top rich empty" };
+  }
+  
+  let text = "💰 <b>Топ богачей чата</b>\n\n";
+  richUsers.forEach((u: any, i: number) => {
+    text += `${i + 1}. ${u.first_name || u.username || "Аноним"} — ${u.stars || 0} ⭐\n`;
+  });
+  
+  await sendTelegramMessage(chatId, text);
+  return { success: true, message: "Top rich shown" };
 }

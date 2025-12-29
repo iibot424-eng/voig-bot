@@ -8,11 +8,17 @@ const __dirname = dirname(__filename);
 
 console.log('🤖 Starting Telegram Bot...');
 
+// Increase Node.js memory limit for Render environment
+const env = {
+  ...process.env,
+  NODE_OPTIONS: '--max-old-space-size=512'
+};
+
 const child = spawn('npm', ['run', 'dev'], {
   cwd: __dirname,
   stdio: 'inherit',
   shell: true,
-  env: { ...process.env }
+  env: env
 });
 
 process.on('SIGTERM', () => {

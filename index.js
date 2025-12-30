@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+// Run TypeScript production file using tsx
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -6,19 +8,13 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-console.log('🤖 Starting Telegram Bot...');
+console.log('🤖 Starting Telegram Bot (Production)...');
 
-// Increase Node.js memory limit for Render environment
-const env = {
-  ...process.env,
-  NODE_OPTIONS: '--max-old-space-size=512'
-};
-
-const child = spawn('npm', ['run', 'dev'], {
+const child = spawn('npx', ['tsx', 'src/production.ts'], {
   cwd: __dirname,
   stdio: 'inherit',
   shell: true,
-  env: env
+  env: { ...process.env }
 });
 
 process.on('SIGTERM', () => {

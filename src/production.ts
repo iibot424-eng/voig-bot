@@ -6,6 +6,14 @@ console.log("🚀 Starting Telegram Bot in production mode...");
 console.log(`📍 Server will listen on port ${PORT}`);
 console.log(`📊 Database URL: ${process.env.DATABASE_URL ? "✅ Configured" : "❌ NOT SET"}`);
 console.log("✅ Bot server is running and ready to receive messages");
+console.log("🔄 Server is now listening for Telegram webhooks...");
+
+// Keep the process alive - this is critical for production
+// Without this, the process would exit immediately after startup
+setInterval(() => {
+  // This keeps the process alive
+  // The Mastra server handles all the actual work
+}, 30000);
 
 // Graceful shutdown
 process.on("SIGTERM", () => {

@@ -470,6 +470,31 @@ function parseMessage(payload: any): TriggerInfoTelegram {
   };
 }
 
+async function setupWebhook() {
+  if (!process.env.TELEGRAM_BOT_TOKEN) return;
+  const baseUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
+  if (!baseUrl) {
+    console.error("❌ Failed to register Telegram Webhook: APP_URL or RENDER_EXTERNAL_URL is not set");
+    return;
+  }
+  const webhookUrl = `${baseUrl}/webhooks/telegram/action`;
+  console.log(`📡 Attempting to register Telegram Webhook: ${webhookUrl}`);
+  
+  try {
+    const response = await fetch(`${TELEGRAM_API}/setWebhook?url=${webhookUrl}`, {
+      method: "POST",
+    });
+    const result = await response.json();
+    if (result.ok) {
+      console.log("✅ Telegram Webhook registered successfully");
+    } else {
+      console.error("❌ Failed to register Telegram Webhook:", result.description);
+    }
+  } catch (err) {
+    console.error("🚨 Network error during webhook registration:", err);
+  }
+}
+
 export function registerTelegramTrigger({
   triggerType,
   handler,
@@ -480,6 +505,9 @@ export function registerTelegramTrigger({
     triggerInfo: TriggerInfoTelegram,
   ) => Promise<void>;
 }) {
+  console.log("🛠 Initializing Telegram Trigger...");
+  setupWebhook();
+
   return [
     registerApiRoute("/webhooks/telegram/action", {
       method: "POST",

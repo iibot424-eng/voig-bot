@@ -474,7 +474,7 @@ async function setupWebhook() {
   if (!process.env.TELEGRAM_BOT_TOKEN) return;
   const baseUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
   if (!baseUrl) {
-    console.error("❌ Failed to register Telegram Webhook: APP_URL or RENDER_EXTERNAL_URL is not set");
+    console.warn("⚠️ [Telegram] APP_URL or RENDER_EXTERNAL_URL is not set. Webhook registration skipped.");
     return;
   }
   const webhookUrl = `${baseUrl}/webhooks/telegram/action`;

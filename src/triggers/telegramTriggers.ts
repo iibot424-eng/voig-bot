@@ -533,11 +533,24 @@ export function registerTelegramTrigger({
             isCallback: triggerInfo.params.isCallback
           });
 
-          await handler(mastra, triggerInfo);
+          try {
+            await handler(mastra, triggerInfo);
+          } catch (handlerError: any) {
+            logger?.error("❌ [Telegram] Handler execution failed:", { 
+              error: handlerError.message,
+              stack: handlerError.stack,
+              triggerType: triggerInfo.type
+            });
+            throw handlerError;
+          }
 
           return c.text("OK", 200);
-        } catch (error) {
-          logger?.error("❌ [Telegram] Error handling webhook:", { error });
+        } catch (error: any) {
+          logger?.error("❌ [Telegram] Error handling webhook:", { 
+            error: error.message,
+            stack: error.stack,
+            payload: "See info logs for payload"
+          });
           return c.text("Internal Server Error", 500);
         }
       },

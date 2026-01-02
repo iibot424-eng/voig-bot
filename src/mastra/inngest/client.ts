@@ -7,13 +7,13 @@ export const inngest = new Inngest(
     ? {
         id: "replit-agent-workflow",
         name: "Replit Agent Workflow System",
-        eventKey: process.env.INNGEST_EVENT_KEY || "local-event-key",
+        eventKey: process.env.INNGEST_EVENT_KEY,
       }
     : {
         id: "mastra",
         baseUrl: "http://localhost:3000",
         isDev: true,
         middleware: [realtimeMiddleware()],
-        eventKey: "local-event-key",
+        eventKey: process.env.INNGEST_EVENT_KEY || "local-event-key",
       },
 );

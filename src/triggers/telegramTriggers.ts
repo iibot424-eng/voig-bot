@@ -471,27 +471,39 @@ function parseMessage(payload: any): TriggerInfoTelegram {
 }
 
 async function setupWebhook() {
-  if (!process.env.TELEGRAM_BOT_TOKEN) return;
-  const baseUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
-  if (!baseUrl) {
-    console.warn("⚠️ [Telegram] APP_URL or RENDER_EXTERNAL_URL is not set. Webhook registration skipped.");
+  const logger = (global as any).mastra?.getLogger();
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    console.error("❌ [Telegram] TELEGRAM_BOT_TOKEN is missing!");
     return;
   }
-  const webhookUrl = `${baseUrl}/webhooks/telegram/action`;
-  console.log(`📡 Attempting to register Telegram Webhook: ${webhookUrl}`);
+
+  const baseUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : undefined);
+  if (!baseUrl) {
+    console.warn("⚠️ [Telegram] APP_URL, RENDER_EXTERNAL_URL or REPLIT_DEV_DOMAIN is not set. Webhook registration skipped.");
+    return;
+  }
+
+  const webhookUrl = `${baseUrl.replace(/\/$/, "")}/webhooks/telegram/action`;
+  console.log(`📡 [Telegram] Attempting to register Webhook: ${webhookUrl}`);
   
   try {
     const response = await fetch(`${TELEGRAM_API}/setWebhook?url=${webhookUrl}`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
     });
+    
     const result = await response.json();
     if (result.ok) {
-      console.log("✅ Telegram Webhook registered successfully");
+      console.log("✅ [Telegram] Webhook registered successfully");
     } else {
-      console.error("❌ Failed to register Telegram Webhook:", result.description);
+      console.error("❌ [Telegram] Failed to register Webhook:", result.description);
+      // Try to get current webhook info for debugging
+      const infoResponse = await fetch(`${TELEGRAM_API}/getWebhookInfo`);
+      const info = await infoResponse.json();
+      console.log("ℹ️ [Telegram] Current Webhook Info:", info);
     }
   } catch (err) {
-    console.error("🚨 Network error during webhook registration:", err);
+    console.error("🚨 [Telegram] Network error during webhook registration:", err);
   }
 }
 
@@ -505,8 +517,10 @@ export function registerTelegramTrigger({
     triggerInfo: TriggerInfoTelegram,
   ) => Promise<void>;
 }) {
-  console.log("🛠 Initializing Telegram Trigger...");
-  setupWebhook();
+  console.log("🛠 [Telegram] Initializing Trigger registration...");
+  
+  // Register the webhook in the background
+  setupWebhook().catch(err => console.error("🚨 [Telegram] setupWebhook failed:", err));
 
   return [
     registerApiRoute("/webhooks/telegram/action", {
@@ -514,44 +528,42 @@ export function registerTelegramTrigger({
       handler: async (c) => {
         const mastra = c.get("mastra");
         const logger = mastra.getLogger();
+        
+        // Store mastra globally for background tasks if needed
+        (global as any).mastra = mastra;
+
         try {
           const payload = await c.req.json();
 
-          logger?.info("📥 [Telegram] Webhook received", { 
+          logger?.info("📥 [Telegram] Update received", { 
             update_id: payload.update_id,
-            has_message: !!payload.message,
-            has_callback: !!payload.callback_query 
+            type: payload.callback_query ? "callback" : "message"
           });
 
           const triggerInfo = parseMessage(payload);
           
-          logger?.info("📝 [Telegram] Parsed trigger info", { 
+          logger?.info("🎯 [Telegram] Processing", { 
             type: triggerInfo.type,
-            userId: triggerInfo.params.userId,
             chatId: triggerInfo.params.chatId,
-            command: triggerInfo.params.command,
-            isCallback: triggerInfo.params.isCallback
+            command: triggerInfo.params.command
           });
 
           try {
             await handler(mastra, triggerInfo);
+            return c.text("OK", 200);
           } catch (handlerError: any) {
-            logger?.error("❌ [Telegram] Handler execution failed:", { 
-              error: handlerError.message,
-              stack: handlerError.stack,
-              triggerType: triggerInfo.type
+            logger?.error("❌ [Telegram] Handler error:", { 
+              message: handlerError.message,
+              trigger: triggerInfo.type
             });
-            throw handlerError;
+            // Still return 200 to Telegram to avoid retries if it's a logic error
+            return c.text("OK", 200);
           }
-
-          return c.text("OK", 200);
         } catch (error: any) {
-          logger?.error("❌ [Telegram] Error handling webhook:", { 
-            error: error.message,
-            stack: error.stack,
-            payload: "See info logs for payload"
+          logger?.error("❌ [Telegram] Webhook processing error:", { 
+            error: error.message
           });
-          return c.text("Internal Server Error", 500);
+          return c.text("Error", 500);
         }
       },
     }),

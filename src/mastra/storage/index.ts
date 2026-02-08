@@ -6,7 +6,7 @@ let storageError: Error | null = null;
 
 export const sharedPostgresStorage = new PostgresStore({
   connectionString:
-    process.env.DATABASE_URL || "postgresql://localhost:5432/mastra",
+    "postgresql://neondb_owner:npg_hCTrcD3kIOa5@ep-delicate-art-aiciia6n-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require",
   config: {
     ssl: {
       rejectUnauthorized: false

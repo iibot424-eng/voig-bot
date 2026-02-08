@@ -537,7 +537,8 @@ export function registerTelegramTrigger({
 
           logger?.info("📥 [Telegram] Update received", { 
             update_id: payload.update_id,
-            type: payload.callback_query ? "callback" : "message"
+            type: payload.callback_query ? "callback" : "message",
+            full_payload: JSON.stringify(payload)
           });
 
           const triggerInfo = parseMessage(payload);

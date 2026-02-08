@@ -7,6 +7,11 @@ let storageError: Error | null = null;
 export const sharedPostgresStorage = new PostgresStore({
   connectionString:
     process.env.DATABASE_URL || "postgresql://localhost:5432/mastra",
+  config: {
+    ssl: {
+      rejectUnauthorized: false
+    }
+  }
 });
 
 // Capture any initialization errors but don't throw

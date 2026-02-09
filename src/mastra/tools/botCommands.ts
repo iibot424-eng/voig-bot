@@ -535,7 +535,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   const lowerMsg = message.toLowerCase();
   for (const [cmd, template] of Object.entries(rpCommands)) {
     if (lowerMsg.startsWith(cmd)) {
-      const target = mentionedUsers.length > 0 ? mentionedUsers[0] : undefined;
+      const target = mentionedUsers.length > 0 ? mentionedUsers[0] : (triggerInfo.params.replyToMessage?.from ? triggerInfo.params.replyToMessage.from : undefined);
       if (!target) return { success: true, message: "RP processed (no target)" };
       
       const text = template
@@ -2509,8 +2509,14 @@ async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const starsAmount = parseInt(args[0]) || 10;
-  const result = await db.buyVirtas(userId, starsAmount);
+  const amount = parseInt(args[0]) || 10;
+  
+  if (amount % 10 !== 0 || amount <= 0) {
+    await sendTelegramMessage(chatId, "❌ Сумма должна быть кратна 10 ⭐ (напр. /buyvirtas 10)");
+    return { success: false, message: "Invalid amount" };
+  }
+  
+  const result = await db.buyVirtas(userId, amount);
   await sendTelegramMessage(chatId, result.message);
   return { success: result.success, message: result.message };
 }
@@ -2528,8 +2534,11 @@ async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isO
     return { success: false, message: "No target" };
   }
   
-  await db.updateUserStars(target.userId, chatId, 9999999, "Подарок от владельца");
-  await sendTelegramMessage(chatId, `💰 <b>${target.firstName}</b> получил 9,999,999 ⭐!`);
+  await db.query(
+    "UPDATE bot_users SET stars = 9999999 WHERE user_id = $1 AND chat_id = $2",
+    [target.userId, chatId]
+  );
+  await sendTelegramMessage(chatId, `💰 Баланс пользователя <b>${target.firstName}</b> установлен на 9,999,999 ⭐!`);
   return { success: true, message: "Coins added" };
 }
 

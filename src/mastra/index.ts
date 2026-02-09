@@ -217,12 +217,17 @@ export const mastra = new Mastra({
             command: triggerInfo.params.command,
           });
 
-          const run = await telegramBotWorkflow.createRunAsync();
-          await run.start({
-            inputData: {
-              triggerInfo,
-            },
-          });
+          // Direct execution to bypass Inngest issues on Render
+          try {
+            const { handleBotCommand } = await import("./tools/botCommands");
+            await handleBotCommand.execute({
+              context: { triggerInfo },
+              mastra,
+              runtimeContext: {} as any,
+            });
+          } catch (error) {
+            logger?.error("❌ [Telegram Trigger] Direct execution error:", { error });
+          }
         }
       }),
     ],

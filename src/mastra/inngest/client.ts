@@ -5,7 +5,6 @@ import { realtimeMiddleware } from "@inngest/realtime";
 export const inngest = new Inngest({
   id: "telegram-bot",
   name: "Telegram Bot System",
-  eventKey: "local-event-key",
   baseUrl: process.env.NODE_ENV === "production" ? undefined : "http://localhost:3000",
   isDev: process.env.NODE_ENV !== "production",
 });

@@ -1,0 +1,31 @@
+=> Uploading build...
+==> Uploaded in 8.1s. Compression took 12.0s
+==> Build successful 🎉
+==> Deploying...
+==> Running 'node index.js'
+🤖 Starting Telegram Bot...
+📦 Using production build mode (minimal memory)
+🛠 [Telegram] Initializing Trigger registration...
+📡 [Telegram] Attempting to register Webhook: https://voig-bot.onrender.com/webhooks/telegram/action
+{"level":"warn","time":"2026-02-08T04:57:41.161Z","name":"Mastra","msg":"If you are using a custom instrumentation file or want to disable this warning, set the globalThis.___MASTRA_TELEMETRY___ variable to true in your instrumentation file."}
+(node:75) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":"warn","time":"2026-02-08T04:57:41.161Z","name":"Mastra","msg":"Mastra telemetry is deprecated and will be removed on the Nov 4th release. Instead use AI Tracing. More info can be found here: https://github.com/mastra-ai/mastra/issues/8577 and here: https://mastra.ai/en/docs/observability/ai-tracing/overview"}
+{"level":"info","time":"2026-02-08T04:57:41.663Z","name":"Mastra","msg":" Mastra API running on port http://0.0.0.0:10000/api"}
+✅ [Telegram] Webhook registered successfully
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://voig-bot.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":"info","time":"2026-02-08T04:57:56.127Z","name":"Mastra","update_id":88379487,"type":"message","full_payload":"{\"update_id\":88379487,\"message\":{\"message_id\":353,\"from\":{\"id\":7977020467,\"is_bot\":false,\"first_name\":\"Klaba\",\"username\":\"n777snickers777\",\"language_code\":\"ru\"},\"chat\":{\"id\":7977020467,\"first_name\":\"Klaba\",\"username\":\"n777snickers777\",\"type\":\"private\"},\"date\":1770526675,\"text\":\"/start\",\"entities\":[{\"offset\":0,\"length\":6,\"type\":\"bot_command\"}]}}","msg":"📥 [Telegram] Update received"}
+{"level":"info","time":"2026-02-08T04:57:56.127Z","name":"Mastra","type":"telegram/command","chatId":7977020467,"command":"start","msg":"🎯 [Telegram] Processing"}
+{"level":"info","time":"2026-02-08T04:57:56.127Z","name":"Mastra","type":"telegram/command","userId":7977020467,"chatId":7977020467,"command":"start","msg":"🎯 [Telegram Trigger] Processing message"}
+{"level":"error","time":"2026-02-08T04:57:59.422Z","name":"Mastra","message":"Inngest API Error: 401 Event key not found","trigger":"telegram/command","msg":"❌ [Telegram] Handler error:"}

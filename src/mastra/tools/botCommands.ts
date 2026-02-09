@@ -538,9 +538,10 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       const target = mentionedUsers.length > 0 ? mentionedUsers[0] : (triggerInfo.params.replyToMessage?.from ? triggerInfo.params.replyToMessage.from : undefined);
       if (!target) return { success: true, message: "RP processed (no target)" };
       
+      const targetName = target.first_name || (target.username ? `@${target.username}` : `ID:${target.id}`);
       const text = template
         .replace("{user}", firstName)
-        .replace("{target}", target.first_name || `@${target.username || target.id}`);
+        .replace("{target}", targetName);
       
       await sendTelegramMessage(chatId, text);
       return { success: true, message: "RP command executed" };

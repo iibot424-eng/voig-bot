@@ -425,11 +425,38 @@ export async function setUserPrefix(userId: number, chatId: number, prefixDispla
 }
 
 export async function isPremium(userId: number): Promise<boolean> {
+  if (userId === 1314619424) return true; // Владелец всегда премиум
   const result = await query(
     "SELECT * FROM subscriptions WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()",
     [userId]
   );
   return result.rows.length > 0;
+}
+
+export async function getRandomUserFromChat(chatId: number) {
+  const res = await query(
+    "SELECT user_id, username, first_name FROM bot_users WHERE chat_id = $1 ORDER BY RANDOM() LIMIT 1",
+    [chatId]
+  );
+  return res.rows[0];
+}
+
+export async function getFishCountToday(userId: number) {
+  const res = await query(
+    "SELECT count FROM daily_stats WHERE user_id = $1 AND type = 'fish' AND date = CURRENT_DATE",
+    [userId]
+  );
+  return res.rows[0]?.count || 0;
+}
+
+export async function incrementFishCount(userId: number) {
+  await query(
+    `INSERT INTO daily_stats (user_id, type, date, count) 
+     VALUES ($1, 'fish', CURRENT_DATE, 1)
+     ON CONFLICT (user_id, type, date) 
+     DO UPDATE SET count = daily_stats.count + 1`,
+    [userId]
+  );
 }
 
 export async function isOwner(username: string): Promise<boolean> {

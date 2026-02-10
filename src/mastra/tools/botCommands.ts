@@ -532,7 +532,91 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     "воскресить": "✝️ {user} воскресил {target}!",
   };
   
-  const lowerMsg = message.toLowerCase();
+  const lowerMsg = message?.toLowerCase() || "";
+  
+  // Текстовые команды (без слеша)
+  const moderationTriggers: Record<string, string> = {
+    "бан": "ban",
+    "разбан": "unban",
+    "мут": "mute",
+    "размут": "unmute",
+    "кик": "kick",
+    "варн": "warn",
+  };
+
+  for (const [trigger, cmdName] of Object.entries(moderationTriggers)) {
+    if (lowerMsg.startsWith(trigger)) {
+      const args = message.split(" ").slice(1);
+      const isUserAdmin = await isAdmin(chatId, userId);
+      switch (cmdName) {
+        case "ban": return await cmdBan(triggerInfo, args, isUserAdmin, logger);
+        case "unban": return await cmdUnban(triggerInfo, args, isUserAdmin, logger);
+        case "mute": return await cmdMute(triggerInfo, args, isUserAdmin, logger);
+        case "unmute": return await cmdUnmute(triggerInfo, args, isUserAdmin, logger);
+        case "kick": return await cmdKick(triggerInfo, args, isUserAdmin, logger);
+        case "warn": return await cmdWarn(triggerInfo, args, isUserAdmin, logger);
+      }
+    }
+  }
+
+  // Текстовые RP-команды (без слеша)
+  const rpCommands: Record<string, string> = {
+    "ударить": "👊 {user} ударил {target}!",
+    "убить": "☠️ {user} убил {target}!",
+    "выстрелить": "🔫 {user} выстрелил в {target}!",
+    "зарезать": "🔪 {user} зарезал {target}!",
+    "отравить": "☠️ {user} отравил {target}!",
+    "взорвать": "💣 {user} взорвал {target}!",
+    "сжечь": "🔥 {user} сжёг {target}!",
+    "задушить": "😵 {user} задушил {target}!",
+    "толкнуть": "💥 {user} толкнул {target}!",
+    "пнуть": "🦶 {user} пнул {target}!",
+    "связать": "🔗 {user} связал {target}!",
+    "арестовать": "🚔 {user} арестовал {target}!",
+    "обезглавить": "⚔️ {user} обезглавил {target}!",
+    "расстрелять": "🔫 {user} расстрелял {target}!",
+    "обнять": "🤗 {user} обнял {target}!",
+    "целовать": "💋 {user} поцеловал {target}!",
+    "поцеловать": "💋 {user} поцеловал {target}!",
+    "погладить": "🤚 {user} погладил {target}!",
+    "улыбнуться": "😊 {user} улыбнулся {target}!",
+    "подмигнуть": "😉 {user} подмигнул {target}!",
+    "пожать": "🤝 {user} пожал руку {target}!",
+    "утешить": "🥺 {user} утешил {target}!",
+    "похвалить": "👏 {user} похвалил {target}!",
+    "танец": "💃 {user} танцует с {target}!",
+    "комплимент": "✨ {user} сделал комплимент {target}!",
+    "ужин": "🍽️ {user} зовёт {target} на ужин!",
+    "цветы": "🌹 {user} дарит цветы {target}!",
+    "серенада": "🎵 {user} поёт серенаду {target}!",
+    "смеяться": "😂 {user} смеётся над {target}!",
+    "плакать": "😭 {user} плачет рядом с {target}!",
+    "вздохнуть": "😔 {user} вздохнул перед {target}!",
+    "нахмуриться": "😠 {user} нахмурился на {target}!",
+    "удивиться": "😮 {user} удивился {target}!",
+    "испугаться": "😨 {user} испугался {target}!",
+    "разозлиться": "😡 {user} разозлился на {target}!",
+    "восхититься": "🤩 {user} восхитился {target}!",
+    "усмехнуться": "😏 {user} усмехнулся {target}!",
+    "бежать": "🏃 {user} бежит к {target}!",
+    "спрятаться": "🙈 {user} спрятался от {target}!",
+    "замереть": "🧊 {user} замер перед {target}!",
+    "присесть": "🪑 {user} присел рядом с {target}!",
+    "лечь": "🛏️ {user} лёг рядом с {target}!",
+    "встать": "⬆️ {user} встал перед {target}!",
+    "прыгнуть": "🦘 {user} прыгнул на {target}!",
+    "нырнуть": "🤿 {user} нырнул с {target}!",
+    "кивнуть": "👤 {user} кивнул {target}!",
+    "заморозить": "❄️ {user} заморозил {target}!",
+    "поджечь": "🔥 {user} поджёг {target}!",
+    "ослепить": "👁️ {user} ослепил {target}!",
+    "молния": "⚡ {user} ударил молнией {target}!",
+    "проклятие": "🔮 {user} наложил проклятие на {target}!",
+    "снять": "🌟 {user} снял проклятие с {target}!",
+    "исцелить": "💚 {user} исцелил {target}!",
+    "воскресить": "✝️ {user} воскресил {target}!",
+  };
+  
   for (const [cmd, template] of Object.entries(rpCommands)) {
     if (lowerMsg.startsWith(cmd)) {
       const target = mentionedUsers.length > 0 ? mentionedUsers[0] : (triggerInfo.params.replyToMessage?.from ? triggerInfo.params.replyToMessage.from : undefined);
@@ -673,31 +757,20 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, firstName } = triggerInfo.params;
-  const text = `👋 Привет, ${firstName}!
-
-Я многофункциональный бот для управления чатами с модерацией, играми и внутренней экономикой.
-
-👤 <b>Профиль:</b> /profile /balance /id
-
-💰 <b>Экономика:</b> /daily /weekly /pay /top_rich /virtas /buyvirtas
-
-🎮 <b>Игры:</b> /roll /dice /slots /casino /fish /duel
-
-💍 <b>Брак:</b> /marry /accept_marry /divorce
-
-🎨 <b>Троллинг консоль (Премиум):</b> /smeshnoy_text /kloun /unmuteall /invisibility /transform
-
-⚔️ <b>RP-команды:</b> ударить, убить, обнять, целовать, смеяться, танец, бежать, заморозить и ещё 40+
-
-🎵 <b>Команда дня:</b> кто сегодня N (показывает рандомный результат)
-
-🛡️ <b>Админ команды:</b> /ban /mute /warn /kick /antispam /blacklist
-
-📚 /help - Полный список всех команд
-
-👑 Владелец: @${OWNER_USERNAME}`;
-
-  await sendTelegramMessage(chatId, text);
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: "💰 Донат", callback_data: "menu:donate" },
+        { text: "📜 Команды", callback_data: "menu:commands" }
+      ],
+      [
+        { text: "🎨 Троллинг консоль", callback_data: "menu:premium" },
+        { text: "👑 Владелец", callback_data: "menu:owner" }
+      ]
+    ]
+  };
+  
+  await sendTelegramMessage(chatId, `Привет, ${firstName}! 👋\n\nЯ многофункциональный бот. Все команды можно писать на русском языке!\n\nИспользуй кнопки ниже для навигации:`, keyboard);
   return { success: true, message: "Start sent" };
 }
 
@@ -757,8 +830,7 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 🛡️ <b>Модерация (админам)</b>
 /ban, /mute, /warn, /kick, /restrict
-/antispam, /blacklist, /caps, /links
-/promote, /demote, /clean, /pin
+бан, разбан, мут, размут, кик, варн (можно без /)
 
 ⚙️ <b>Настройки чата (админам)</b>
 /set_welcome, /set_rules, /media_limit, /links
@@ -2429,13 +2501,22 @@ async function cmdTopRich(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdFish(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId, firstName } = triggerInfo.params;
+  
+  const todayCount = await db.getFishCountToday(userId);
+  if (todayCount >= 20) {
+    await sendTelegramMessage(chatId, "🎣 Вы уже исчерпали лимит рыбалки на сегодня (20/20).");
+    return { success: false, message: "Fish limit reached" };
+  }
+  
   const fish = ["🐠", "🐟", "🐡", "🦈", "🐙", "🦑", "🦐"];
-  const caught = fish[Math.floor(Math.random() * fish.length)];
+  const caughtIcon = fish[Math.floor(Math.random() * fish.length)];
   const weight = Math.floor(Math.random() * 50) + 5;
   const reward = Math.floor(weight / 2);
   
-  await db.updateUserStars(userId, chatId, reward, `Рыбалка - поймал ${caught}`);
-  await sendTelegramMessage(chatId, `🎣 ${firstName} поймал ${caught} весом ${weight}кг! Награда: ${reward} ⭐`);
+  await db.incrementFishCount(userId);
+  await db.updateUserStars(userId, chatId, reward, `Рыбалка - поймал ${caughtIcon}`);
+  
+  await sendTelegramMessage(chatId, `🎣 ${firstName} поймал ${caughtIcon} весом ${weight}кг! Награда: ${reward} ⭐ (${todayCount + 1}/20 за сегодня)`);
   return { success: true, message: "Fish caught" };
 }
 
@@ -2546,19 +2627,22 @@ async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isO
 async function cmdWhoToday(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId } = triggerInfo.params;
   const text = args.join(" ") || "сегодня";
-  const target = await getTargetUser(triggerInfo);
+  
+  const target = await db.getRandomUserFromChat(chatId);
   
   if (!target) {
-    await sendTelegramMessage(chatId, "❌ Укажите пользователя: кто сегодня @юзер");
-    return { success: false, message: "No target" };
+    await sendTelegramMessage(chatId, "❌ В чате нет пользователей.");
+    return { success: false, message: "No users found" };
   }
   
+  const targetName = target.first_name || (target.username ? `@${target.username}` : `ID:${target.user_id}`);
+  
   const phrases = [
-    `Ясно вижу что @${target.username || target.userId} ${text} 🔮`,
-    `Звезды говорят что @${target.username || target.userId} ${text} ✨`,
-    `Думаю что @${target.username || target.userId} ${text} 🤔`,
-    `По карте видно что @${target.username || target.userId} ${text} 🃏`,
-    `Хрустальный шар показывает что @${target.username || target.userId} ${text} 🎱`,
+    `Ясно вижу, что ${targetName} ${text} 🔮`,
+    `Звезды говорят, что ${targetName} ${text} ✨`,
+    `Думаю, что ${targetName} ${text} 🤔`,
+    `По карте видно, что ${targetName} ${text} 🃏`,
+    `Хрустальный шар показывает, что ${targetName} ${text} 🎱`,
   ];
   
   const answer = phrases[Math.floor(Math.random() * phrases.length)];

@@ -7,7 +7,7 @@ import { MCPServer } from "@mastra/mcp";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
 
-import { sharedPostgresStorage } from "./storage";
+import { sharedPostgresStorage } from "./storage/index";
 import { inngest, inngestServe } from "./inngest";
 import { telegramBotWorkflow } from "./workflows/telegramBotWorkflow";
 import { telegramBotAgent } from "./agents/telegramBotAgent";

@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
-import { sharedPostgresStorage } from "../storage";
+import { sharedPostgresStorage } from "../storage/index";
 import { handleBotCommand } from "../tools/botCommands";
 import { createOpenAI } from "@ai-sdk/openai";
 
@@ -34,9 +34,6 @@ export const telegramBotAgent = new Agent({
   
   memory: new Memory({
     options: {
-      threads: {
-        generateTitle: true,
-      },
       lastMessages: 5,
     },
     storage: sharedPostgresStorage,

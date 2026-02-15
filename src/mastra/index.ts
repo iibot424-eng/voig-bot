@@ -219,14 +219,17 @@ export const mastra = new Mastra({
 
           // Direct execution to bypass Inngest issues on Render
           try {
-            const { handleBotCommand } = await import("./tools/botCommands");
-            await handleBotCommand.execute({
+            const { handleBotCommand } = await import("./tools/botCommands.js");
+            const result = await handleBotCommand.execute({
               context: { triggerInfo },
               mastra,
               runtimeContext: {} as any,
             });
+            logger?.info("✅ [Telegram Trigger] Command handled", { result });
           } catch (error) {
-            logger?.error("❌ [Telegram Trigger] Direct execution error:", { error });
+            logger?.error("❌ [Telegram Trigger] Direct execution error:", { 
+              error: error instanceof Error ? { message: error.message, stack: error.stack } : error 
+            });
           }
         }
       }),

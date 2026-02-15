@@ -124,8 +124,7 @@ export const handleBotCommand = createTool({
     success: z.boolean(),
     message: z.string(),
   }),
-  execute: async ({ context, mastra }) => {
-    const triggerInfo = context.triggerInfo as TriggerInfoTelegram;
+  execute: async ({ triggerInfo, mastra }: { triggerInfo: TriggerInfoTelegram; mastra?: any }) => {
     const logger = mastra?.getLogger();
     
     const { chatId, userId, userName, firstName, lastName, command, commandArgs, isCallback, callbackData, callbackId } = triggerInfo.params;

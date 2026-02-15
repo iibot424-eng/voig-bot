@@ -221,10 +221,9 @@ export const mastra = new Mastra({
           try {
             const { handleBotCommand } = await import("./tools/botCommands.js");
             const result = await handleBotCommand.execute({
-              context: { triggerInfo },
+              triggerInfo,
               mastra,
-              runtimeContext: {} as any,
-            });
+            } as any);
             logger?.info("✅ [Telegram Trigger] Command handled", { result });
           } catch (error) {
             logger?.error("❌ [Telegram Trigger] Direct execution error:", { 

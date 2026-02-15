@@ -545,8 +545,9 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
 
   for (const [trigger, cmdName] of Object.entries(moderationTriggers)) {
     if (lowerMsg.startsWith(trigger)) {
-      const args = message.split(" ").slice(1);
+      const args = message ? message.split(" ").slice(1) : [];
       const isUserAdmin = await isAdmin(chatId, userId);
+      logger?.info("🛡️ [BotCommand] Text moderation trigger", { trigger, cmdName, isUserAdmin });
       switch (cmdName) {
         case "ban": return await cmdBan(triggerInfo, args, isUserAdmin, logger);
         case "unban": return await cmdUnban(triggerInfo, args, isUserAdmin, logger);
@@ -561,6 +562,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   // Текстовые RP-команды (без слеша)
   for (const [cmd, template] of Object.entries(rpCommands)) {
     if (lowerMsg.startsWith(cmd)) {
+      logger?.info("🎭 [BotCommand] RP command trigger", { cmd });
       const target = mentionedUsers.length > 0 ? mentionedUsers[0] : (triggerInfo.params.replyToMessage?.from ? triggerInfo.params.replyToMessage.from : undefined);
       if (!target) return { success: true, message: "RP processed (no target)" };
       

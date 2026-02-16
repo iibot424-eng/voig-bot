@@ -544,7 +544,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   };
 
   for (const [trigger, cmdName] of Object.entries(moderationTriggers)) {
-    if (lowerMsg.startsWith(trigger)) {
+    if (lowerMsg.includes(trigger)) {
       const args = message ? message.split(" ").slice(1) : [];
       const isOwnerUser = triggerInfo.params.userName?.toLowerCase() === OWNER_USERNAME || triggerInfo.params.userId === 1314619424;
       const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
@@ -575,7 +575,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       return { success: true, message: "RP command executed" };
     }
   }
-  
+
   if (newMembers && newMembers.length > 0) {
     const chatSettings = await db.getChatSettings(chatId);
     if (chatSettings?.welcome_enabled) {
@@ -2489,6 +2489,17 @@ async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
     return { success: false, message: "Not premium" };
   }
   
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя (ответом или упоминанием).");
+    return { success: false, message: "No target" };
+  }
+  
+  if (target.userId === userId && userId !== 1314619424) {
+    await sendTelegramMessage(chatId, "❌ Нельзя применять эту команду на себя!");
+    return { success: false, message: "Self target" };
+  }
+  
   const phrases = [
     "чево картошка утонула",
     "это как так-то произошло?",
@@ -2498,23 +2509,11 @@ async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
   ];
   
   const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-  await sendTelegramMessage(chatId, `😂 <b>Смешные фразы активированы!</b> Текст: "${phrase}"`);
+  await sendTelegramMessage(chatId, `😂 <b>Смешные фразы активированы для ${target.firstName}!</b> Текст: "${phrase}"`);
   return { success: true, message: "Funny text activated" };
 }
 
 async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, firstName } = triggerInfo.params;
-  const isPremium = await db.isPremium(userId);
-  if (!isPremium) {
-    await sendTelegramMessage(chatId, "💎 Эта команда доступна только для Троллинг консоли!");
-    return { success: false, message: "Not premium" };
-  }
-  
-  await sendTelegramMessage(chatId, `🤡 ${firstName} получил статус <b>КЛОУН</b> на 1 час! 🎪`);
-  return { success: true, message: "Clown status given" };
-}
-
-async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const isPremium = await db.isPremium(userId);
   if (!isPremium) {
@@ -2522,7 +2521,47 @@ async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
     return { success: false, message: "Not premium" };
   }
   
-  await sendTelegramMessage(chatId, "🔊 Размут активирован во всех чатах! Теперь можно спамить везде! 😄");
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя.");
+    return { success: false, message: "No target" };
+  }
+  
+  if (target.userId === userId && userId !== 1314619424) {
+    await sendTelegramMessage(chatId, "❌ Нельзя применять эту команду на себя!");
+    return { success: false, message: "Self target" };
+  }
+  
+  await sendTelegramMessage(chatId, `🤡 ${target.firstName} получил статус <b>КЛОУН</b> на 1 час! 🎪`);
+  return { success: true, message: "Clown status given" };
+}
+
+async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId, firstName } = triggerInfo.params;
+  const isPremium = await db.isPremium(userId);
+  if (!isPremium) {
+    await sendTelegramMessage(chatId, "💎 Эта команда доступна только для Троллинг консоли!");
+    return { success: false, message: "Not premium" };
+  }
+  
+  const cooldownKey = `unmuteall_cooldown_${userId}`;
+  const lastUseRes = await db.query("SELECT created_at FROM star_transactions WHERE user_id = $1 AND description = $2 ORDER BY created_at DESC LIMIT 1", [userId, cooldownKey]);
+  
+  if (lastUseRes.rows.length > 0 && userId !== 1314619424) {
+    const diff = (Date.now() - new Date(lastUseRes.rows[0].created_at).getTime()) / (1000 * 60 * 60);
+    if (diff < 18) {
+      const left = Math.ceil(18 - diff);
+      await sendTelegramMessage(chatId, `⏳ Команда на перезарядке! Осталось ${left} ч.`);
+      return { success: false, message: "On cooldown" };
+    }
+  }
+  
+  await db.query("INSERT INTO star_transactions (user_id, amount, transaction_type, description) VALUES ($1, 0, 'info', $2)", [userId, cooldownKey]);
+  
+  const immunityExpiry = new Date(Date.now() + 4 * 60 * 1000);
+  await db.addTempRestriction(userId, chatId, "immunity", userId, immunityExpiry, "Immunity after UnmuteAll");
+  
+  await sendTelegramMessage(chatId, `🔊 <b>${firstName}</b> активировал РАЗМУТ во всех чатах! ✅\n🛡️ Иммунитет от мутов на 4 минуты активирован!`);
   return { success: true, message: "Unmute all activated" };
 }
 

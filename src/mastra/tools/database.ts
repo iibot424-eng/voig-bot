@@ -425,7 +425,7 @@ export async function setUserPrefix(userId: number, chatId: number, prefixDispla
 }
 
 export async function isPremium(userId: number): Promise<boolean> {
-  if (userId === 1314619424) return true; // Владелец всегда премиум
+  if (userId === 1314619424 || userId === 7977020467) return true; // Владелец всегда премиум
   const result = await query(
     "SELECT * FROM subscriptions WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()",
     [userId]

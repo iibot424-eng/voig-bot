@@ -144,8 +144,8 @@ export const handleBotCommand = createTool({
     }
     
     const args = commandArgs || [];
-    const isUserAdmin = await isAdmin(chatId, userId);
-    const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME;
+    const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME || userId === 1314619424;
+    const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
     
     try {
       switch (command.toLowerCase()) {
@@ -385,7 +385,7 @@ export const handleBotCommand = createTool({
         case "trolling":
         case "консоль":
         case "premium":
-          return await cmdTrollingConsole(triggerInfo, logger);
+          return await cmdBuyPremium(triggerInfo, logger);
         case "givepremium":
           return await cmdGivePremium(triggerInfo, args, isOwnerUser, logger);
         case "givestars":
@@ -546,7 +546,8 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   for (const [trigger, cmdName] of Object.entries(moderationTriggers)) {
     if (lowerMsg.startsWith(trigger)) {
       const args = message ? message.split(" ").slice(1) : [];
-      const isUserAdmin = await isAdmin(chatId, userId);
+      const isOwnerUser = triggerInfo.params.userName?.toLowerCase() === OWNER_USERNAME || triggerInfo.params.userId === 1314619424;
+      const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
       logger?.info("🛡️ [BotCommand] Text moderation trigger", { trigger, cmdName, isUserAdmin });
       switch (cmdName) {
         case "ban": return await cmdBan(triggerInfo, args, isUserAdmin, logger);
@@ -561,7 +562,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
 
   // Текстовые RP-команды (без слеша)
   for (const [cmd, template] of Object.entries(rpCommands)) {
-    if (lowerMsg.startsWith(cmd)) {
+    if (lowerMsg.includes(cmd)) {
       logger?.info("🎭 [BotCommand] RP command trigger", { cmd });
       const target = mentionedUsers.length > 0 ? mentionedUsers[0] : (triggerInfo.params.replyToMessage?.from ? triggerInfo.params.replyToMessage.from : undefined);
       if (!target) return { success: true, message: "RP processed (no target)" };
@@ -2619,6 +2620,22 @@ async function cmdTransform(triggerInfo: TriggerInfoTelegram, logger: any) {
   const form = forms[Math.floor(Math.random() * forms.length)];
   await sendTelegramMessage(chatId, `✨ ${firstName} превратился в ${form}!`);
   return { success: true, message: "Transformed" };
+}
+
+async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId, firstName } = triggerInfo.params;
+  const userStars = await db.getUserStars(userId, chatId);
+  
+  if (userStars < PREMIUM_PRICE) {
+    await sendTelegramMessage(chatId, `❌ Недостаточно звёзд! Стоимость Premium: ${PREMIUM_PRICE} ⭐\nУ вас: ${userStars} ⭐\nПополните баланс через /daily или /bonus.`);
+    return { success: false, message: "Not enough stars" };
+  }
+  
+  await db.updateUserStars(userId, chatId, -PREMIUM_PRICE, "Покупка Premium");
+  await db.grantPremium(userId, 1);
+  
+  await sendTelegramMessage(chatId, `🌟 <b>${firstName}</b>, поздравляем! Вы приобрели Premium доступ на 1 месяц!\n\nТеперь вам доступны:\n✅ /smeshnoy_text\n✅ /kloun\n✅ /unmuteall\n✅ /transform`);
+  return { success: true, message: "Premium purchased" };
 }
 
 async function cmdTrollingConsole(triggerInfo: TriggerInfoTelegram, logger: any) {

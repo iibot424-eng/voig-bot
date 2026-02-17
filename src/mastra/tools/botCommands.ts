@@ -473,6 +473,19 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId, userName, firstName, message, newMembers, leftMember, hasMedia, mediaType, isForwarded, hasLinks, mentionedUsers } = triggerInfo.params;
   
+  if (message) {
+    // Check funny_text effect
+    const funnyRes = await db.query("SELECT reason FROM temp_restrictions WHERE user_id = $1 AND chat_id = $2 AND restriction_type = 'funny_text' AND expires_at > NOW()", [userId, chatId]);
+    if (funnyRes.rows.length > 0) {
+      const funnyPhrase = funnyRes.rows[0].reason;
+      await deleteMessage(chatId, triggerInfo.params.messageId);
+      for (let i = 0; i < 5; i++) {
+        await sendTelegramMessage(chatId, `<b>${firstName}</b>: ${funnyPhrase}`);
+      }
+      return { success: true, message: "Funny text replacement triggered" };
+    }
+  }
+
   // Текстовые RP-команды (без слеша)
   const rpCommands: Record<string, string> = {
     "ударить": "👊 {user} ударил {target}!",
@@ -2519,10 +2532,30 @@ async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
     "мля, кто это вообще сделал?",
     "ахахаха, смотрите что произошло!",
     "это не может быть правдой!",
+    "я сегодня проснулся не тем концом",
+    "кто-нибудь видел мою совесть?",
+    "кажется, я забыл как дышать",
+    "почему небо такое синее, а я такой смешной?",
+    "мяу, я теперь котик, покормите меня",
+    "бе-бе-бе, ничего не слышу!",
+    "купи слона!",
+    "а я знаю ваш секретик!",
+    "кто украл мою плюшку?",
+    "я прилетел с Марса за вашим печеньем",
+    "моя логика вышла покурить и не вернулась",
+    "я профессиональный поедатель воздуха",
+    "кто-то сказал 'бесплатная еда'?",
+    "я — властелин дивана!",
+    "улыбнитесь, вас снимает скрытая камера!",
   ];
   
   const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-  await sendTelegramMessage(chatId, `😂 <b>${target.firstName}</b> говорит: "${phrase}"`);
+  
+  // Set funny text effect in DB
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+  await db.query("INSERT INTO temp_restrictions (user_id, chat_id, restriction_type, admin_id, expires_at, reason) VALUES ($1, $2, 'funny_text', $3, $4, $5) ON CONFLICT (user_id, chat_id, restriction_type) DO UPDATE SET expires_at = $4, reason = $5", [target.userId, chatId, userId, expiresAt, phrase]);
+
+  await sendTelegramMessage(chatId, `😂 <b>Смешные фразы активированы для ${target.firstName}!</b>`);
   return { success: true, message: "Funny text sent" };
 }
 

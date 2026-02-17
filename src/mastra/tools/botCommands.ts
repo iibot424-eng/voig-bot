@@ -544,11 +544,17 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   };
 
   for (const [trigger, cmdName] of Object.entries(moderationTriggers)) {
-    if (lowerMsg.includes(trigger)) {
+    if (lowerMsg === trigger || lowerMsg.startsWith(trigger + " ")) {
       const args = message ? message.split(" ").slice(1) : [];
       const isOwnerUser = triggerInfo.params.userName?.toLowerCase() === OWNER_USERNAME || triggerInfo.params.userId === 1314619424;
       const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
       logger?.info("🛡️ [BotCommand] Text moderation trigger", { trigger, cmdName, isUserAdmin });
+      
+      if (!isUserAdmin) {
+        await sendTelegramMessage(chatId, "⛔ У вас нет прав для этой команды.");
+        return { success: false, message: "Not admin" };
+      }
+
       switch (cmdName) {
         case "ban": return await cmdBan(triggerInfo, args, isUserAdmin, logger);
         case "unban": return await cmdUnban(triggerInfo, args, isUserAdmin, logger);

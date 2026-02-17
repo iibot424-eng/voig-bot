@@ -369,67 +369,6 @@ export const handleBotCommand = createTool({
         case "backup":
           return await cmdBackup(triggerInfo, isUserAdmin, logger);
         
-        case "stars":
-        case "balance":
-          return await cmdBalance(triggerInfo, logger);
-        case "shop":
-          return await cmdShop(triggerInfo, logger);
-        case "buy":
-          return await cmdBuy(triggerInfo, args, logger);
-        case "prefixes":
-        case "myprefixes":
-          return await cmdMyPrefixes(triggerInfo, logger);
-        case "setprefix":
-          return await cmdSetPrefix(triggerInfo, args, logger);
-        case "troling":
-        case "trolling":
-        case "консоль":
-        case "premium":
-          return await cmdBuyPremium(triggerInfo, logger);
-        case "givepremium":
-          return await cmdGivePremium(triggerInfo, args, isOwnerUser, logger);
-        case "givestars":
-          return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
-        case "transfer":
-          return await cmdTransfer(triggerInfo, args, logger);
-        case "daily":
-          return await cmdDaily(triggerInfo, logger);
-        case "weekly":
-          return await cmdWeekly(triggerInfo, logger);
-        case "pay":
-          return await cmdPay(triggerInfo, args, logger);
-        case "toprich":
-        case "top_rich":
-          return await cmdTopRich(triggerInfo, logger);
-        case "fish":
-          return await cmdFish(triggerInfo, args, logger);
-        case "duel":
-          return await cmdDuel(triggerInfo, logger);
-        case "smeshnoy_text":
-        case "смешный_текст":
-          return await cmdSmeshnoyText(triggerInfo, logger);
-        case "kloun":
-        case "клоун":
-          return await cmdKloun(triggerInfo, logger);
-        case "unmuteall":
-        case "размут":
-          return await cmdUnmuteAll(triggerInfo, logger);
-        case "virtas":
-          return await cmdVirtasBalance(triggerInfo, logger);
-        case "buyvirtas":
-          return await cmdBuyVirtas(triggerInfo, args, logger);
-        case "addcoins":
-          return await cmdAddCoins(triggerInfo, args, isOwnerUser, logger);
-        case "кто":
-          return await cmdWhoToday(triggerInfo, args, logger);
-        case "accept_marry":
-        case "accept":
-          return await cmdAcceptMarry(triggerInfo, logger);
-        case "divorce":
-          return await cmdDivorce(triggerInfo, logger);
-        case "превратить":
-        case "transform":
-          return await cmdTransform(triggerInfo, logger);
         
         default:
           return { success: true, message: "Unknown command" };
@@ -2314,34 +2253,33 @@ async function cmdSetPrefix(triggerInfo: TriggerInfoTelegram, args: string[], lo
   return { success: true, message: "Prefix set" };
 }
 
-async function cmdPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
+async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId, firstName } = triggerInfo.params;
   
   const isPremium = await db.isPremium(userId);
-  
   if (isPremium) {
-    await sendTelegramMessage(chatId, `💎 У вас уже есть Премиум подписка!`);
-  } else {
-    await sendTelegramMessage(chatId, `💎 <b>Премиум подписка</b>
-
-Стоимость: ${PREMIUM_PRICE}₽/месяц
-
-Преимущества:
-✅ Все игры без ограничений
-✅ Без рекламы
-✅ Эксклюзивные префиксы
-✅ Приоритетная поддержка
-
-Для покупки свяжитесь с @${OWNER_USERNAME}`);
+    await sendTelegramMessage(chatId, `💎 У вас уже есть Троллинг консоль!`);
+    return { success: true, message: "Already premium" };
   }
-  return { success: true, message: "Premium info shown" };
+  
+  const userStars = await db.getUserStars(userId, chatId);
+  if (userStars < PREMIUM_PRICE) {
+    await sendTelegramMessage(chatId, `❌ Недостаточно звёзд! Стоимость: ${PREMIUM_PRICE} ⭐. У вас: ${userStars} ⭐\n\nДля покупки свяжитесь с @${OWNER_USERNAME}`);
+    return { success: false, message: "Not enough stars" };
+  }
+  
+  await db.updateUserStars(userId, chatId, -PREMIUM_PRICE, "Покупка Троллинг консоли");
+  await db.grantPremium(userId, 1);
+  
+  await sendTelegramMessage(chatId, `💎 ✅ <b>${firstName}</b> успешно приобрёл Троллинг консоль на месяц! Поздравляем! 🎉`);
+  return { success: true, message: "Premium purchased" };
 }
 
 async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
   
   if (!isOwner) {
-    await sendTelegramMessage(chatId, "⛔ Только владелец может выдавать премиум.");
+    await sendTelegramMessage(chatId, "⛔ Только владелец может выдавать Троллинг консоль.");
     return { success: false, message: "Not owner" };
   }
   
@@ -2353,7 +2291,7 @@ async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], 
   
   const months = parseInt(args[0]) || 1;
   await db.grantPremium(target.userId, months);
-  await sendTelegramMessage(chatId, `💎 <b>${target.firstName}</b> получил Премиум на ${months} мес.!`);
+  await sendTelegramMessage(chatId, `💎 <b>${target.firstName}</b> получил Троллинг консоль на ${months} мес.!`);
   return { success: true, message: "Premium granted" };
 }
 
@@ -2515,6 +2453,19 @@ async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
     return { success: false, message: "Not premium" };
   }
   
+  const cooldownKey = `smeshnoy_cooldown_${userId}`;
+  const lastUseRes = await db.query("SELECT expires_at FROM temp_restrictions WHERE user_id = $1 AND chat_id = $2 AND restriction_type = $3", [userId, chatId, cooldownKey]);
+  
+  if (lastUseRes.rows.length > 0 && userId !== 1314619424) {
+    const expiresAt = new Date(lastUseRes.rows[0].expires_at);
+    if (expiresAt > new Date()) {
+      const diffMs = expiresAt.getTime() - Date.now();
+      const minsLeft = Math.ceil(diffMs / (1000 * 60));
+      await sendTelegramMessage(chatId, `⏳ Команда на перезарядке! Осталось ${minsLeft} мин.`);
+      return { success: false, message: "On cooldown" };
+    }
+  }
+
   const target = await getTargetUser(triggerInfo);
   if (!target) {
     await sendTelegramMessage(chatId, "❌ Укажите пользователя (ответом или упоминанием).");
@@ -2555,10 +2506,13 @@ async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
   await db.query("INSERT INTO temp_restrictions (user_id, chat_id, restriction_type, admin_id, expires_at, reason) VALUES ($1, $2, 'funny_text', $3, $4, $5) ON CONFLICT (user_id, chat_id, restriction_type) DO UPDATE SET expires_at = $4, reason = $5", [target.userId, chatId, userId, expiresAt, phrase]);
 
+  // Set cooldown
+  const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await db.addTempRestriction(userId, chatId, cooldownKey, userId, cooldownExpiry, "Smeshnoy Cooldown");
+
   await sendTelegramMessage(chatId, `😂 <b>Смешные фразы активированы для ${target.firstName}!</b>`);
   return { success: true, message: "Funny text sent" };
 }
-
 async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const isPremium = (await db.isPremium(userId)) || userId === 1314619424;
@@ -2567,6 +2521,19 @@ async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
     return { success: false, message: "Not premium" };
   }
   
+  const cooldownKey = `kloun_cooldown_${userId}`;
+  const lastUseRes = await db.query("SELECT expires_at FROM temp_restrictions WHERE user_id = $1 AND chat_id = $2 AND restriction_type = $3", [userId, chatId, cooldownKey]);
+  
+  if (lastUseRes.rows.length > 0 && userId !== 1314619424) {
+    const expiresAt = new Date(lastUseRes.rows[0].expires_at);
+    if (expiresAt > new Date()) {
+      const diffMs = expiresAt.getTime() - Date.now();
+      const hoursLeft = Math.ceil(diffMs / (1000 * 60 * 60));
+      await sendTelegramMessage(chatId, `⏳ Команда на перезарядке! Осталось ${hoursLeft} ч.`);
+      return { success: false, message: "On cooldown" };
+    }
+  }
+
   const target = await getTargetUser(triggerInfo);
   if (!target) {
     await sendTelegramMessage(chatId, "❌ Укажите пользователя.");
@@ -2578,6 +2545,10 @@ async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
     return { success: false, message: "Self target" };
   }
   
+  // Set cooldown
+  const cooldownExpiry = new Date(Date.now() + 6 * 60 * 60 * 1000); // 6 hours
+  await db.addTempRestriction(userId, chatId, cooldownKey, userId, cooldownExpiry, "Kloun Cooldown");
+
   await sendTelegramMessage(chatId, `🤡 <b>${target.firstName}</b> официально признан главным клоуном этого чата! 🎉`);
   return { success: true, message: "Clown status given" };
 }
@@ -2666,14 +2637,14 @@ async function cmdWhoToday(triggerInfo: TriggerInfoTelegram, args: string[], log
     return { success: false, message: "No users found" };
   }
   
-  const targetName = target.first_name || (target.username ? `@${target.username}` : `ID:${target.user_id}`);
+  const targetName = target.first_name || (target.username ? `@${target.username}` : `пользователь с ID:${target.user_id}`);
   
   const phrases = [
-    `Ясно вижу, что ${targetName} ${text} 🔮`,
-    `Звезды говорят, что ${targetName} ${text} ✨`,
-    `Думаю, что ${targetName} ${text} 🤔`,
-    `По карте видно, что ${targetName} ${text} 🃏`,
-    `Хрустальный шар показывает, что ${targetName} ${text} 🎱`,
+    `🔮 Ясно вижу, что <b>${targetName}</b> ${text}!`,
+    `🎲 Жребий пал на <b>${targetName}</b>: именно он ${text}!`,
+    `🌟 Звёзды говорят, что <b>${targetName}</b> ${text}!`,
+    `📡 Радары зафиксировали, что <b>${targetName}</b> ${text}!`,
+    `🎰 Джекпот! <b>${targetName}</b> ${text}!`,
   ];
   
   const answer = phrases[Math.floor(Math.random() * phrases.length)];
@@ -2708,50 +2679,3 @@ async function cmdTransform(triggerInfo: TriggerInfoTelegram, logger: any) {
   return { success: true, message: "Transformed" };
 }
 
-async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, firstName } = triggerInfo.params;
-  const userStars = await db.getUserStars(userId, chatId);
-  
-  if (userStars < PREMIUM_PRICE) {
-    await sendTelegramMessage(chatId, `❌ Недостаточно звёзд! Стоимость Premium: ${PREMIUM_PRICE} ⭐\nУ вас: ${userStars} ⭐\nПополните баланс через /daily или /bonus.`);
-    return { success: false, message: "Not enough stars" };
-  }
-  
-  await db.updateUserStars(userId, chatId, -PREMIUM_PRICE, "Покупка Premium");
-  await db.grantPremium(userId, 1);
-  
-  await sendTelegramMessage(chatId, `🌟 <b>${firstName}</b>, поздравляем! Вы приобрели Premium доступ на 1 месяц!\n\nТеперь вам доступны:\n✅ /smeshnoy_text\n✅ /kloun\n✅ /unmuteall\n✅ /transform`);
-  return { success: true, message: "Premium purchased" };
-}
-
-async function cmdTrollingConsole(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const isPremium = await db.isPremium(userId);
-  
-  if (isPremium) {
-    await sendTelegramMessage(chatId, `🎨 <b>Троллинг консоль - Премиум</b>
-
-У вас есть доступ к:
-✅ /smeshnoy_text - смешные фразы (6ч КД)
-✅ /kloun - статус клоуна (6ч КД)
-✅ /unmuteall - размут везде
-✅ /invisibility - невидимость
-✅ /transform - трансформация
-
-Стоимость: 200 ⭐/месяц`);
-  } else {
-    await sendTelegramMessage(chatId, `💎 <b>Троллинг консоль - Премиум</b>
-
-Эксклюзивные функции для вас:
-🎨 /smeshnoy_text - меняет 10 сообщений на смешные фразы
-🤡 /kloun - статус клоуна везде на 1 час
-🔊 /unmuteall - размут во всех чатах
-👻 /invisibility - невидимость 
-🦄 /transform - трансформация в 7 образов
-
-Стоимость: 200 ⭐/месяц
-
-Купить: /premium`);
-  }
-  return { success: true, message: "Premium info shown" };
-}

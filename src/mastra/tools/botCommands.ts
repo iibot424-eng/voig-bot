@@ -425,6 +425,28 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
 
+  // Проверка настроек чата для медиа
+  const chatSettings = await db.getChatSettings(chatId);
+  if (chatSettings) {
+    let restrictionType: string | null = null;
+    if (mediaType === "photo" && !chatSettings.photo_allowed) restrictionType = "фото";
+    if (mediaType === "sticker" && !chatSettings.sticker_allowed) restrictionType = "стикеры";
+    if (mediaType === "video" && !chatSettings.video_allowed) restrictionType = "видео";
+    if (mediaType === "voice" && !chatSettings.voice_allowed) restrictionType = "голосовые";
+    if (hasLinks && !chatSettings.links_allowed) restrictionType = "ссылки";
+
+    if (restrictionType) {
+      const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME || userId === 1314619424;
+      const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
+      
+      if (!isUserAdmin) {
+        await deleteMessage(chatId, triggerInfo.params.messageId);
+        // Не спамим сообщением о запрете, просто удаляем
+        return { success: true, message: `Media ${restrictionType} restricted and deleted` };
+      }
+    }
+  }
+
   // Текстовые RP-команды (без слеша)
   const rpCommands: Record<string, string> = {
     "ударить": "👊 {user} ударил {target}!",

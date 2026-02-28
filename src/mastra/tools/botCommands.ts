@@ -214,6 +214,56 @@ export const handleBotCommand = createTool({
           return await cmdId(triggerInfo, logger);
         case "whois":
           return await cmdWhois(triggerInfo, logger);
+        case "who_today":
+        case "кто_сегодня":
+          return await cmdWhoToday(triggerInfo, args, logger);
+        case "photo":
+        case "photos":
+        case "media":
+          if (args[0] === "запретить" || args[0] === "off") {
+            await db.updateChatSettings(chatId, { photo_allowed: false });
+            await sendTelegramMessage(chatId, "🚫 Фото теперь запрещены!");
+            return { success: true, message: "Photos disabled" };
+          } else if (args[0] === "разрешить" || args[0] === "on") {
+            await db.updateChatSettings(chatId, { photo_allowed: true });
+            await sendTelegramMessage(chatId, "✅ Фото теперь разрешены!");
+            return { success: true, message: "Photos enabled" };
+          }
+          break;
+        case "sticker":
+        case "stickers":
+          if (args[0] === "запретить" || args[0] === "off") {
+            await db.updateChatSettings(chatId, { sticker_allowed: false });
+            await sendTelegramMessage(chatId, "🚫 Стикеры теперь запрещены!");
+            return { success: true, message: "Stickers disabled" };
+          } else if (args[0] === "разрешить" || args[0] === "on") {
+            await db.updateChatSettings(chatId, { sticker_allowed: true });
+            await sendTelegramMessage(chatId, "✅ Стикеры теперь разрешены!");
+            return { success: true, message: "Stickers enabled" };
+          }
+          break;
+        case "video":
+          if (args[0] === "запретить" || args[0] === "off") {
+            await db.updateChatSettings(chatId, { video_allowed: false });
+            await sendTelegramMessage(chatId, "🚫 Видео теперь запрещены!");
+            return { success: true, message: "Video disabled" };
+          } else if (args[0] === "разрешить" || args[0] === "on") {
+            await db.updateChatSettings(chatId, { video_allowed: true });
+            await sendTelegramMessage(chatId, "✅ Видео теперь разрешены!");
+            return { success: true, message: "Video enabled" };
+          }
+          break;
+        case "voice":
+          if (args[0] === "запретить" || args[0] === "off") {
+            await db.updateChatSettings(chatId, { voice_allowed: false });
+            await sendTelegramMessage(chatId, "🚫 Голосовые теперь запрещены!");
+            return { success: true, message: "Voice disabled" };
+          } else if (args[0] === "разрешить" || args[0] === "on") {
+            await db.updateChatSettings(chatId, { voice_allowed: true });
+            await sendTelegramMessage(chatId, "✅ Голосовые теперь разрешены!");
+            return { success: true, message: "Voice enabled" };
+          }
+          break;
         case "profile":
         case "me":
           return await cmdProfile(triggerInfo, logger);
@@ -569,18 +619,18 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   }
   
   if (leftMember) {
-    const chatSettings = await db.getChatSettings(chatId);
-    if (chatSettings?.goodbye_enabled) {
-      const goodbyeMsg = (chatSettings.goodbye_message || "До свидания, {username}! 👋")
+    const settings = await db.getChatSettings(chatId);
+    if (settings?.goodbye_enabled) {
+      const goodbyeMsg = (settings.goodbye_message || "До свидания, {username}! 👋")
         .replace("{username}", leftMember.first_name || leftMember.username || "друг");
       await sendTelegramMessage(chatId, goodbyeMsg);
     }
     return { success: true, message: "Goodbye sent" };
   }
   
-  const chatSettings = await db.getChatSettings(chatId);
+  const settings = await db.getChatSettings(chatId);
   
-  if (chatSettings?.antispam_enabled && message) {
+  if (settings?.antispam_enabled && message) {
     const blacklist = await db.getBlacklistWords(chatId);
     const lowerMsg = message.toLowerCase();
     for (const word of blacklist) {
@@ -591,7 +641,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       }
     }
     
-    if (!chatSettings.links_allowed && hasLinks) {
+    if (!settings.links_allowed && hasLinks) {
       const userAdmin = await isAdmin(chatId, userId);
       if (!userAdmin) {
         await deleteMessage(chatId, triggerInfo.params.messageId);
@@ -600,10 +650,10 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       }
     }
     
-    if (chatSettings.caps_limit > 0 && message.length > 10) {
+    if (settings.caps_limit > 0 && message.length > 10) {
       const capsCount = (message.match(/[A-ZА-ЯЁ]/g) || []).length;
       const capsPercent = (capsCount / message.length) * 100;
-      if (capsPercent > chatSettings.caps_limit) {
+      if (capsPercent > settings.caps_limit) {
         await deleteMessage(chatId, triggerInfo.params.messageId);
         await sendTelegramMessage(chatId, `⚠️ @${userName}, слишком много заглавных букв!`);
         return { success: true, message: "Caps limit exceeded" };
@@ -611,7 +661,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
   
-  if (chatSettings?.media_limit && hasMedia && (mediaType === "photo" || mediaType === "video")) {
+  if (settings?.media_limit && hasMedia && (mediaType === "photo" || mediaType === "video")) {
     const userAdmin = await isAdmin(chatId, userId);
     if (!userAdmin) {
       await deleteMessage(chatId, triggerInfo.params.messageId);
@@ -620,7 +670,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
   
-  if (chatSettings?.sticker_limit && mediaType === "sticker") {
+  if (settings?.sticker_limit && mediaType === "sticker") {
     const userAdmin = await isAdmin(chatId, userId);
     if (!userAdmin) {
       await deleteMessage(chatId, triggerInfo.params.messageId);
@@ -628,7 +678,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
   
-  if (chatSettings?.gif_limit && mediaType === "animation") {
+  if (settings?.gif_limit && mediaType === "animation") {
     const userAdmin = await isAdmin(chatId, userId);
     if (!userAdmin) {
       await deleteMessage(chatId, triggerInfo.params.messageId);
@@ -636,7 +686,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
   
-  if (chatSettings?.voice_limit && mediaType === "voice") {
+  if (settings?.voice_limit && mediaType === "voice") {
     const userAdmin = await isAdmin(chatId, userId);
     if (!userAdmin) {
       await deleteMessage(chatId, triggerInfo.params.messageId);
@@ -644,7 +694,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     }
   }
   
-  if (chatSettings?.forward_limit && isForwarded) {
+  if (settings?.forward_limit && isForwarded) {
     const userAdmin = await isAdmin(chatId, userId);
     if (!userAdmin) {
       await deleteMessage(chatId, triggerInfo.params.messageId);

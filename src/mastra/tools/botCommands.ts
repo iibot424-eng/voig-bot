@@ -358,6 +358,52 @@ export const handleBotCommand = createTool({
         case "bonus":
           return await cmdBonus(triggerInfo, logger);
         
+        case "stars":
+        case "balance":
+          return await cmdBalance(triggerInfo, logger);
+        case "shop":
+          return await cmdShop(triggerInfo, logger);
+        case "buy":
+          return await cmdBuy(triggerInfo, args, logger);
+        case "prefixes":
+        case "my_prefixes":
+          return await cmdMyPrefixes(triggerInfo, logger);
+        case "setprefix":
+        case "set_prefix":
+          return await cmdSetPrefix(triggerInfo, args, logger);
+        case "buy_premium":
+        case "premium":
+          return await cmdBuyPremium(triggerInfo, logger);
+        case "give_premium":
+          return await cmdGivePremium(triggerInfo, args, isOwnerUser, logger);
+        case "give_stars":
+          return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
+        case "transfer":
+          return await cmdTransfer(triggerInfo, args, logger);
+        case "daily":
+          return await cmdDaily(triggerInfo, logger);
+        case "weekly":
+          return await cmdWeekly(triggerInfo, logger);
+        case "pay":
+          return await cmdPay(triggerInfo, args, logger);
+        case "top_rich":
+          return await cmdTopRich(triggerInfo, logger);
+        case "fish":
+          return await cmdFish(triggerInfo, args, logger);
+        case "duel":
+          return await cmdDuel(triggerInfo, logger);
+        case "smeshnoy_text":
+        case "funny_text":
+          return await cmdSmeshnoyText(triggerInfo, logger);
+        case "kloun":
+        case "clown":
+          return await cmdKloun(triggerInfo, logger);
+        case "unmuteall":
+          return await cmdUnmuteAll(triggerInfo, logger);
+        case "transform":
+        case "превратить":
+          return await cmdTransform(triggerInfo, args, logger);
+
         case "karma":
           return await cmdKarma(triggerInfo, logger);
         case "gift":
@@ -401,6 +447,14 @@ export const handleBotCommand = createTool({
         case "dog":
           return await cmdDog(triggerInfo, logger);
         
+        case "addcoins":
+        case "add_coins":
+          return await cmdAddCoins(triggerInfo, args, isOwnerUser, logger);
+        case "givepremium":
+          return await cmdGivePremium(triggerInfo, args, isOwnerUser, logger);
+        case "givestars":
+          return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
+
         case "promote":
           return await cmdPromote(triggerInfo, isUserAdmin, logger);
         case "demote":

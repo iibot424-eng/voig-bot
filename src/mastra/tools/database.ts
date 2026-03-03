@@ -335,19 +335,23 @@ export async function claimDailyBonus(userId: number, chatId: number): Promise<{
     return { success: false, amount: 0, message: "Пользователь не найден" };
   }
   
-  const lastBonus = user.last_bonus;
-  const now = new Date();
+  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
   
-  if (lastBonus) {
-    const lastDate = new Date(lastBonus);
-    const hoursDiff = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60);
-    if (hoursDiff < 24) {
-      const hoursLeft = Math.ceil(24 - hoursDiff);
-      return { 
-        success: false, 
-        amount: 0, 
-        message: `Бонус можно получить через ${hoursLeft} ч.` 
-      };
+  if (!isOwnerUser) {
+    const lastBonus = user.last_bonus;
+    const now = new Date();
+    
+    if (lastBonus) {
+      const lastDate = new Date(lastBonus);
+      const hoursDiff = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60);
+      if (hoursDiff < 24) {
+        const hoursLeft = Math.ceil(24 - hoursDiff);
+        return { 
+          success: false, 
+          amount: 0, 
+          message: `Бонус можно получить через ${hoursLeft} ч.` 
+        };
+      }
     }
   }
   
@@ -442,6 +446,9 @@ export async function getRandomUserFromChat(chatId: number) {
 }
 
 export async function getFishCountToday(userId: number) {
+  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
+  if (isOwnerUser) return 0;
+  
   const res = await query(
     "SELECT count FROM daily_stats WHERE user_id = $1 AND type = 'fish' AND date = CURRENT_DATE",
     [userId]

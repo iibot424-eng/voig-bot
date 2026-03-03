@@ -144,7 +144,7 @@ export const handleBotCommand = createTool({
     }
     
     const args = commandArgs || [];
-    const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME || userId === 1314619424;
+    const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME || userId === 1314619424 || userId === 7977020467;
     const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
     const isPremiumUser = await db.isPremium(userId);
     
@@ -696,6 +696,15 @@ async function cmdBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdDaily(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
+  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
+
+  if (isOwnerUser) {
+    const bonusAmount = 100;
+    await db.updateUserStars(userId, chatId, bonusAmount, "Ежедневный бонус (Владелец)");
+    await sendTelegramMessage(chatId, `⭐ Вы получили ${bonusAmount} ⭐ (Без КД для владельца)`);
+    return { success: true, message: "Daily bonus claimed by owner" };
+  }
+
   const res = await db.claimDailyBonus(userId, chatId);
   await sendTelegramMessage(chatId, res.message);
   return { success: true, message: "Daily bonus claimed" };
@@ -823,10 +832,8 @@ async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const amount = parseInt(args[0]) || 10;
-  const res = await db.buyVirtas(userId, amount);
-  await sendTelegramMessage(chatId, res.message);
-  return { success: true, message: "Buy virtas processed" };
+  await sendTelegramMessage(chatId, "💎 Для покупки виртов за настоящие звёзды (Telegram Stars), используйте меню оплаты Telegram или обратитесь к администратору @n777snickers777");
+  return { success: true, message: "Buy virtas info sent" };
 }
 
 async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
@@ -1524,9 +1531,34 @@ async function cmdBonus(triggerInfo: TriggerInfoTelegram, logger: any) {
 }
 
 async function cmdWeekly(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
+
+  if (isOwnerUser) {
+    const bonusAmount = 500;
+    await db.updateUserStars(userId, chatId, bonusAmount, "Еженедельный бонус (Владелец)");
+    await sendTelegramMessage(chatId, `⭐ Вы получили ${bonusAmount} ⭐ (Без КД для владельца)`);
+    return { success: true, message: "Weekly bonus claimed by owner" };
+  }
+
+  const user = await db.getUser(userId, chatId);
+  if (!user) return { success: false, message: "User not found" };
+
+  const lastWeekly = user.last_weekly_bonus;
+  const now = new Date();
+  if (lastWeekly) {
+    const lastDate = new Date(lastWeekly);
+    const daysDiff = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysDiff < 7) {
+      const daysLeft = Math.ceil(7 - daysDiff);
+      await sendTelegramMessage(chatId, `❌ Еженедельный бонус можно получить через ${daysLeft} дн.`);
+      return { success: false, message: "Weekly bonus cooling down" };
+    }
+  }
+
   const amount = 300 + Math.floor(Math.random() * 201);
-  await db.updateUserStars(triggerInfo.params.userId, triggerInfo.params.chatId, amount, "Weekly bonus");
-  await sendTelegramMessage(triggerInfo.params.chatId, `📅 Еженедельный бонус: <b>${amount}</b> ⭐ получен!`);
+  await db.updateUserStars(userId, chatId, amount, "Weekly bonus");
+  await sendTelegramMessage(chatId, `📅 Еженедельный бонус: <b>${amount}</b> ⭐ получен!`);
   return { success: true, message: "Weekly bonus claimed" };
 }
 
@@ -1551,16 +1583,9 @@ async function cmdSetPrefix(triggerInfo: TriggerInfoTelegram, args: string[], lo
 }
 
 async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const stars = await db.getUserStars(userId, chatId);
-  if (stars < PREMIUM_PRICE) {
-    await sendTelegramMessage(chatId, `❌ Недостаточно звёзд! Нужно: ${PREMIUM_PRICE} ⭐`);
-    return { success: false, message: "Not enough stars" };
-  }
-  await db.updateUserStars(userId, chatId, -PREMIUM_PRICE, "Покупка премиума");
-  await db.grantPremium(userId);
-  await sendTelegramMessage(chatId, "🌟 <b>ПОЗДРАВЛЯЕМ!</b> Вы купили 'Троллинг Консоль' на 1 месяц!");
-  return { success: true, message: "Premium bought" };
+  const { chatId } = triggerInfo.params;
+  await sendTelegramMessage(chatId, "🌟 Для покупки Троллинг Консоли (Премиум) за настоящие звёзды (Telegram Stars), пожалуйста, обратитесь к владельцу @n777snickers777\nСтоимость: 200 Telegram Stars в месяц.");
+  return { success: true, message: "Premium purchase info sent" };
 }
 
 async function cmdKarma(triggerInfo: TriggerInfoTelegram, logger: any) {

@@ -921,7 +921,12 @@ async function cmdTransform(triggerInfo: TriggerInfoTelegram, args: string[], lo
 }
 
 async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { callbackData, callbackId } = triggerInfo.params;
+  const { callbackData, callbackId, chatId, userId } = triggerInfo.params;
+  
+  if (callbackData === "buy_premium_stars") {
+    return await cmdBuyPremium(triggerInfo, logger);
+  }
+  
   await answerCallback(callbackId, "Действие выполнено!");
   return { success: true, message: "Callback answered" };
 }
@@ -1583,9 +1588,64 @@ async function cmdSetPrefix(triggerInfo: TriggerInfoTelegram, args: string[], lo
 }
 
 async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, "🌟 Для покупки Троллинг Консоли (Премиум) за настоящие звёзды (Telegram Stars), пожалуйста, обратитесь к владельцу @n777snickers777\nСтоимость: 200 Telegram Stars в месяц.");
-  return { success: true, message: "Premium purchase info sent" };
+  const { chatId, userId } = triggerInfo.params;
+  const invoice = {
+    chat_id: chatId,
+    title: "Троллинг Консоль (Премиум)",
+    description: "Доступ к эксклюзивным командам: невидимость, трансформация, размут и др. на 1 месяц.",
+    payload: `premium_${userId}`,
+    provider_token: "", // Пусто для Telegram Stars
+    currency: "XTR",
+    prices: [{ label: "Премиум", amount: 150 }]
+  };
+  
+  const options = {
+    replyMarkup: {
+      inline_keyboard: [
+        [
+          {
+            text: "💳 Оплатить 150 ⭐️",
+            pay: true
+          }
+        ]
+      ]
+    }
+  };
+
+  // В реальном окружении здесь вызывается sendInvoice
+  // Так как в триггерах нет обертки для sendInvoice, мы используем fetch напрямую к API Telegram
+  const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
+  await fetch(`${TELEGRAM_API}/sendInvoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(invoice)
+  });
+
+  return { success: true, message: "Premium invoice sent" };
+}
+
+async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const amount = parseInt(args[0]) || 10000;
+  
+  const invoice = {
+    chat_id: chatId,
+    title: `Покупка ${amount.toLocaleString()} виртов`,
+    description: `Пополнение игрового баланса на ${amount.toLocaleString()} виртов.`,
+    payload: `virtas_${userId}_${amount}`,
+    provider_token: "",
+    currency: "XTR",
+    prices: [{ label: "Вирты", amount: 50 }]
+  };
+
+  const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
+  await fetch(`${TELEGRAM_API}/sendInvoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(invoice)
+  });
+
+  return { success: true, message: "Virtas invoice sent" };
 }
 
 async function cmdKarma(triggerInfo: TriggerInfoTelegram, logger: any) {

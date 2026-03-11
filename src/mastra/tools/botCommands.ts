@@ -530,21 +530,24 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  const helpText = `<b>📖 Команды бота:</b>
+  const helpText = `<b>📖 Все команды бота:</b>
 
-<code>| Команда              | Описание                    |
-|----------------------|-----------------------------|
-| /start               | Начало работы               |
-| /daily               | Ежедневный бонус 50-100 ⭐ |
-| /вирт или /virtas    | Меню виртов                 |
-| /buy_premium         | Купить Троллинг Консоль     |
-| /funny_text          | Забавный текст (6 часов)    |
-| /kloun               | Режим клоуна (1 час)        |
-| /unmuteall           | Размутить везде             |
-| /transform           | Трансформация в 7 образов   |
-| /invisibility        | Невидимость на 1 час        |</code>
+<b>⭐ Основные:</b>
+<code>/start</code> - начало
+<code>/daily</code> - ежедневный бонус
+<code>/вирт</code> или <code>/virtas</code> - меню виртов
+<code>/buy_premium</code> - купить премиум
 
-<b>🌟 Премиум команды доступны только для владельцев "Троллинг Консоли" (200 ⭐/месяц)</b>`;
+<b>🌟 Премиум команды:</b>
+<code>/funny_text</code> - <code>смешной текст</code>
+<code>/kloun</code> - <code>клоун</code>
+<code>/unmuteall</code> - <code>размут</code>
+<code>/transform</code> - <code>превратить</code>
+<code>/invisibility</code> - <code>невидимость</code>
+
+<b>ℹ️ Примечания:</b>
+✨ Текстовые команды работают без слеша (например: <code>смешной текст</code>, <code>клоун</code>, <code>превратить</code>)
+🔒 Премиум команды доступны только владельцам "Троллинг Консоли" (200 ⭐/месяц)`;
   await sendTelegramMessage(chatId, helpText);
   return { success: true, message: "Help message sent" };
 }
@@ -1002,6 +1005,31 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
 
   if (!text) return { success: true, message: "No text" };
   
+  const lowerText = text.toLowerCase();
+  
+  // Премиум текстовые команды
+  if (lowerText === "смешной текст" || lowerText === "смешнойтекст") {
+    return await cmdSmeshnoyText(triggerInfo, logger);
+  }
+  if (lowerText === "клоун") {
+    return await cmdKloun(triggerInfo, logger);
+  }
+  if (lowerText === "размут" || lowerText === "размутить") {
+    return await cmdUnmuteAll(triggerInfo, logger);
+  }
+  if (lowerText === "превратить" || lowerText === "трансформ" || lowerText === "трансформация") {
+    return await cmdTransform(triggerInfo, [], logger);
+  }
+  if (lowerText === "невидимость" || lowerText === "невидимка" || lowerText === "инвиз") {
+    return await cmdInvisibility(triggerInfo, logger);
+  }
+  if (lowerText === "вирт" || lowerText === "вирты" || lowerText === "виртуны") {
+    return await cmdVirtasBalance(triggerInfo, logger);
+  }
+  if (lowerText === "покупить премиум" || lowerText === "купить премиум") {
+    return await cmdBuyPremium(triggerInfo, logger);
+  }
+  
   // RP trigger check
   const rpTriggers: Record<string, string> = {
     "ударить": "ударил(а)",
@@ -1040,7 +1068,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     "воскресить": "воскресил(а)",
   };
   
-  const firstWord = text.split(" ")[0].toLowerCase();
+  const firstWord = lowerText.split(" ")[0];
   if (rpTriggers[firstWord]) {
     const target = await getTargetUser(triggerInfo);
     if (target && target.userId !== userId) {

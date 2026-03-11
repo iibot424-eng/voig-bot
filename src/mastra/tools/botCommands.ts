@@ -830,11 +830,6 @@ async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
   return { success: true, message: "Virtas sent" };
 }
 
-async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, "💎 Для покупки виртов за настоящие звёзды (Telegram Stars), используйте меню оплаты Telegram или обратитесь к администратору @n777snickers777");
-  return { success: true, message: "Buy virtas info sent" };
-}
 
 async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId } = triggerInfo.params;

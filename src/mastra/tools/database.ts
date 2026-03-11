@@ -579,7 +579,7 @@ export async function updateUserVirtas(userId: number, amount: number) {
 }
 
 export async function buyVirtas(userId: number, starsAmount: number): Promise<{ success: boolean; message: string }> {
-  const virtasAmount = (starsAmount / 10) * 10000;
+  const virtasAmount = starsAmount; // 1 звезда = 1 вирт
   const user = await query("SELECT * FROM bot_users WHERE user_id = $1 LIMIT 1", [userId]);
   
   if (!user.rows[0] || user.rows[0].stars < starsAmount) {
@@ -592,5 +592,5 @@ export async function buyVirtas(userId: number, starsAmount: number): Promise<{ 
   );
   await updateUserVirtas(userId, virtasAmount);
   
-  return { success: true, message: `✅ Вы купили ${Math.floor(virtasAmount)} виртов за ${starsAmount} ⭐!` };
+  return { success: true, message: `✅ Вы купили ${virtasAmount} виртов за ${starsAmount} ⭐!` };
 }

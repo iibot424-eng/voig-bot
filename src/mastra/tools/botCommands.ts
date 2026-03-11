@@ -242,11 +242,16 @@ export const handleBotCommand = createTool({
         case "givestars":
         case "выдать_звезды":
           return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
+        case "givevirtas":
+        case "выдать_вирты":
+          return await cmdGiveVirtas(triggerInfo, args, isOwnerUser, logger);
         case "virtas":
+        case "вирт":
         case "вирты":
           return await cmdVirtasBalance(triggerInfo, logger);
         case "buyvirtas":
         case "buy_virtas":
+        case "givervirtas":
           return await cmdBuyVirtas(triggerInfo, args, logger);
         case "roll":
         case "dice":
@@ -525,21 +530,21 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  const helpText = `
-📖 <b>Список основных команд:</b>
+  const helpText = `<b>📖 Команды бота:</b>
 
-🛡 <b>Модерация:</b> /ban, /mute, /warn, /kick, /restrict, /promote, /demote, /clean
-📊 <b>Информация:</b> /profile, /stats, /chat_info, /id, /whois
-💰 <b>Экономика:</b> /balance, /stars, /virtas, /daily, /weekly, /pay, /shop, /buy, /transfer
-🎮 <b>Игры:</b> /casino, /dice, /slots, /fish, /duel, /coin, /random
-🎭 <b>RP-команды:</b> (текстом без слеша) обнять, ударить, убить, поцеловать и др.
-💍 <b>Браки:</b> /marry, /accept_marry, /divorce
-🌟 <b>Премиум (Троллинг):</b> /buy_premium, /funny_text, /kloun, /unmuteall, /transform, /invisibility
+<code>| Команда              | Описание                    |
+|----------------------|-----------------------------|
+| /start               | Начало работы               |
+| /daily               | Ежедневный бонус 50-100 ⭐ |
+| /вирт или /virtas    | Меню виртов                 |
+| /buy_premium         | Купить Троллинг Консоль     |
+| /funny_text          | Забавный текст (6 часов)    |
+| /kloun               | Режим клоуна (1 час)        |
+| /unmuteall           | Размутить везде             |
+| /transform           | Трансформация в 7 образов   |
+| /invisibility        | Невидимость на 1 час        |</code>
 
-⚙️ <b>Настройки чата (Админ):</b>
-/welcome (on/off), /rules, /photo, /sticker, /video, /voice (on/off)
-/badwords, /antispam, /flood (on/off)
-  `;
+<b>🌟 Премиум команды доступны только для владельцев "Троллинг Консоли" (200 ⭐/месяц)</b>`;
   await sendTelegramMessage(chatId, helpText);
   return { success: true, message: "Help message sent" };
 }
@@ -826,8 +831,33 @@ async function cmdDivorce(triggerInfo: TriggerInfoTelegram, logger: any) {
 async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const virtas = await db.getUserVirtas(userId);
-  await sendTelegramMessage(chatId, `💸 У вас <b>${virtas.toLocaleString()}</b> виртов.`);
-  return { success: true, message: "Virtas sent" };
+  const options = {
+    replyMarkup: {
+      inline_keyboard: [
+        [
+          {
+            text: "💳 Купить 50 виртов (50 ⭐️)",
+            callback_data: "buy_virtas_50"
+          }
+        ],
+        [
+          {
+            text: "💳 Купить 100 виртов (100 ⭐️)",
+            callback_data: "buy_virtas_100"
+          }
+        ],
+        [
+          {
+            text: "💳 Купить 500 виртов (500 ⭐️)",
+            callback_data: "buy_virtas_500"
+          }
+        ]
+      ]
+    }
+  };
+  
+  await sendTelegramMessage(chatId, `💸 <b>Ваш баланс виртов:</b> ${virtas.toLocaleString()}\n\n<b>Курс:</b> 1 ⭐️ = 1 вирт\n\nВыберите пакет для покупки:`, options);
+  return { success: true, message: "Virtas menu sent" };
 }
 
 
@@ -867,6 +897,19 @@ async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], is
   await db.updateUserStars(target.userId, chatId, amount, "Выдача владельцем");
   await sendTelegramMessage(chatId, `⭐ Пользователю <b>${target.firstName}</b> выдано ${amount} звёзд!`);
   return { success: true, message: "Stars given" };
+}
+
+async function cmdGiveVirtas(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isOwner) return { success: false, message: "Owner only" };
+  
+  const target = await getTargetUser(triggerInfo);
+  if (!target) return { success: false, message: "No target" };
+  
+  const amount = parseInt(args[0]) || 1000;
+  await db.updateUserVirtas(target.userId, amount);
+  await sendTelegramMessage(chatId, `💸 Пользователю <b>${target.firstName}</b> выдано ${amount} виртов!`);
+  return { success: true, message: "Virtas given" };
 }
 
 async function cmdInvisibility(triggerInfo: TriggerInfoTelegram, logger: any) {
@@ -920,6 +963,15 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
   
   if (callbackData === "buy_premium_stars") {
     return await cmdBuyPremium(triggerInfo, logger);
+  }
+  
+  // Virtas purchase callbacks
+  if (callbackData?.startsWith("buy_virtas_")) {
+    const amount = parseInt(callbackData.split("_")[2]);
+    const res = await db.buyVirtas(userId, amount);
+    await sendTelegramMessage(chatId, res.message);
+    await answerCallback(callbackId, res.success ? "Успешно!" : "Ошибка");
+    return { success: res.success, message: res.message };
   }
   
   await answerCallback(callbackId, "Действие выполнено!");
@@ -1620,27 +1672,7 @@ async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
 }
 
 async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const amount = parseInt(args[0]) || 10000;
-  
-  const invoice = {
-    chat_id: chatId,
-    title: `Покупка ${amount.toLocaleString()} виртов`,
-    description: `Пополнение игрового баланса на ${amount.toLocaleString()} виртов.`,
-    payload: `virtas_${userId}_${amount}`,
-    provider_token: "",
-    currency: "XTR",
-    prices: [{ label: "Вирты", amount: 50 }]
-  };
-
-  const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
-  await fetch(`${TELEGRAM_API}/sendInvoice`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(invoice)
-  });
-
-  return { success: true, message: "Virtas invoice sent" };
+  return await cmdVirtasBalance(triggerInfo, logger);
 }
 
 async function cmdKarma(triggerInfo: TriggerInfoTelegram, logger: any) {

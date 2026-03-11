@@ -525,29 +525,64 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, firstName } = triggerInfo.params;
   const message = `Привет, <b>${firstName}</b>! Я многофункциональный бот. Используй /help для списка команд.`;
   await sendTelegramMessage(chatId, message);
-  return { success: true, message: "Start message sent" };
+  return await cmdHelp(triggerInfo, logger);
 }
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  const helpText = `<b>📖 Все команды бота:</b>
+  const helpText = `<b>📖 ВСЕ КОМАНДЫ БОТА:</b>
 
-<b>⭐ Основные:</b>
-<code>/start</code> - начало
-<code>/daily</code> - ежедневный бонус
-<code>/вирт</code> или <code>/virtas</code> - меню виртов
-<code>/buy_premium</code> - купить премиум
+<b>⭐ ОСНОВНЫЕ:</b>
+/start - начало
+/help - помощь
+/daily - ежедневный бонус
+/virtas - вирты
+/buy_premium - купить премиум
 
-<b>🌟 Премиум команды:</b>
-<code>/funny_text</code> - <code>смешной текст</code>
-<code>/kloun</code> - <code>клоун</code>
-<code>/unmuteall</code> - <code>размут</code>
-<code>/transform</code> - <code>превратить</code>
-<code>/invisibility</code> - <code>невидимость</code>
+<b>🌟 ПРЕМИУМ КОМАНДЫ:</b>
+/funny_text - смешной текст
+/kloun - клоун
+/unmuteall - размут
+/transform - превратить
+/invisibility - невидимость
 
-<b>ℹ️ Примечания:</b>
-✨ Текстовые команды работают без слеша (например: <code>смешной текст</code>, <code>клоун</code>, <code>превратить</code>)
-🔒 Премиум команды доступны только владельцам "Троллинг Консоли" (200 ⭐/месяц)`;
+<b>💬 РАЗВЛЕЧЕНИЯ:</b>
+/dice - кубик
+/casino - казино
+/slots - слоты
+/fish - рыбалка
+/duel - дуэль
+/coin - монета
+/profile - профиль
+/balance - баланс
+/marry - пожениться
+/divorce - развод
+
+<b>🛡️ МОДЕРАЦИЯ:</b>
+/ban - бан
+/mute - мут
+/warn - варн
+/kick - кик
+/promote - повышение
+/demote - понижение
+/clean - очистка
+
+<b>📊 ИНФОРМАЦИЯ:</b>
+/id - ID
+/info - информация
+/stats - статистика
+/chat_info - информация чата
+/who_today - кто сегодня
+
+<b>⚙️ УПРАВЛЕНИЕ:</b>
+/addcoins - выдать звёзды
+/givepremium - выдать премиум
+/givestars - выдать звёзды
+/givevirtas - выдать вирты
+
+<b>ℹ️ ПРИМЕЧАНИЕ:</b>
+✨ Все текстовые команды работают БЕЗ слеша!
+🔒 Премиум команды требуют "Троллинг Консоль"`;
   await sendTelegramMessage(chatId, helpText);
   return { success: true, message: "Help message sent" };
 }
@@ -984,6 +1019,10 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId, text, hasMedia, mediaType } = triggerInfo.params;
   
+  if (!text) return { success: true, message: "No text" };
+  
+  const lowerText = text.toLowerCase().trim();
+  
   // Media restriction check
   if (hasMedia && mediaType) {
     const settings = await db.getChatSettings(chatId);
@@ -1002,32 +1041,47 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       }
     }
   }
-
-  if (!text) return { success: true, message: "No text" };
   
-  const lowerText = text.toLowerCase();
+  // Текстовые команды - ОСНОВНЫЕ
+  if (lowerText === "вирт" || lowerText === "вирты") {
+    return await cmdVirtasBalance(triggerInfo, logger);
+  }
   
-  // Премиум текстовые команды
-  if (lowerText === "смешной текст" || lowerText === "смешнойтекст") {
+  // Текстовые команды - ПРЕМИУМ
+  if (lowerText === "смешной текст") {
     return await cmdSmeshnoyText(triggerInfo, logger);
   }
   if (lowerText === "клоун") {
     return await cmdKloun(triggerInfo, logger);
   }
-  if (lowerText === "размут" || lowerText === "размутить") {
+  if (lowerText === "размут") {
     return await cmdUnmuteAll(triggerInfo, logger);
   }
-  if (lowerText === "превратить" || lowerText === "трансформ" || lowerText === "трансформация") {
+  if (lowerText === "превратить") {
     return await cmdTransform(triggerInfo, [], logger);
   }
-  if (lowerText === "невидимость" || lowerText === "невидимка" || lowerText === "инвиз") {
+  if (lowerText === "невидимость") {
     return await cmdInvisibility(triggerInfo, logger);
   }
-  if (lowerText === "вирт" || lowerText === "вирты" || lowerText === "виртуны") {
-    return await cmdVirtasBalance(triggerInfo, logger);
+  
+  // Текстовые команды - РАЗВЛЕЧЕНИЯ
+  if (lowerText === "кубик") {
+    return await cmdDice(triggerInfo, logger);
   }
-  if (lowerText === "покупить премиум" || lowerText === "купить премиум") {
-    return await cmdBuyPremium(triggerInfo, logger);
+  if (lowerText === "казино") {
+    return await cmdCasino(triggerInfo, [Math.floor(Math.random() * 50).toString()], logger);
+  }
+  if (lowerText === "слоты") {
+    return await cmdSlot(triggerInfo, [], logger);
+  }
+  if (lowerText === "рыбалка") {
+    return await cmdFish(triggerInfo, [], logger);
+  }
+  if (lowerText === "дуэль") {
+    return await cmdDuel(triggerInfo, logger);
+  }
+  if (lowerText === "монета") {
+    return await cmdCoin(triggerInfo, logger);
   }
   
   // RP trigger check

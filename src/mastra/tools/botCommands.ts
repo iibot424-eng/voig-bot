@@ -149,13 +149,6 @@ export const handleBotCommand = createTool({
     const isPremiumUser = await db.isPremium(userId);
     const hasAdminPass = isOwnerUser && (await hasAdminAccess(userId, chatId));
     
-    // Проверка доступа к админ командам
-    const adminCommands = ["ban", "softban", "tempban", "unban", "mute", "tempmute", "unmute", "warn", "unwarn", "warns", "resetwarns", "warnlimit", "kick", "restrict", "unrestrict", "ro", "unro", "antispam", "flood", "blacklist", "whitelist", "caps", "links", "badwords", "clean"];
-    if (adminCommands.includes(command.toLowerCase()) && isOwnerUser && !hasAdminPass) {
-      await sendTelegramMessage(chatId, "❌ Введите пароль в чат для доступа к админ командам");
-      return { success: false, message: "Admin password required" };
-    }
-    
     try {
       switch (command.toLowerCase()) {
         case "start":
@@ -566,10 +559,16 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /marry - пожениться
 /divorce - развод
 
+<b>🛡️ АДМИНИСТРАТОРСКИЕ:</b>
+/ban, /unban, /mute, /unmute, /warn, /unwarn
+/kick, /ro, /unro, /restrict, /unrestrict
+/clean, /tempban, /tempmute, /resetwarns
+/antispam, /flood, /blacklist, /whitelist
+/caps, /links, /badwords, /warnlimit
+
 <b>ℹ️ ПРИМЕЧАНИЕ:</b>
 ✨ Все текстовые команды работают БЕЗ слеша!
-🔒 Премиум команды требуют "Троллинг Консоль"
-🔐 Введите пароль <code>1412</code> для доступа к админ командам`;
+🔒 Премиум команды требуют "Троллинг Консоль"`;
   await sendTelegramMessage(chatId, helpText);
   return { success: true, message: "Help message sent" };
 }
@@ -887,8 +886,14 @@ async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 
 async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId } = triggerInfo.params;
+  const { chatId, userId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
+  
+  const hasAccess = await hasAdminAccess(userId, chatId);
+  if (!hasAccess) {
+    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
+    return { success: false, message: "Password required" };
+  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
@@ -899,8 +904,14 @@ async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isO
 }
 
 async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId } = triggerInfo.params;
+  const { chatId, userId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
+  
+  const hasAccess = await hasAdminAccess(userId, chatId);
+  if (!hasAccess) {
+    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
+    return { success: false, message: "Password required" };
+  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
@@ -912,8 +923,14 @@ async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], 
 }
 
 async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId } = triggerInfo.params;
+  const { chatId, userId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
+  
+  const hasAccess = await hasAdminAccess(userId, chatId);
+  if (!hasAccess) {
+    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
+    return { success: false, message: "Password required" };
+  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
@@ -925,8 +942,14 @@ async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], is
 }
 
 async function cmdGiveVirtas(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId } = triggerInfo.params;
+  const { chatId, userId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
+  
+  const hasAccess = await hasAdminAccess(userId, chatId);
+  if (!hasAccess) {
+    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
+    return { success: false, message: "Password required" };
+  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };

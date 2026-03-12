@@ -108,6 +108,18 @@ async function getTargetUser(
   
   const args = triggerInfo.params.commandArgs || [];
   if (args[0]?.startsWith("@")) {
+    const mentionedUsername = args[0].substring(1).toLowerCase();
+    const users = await db.query(
+      "SELECT user_id, username, first_name FROM bot_users WHERE LOWER(username) = $1 LIMIT 1",
+      [mentionedUsername]
+    );
+    if (users.rows && users.rows.length > 0) {
+      return {
+        userId: users.rows[0].user_id,
+        username: users.rows[0].username || "",
+        firstName: users.rows[0].first_name || "",
+      };
+    }
     return null;
   }
   
@@ -208,7 +220,7 @@ export const handleBotCommand = createTool({
         case "links":
           return await cmdLinks(triggerInfo, args, isUserAdmin, logger);
         case "badwords":
-          return await cmdBadwords(triggerInfo, logger);
+          return await cmdBadwords(triggerInfo, isUserAdmin, logger);
         
         case "info":
           return await cmdInfo(triggerInfo, logger);
@@ -1484,22 +1496,37 @@ async function cmdWhitelist(triggerInfo: TriggerInfoTelegram, args: string[], is
 }
 
 async function cmdCaps(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
   const enable = args[0] !== "off";
-  await db.updateChatSettings(triggerInfo.params.chatId, { caps_filter: enable });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Фильтр капса ${enable ? "включен" : "выключен"}.`);
+  await db.updateChatSettings(chatId, { caps_filter: enable });
+  await sendTelegramMessage(chatId, `⚙️ Фильтр капса ${enable ? "включен" : "выключен"}.`);
   return { success: true, message: "Caps toggled" };
 }
 
 async function cmdLinks(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
   const enable = args[0] !== "off";
-  await db.updateChatSettings(triggerInfo.params.chatId, { links_filter: enable });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Фильтр ссылок ${enable ? "включен" : "выключен"}.`);
+  await db.updateChatSettings(chatId, { links_filter: enable });
+  await sendTelegramMessage(chatId, `⚙️ Фильтр ссылок ${enable ? "включен" : "выключен"}.`);
   return { success: true, message: "Links toggled" };
 }
 
-async function cmdBadwords(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const words = await db.getBlacklistWords(triggerInfo.params.chatId);
-  await sendTelegramMessage(triggerInfo.params.chatId, `🚫 <b>Черный список слов:</b>\n${words.join(", ") || "пусто"}`);
+async function cmdBadwords(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
+  const words = await db.getBlacklistWords(chatId);
+  await sendTelegramMessage(chatId, `🚫 <b>Черный список слов:</b>\n${words.join(", ") || "пусто"}`);
   return { success: true, message: "Badwords sent" };
 }
 

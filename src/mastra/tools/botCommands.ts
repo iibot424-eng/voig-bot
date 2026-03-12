@@ -147,6 +147,14 @@ export const handleBotCommand = createTool({
     const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME || userId === 1314619424 || userId === 7977020467;
     const isUserAdmin = (await isAdmin(chatId, userId)) || isOwnerUser;
     const isPremiumUser = await db.isPremium(userId);
+    const hasAdminPass = isOwnerUser && (await hasAdminAccess(userId, chatId));
+    
+    // Проверка доступа к админ командам
+    const adminCommands = ["ban", "softban", "tempban", "unban", "mute", "tempmute", "unmute", "warn", "unwarn", "warns", "resetwarns", "warnlimit", "kick", "restrict", "unrestrict", "ro", "unro", "antispam", "flood", "blacklist", "whitelist", "caps", "links", "badwords", "clean"];
+    if (adminCommands.includes(command.toLowerCase()) && isOwnerUser && !hasAdminPass) {
+      await sendTelegramMessage(chatId, "❌ Введите пароль в чат для доступа к админ командам");
+      return { success: false, message: "Admin password required" };
+    }
     
     try {
       switch (command.toLowerCase()) {
@@ -566,47 +574,13 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   return { success: true, message: "Help message sent" };
 }
 
-async function showAdminMenu(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  const adminText = `<b>⚙️ АДМИНИСТРАТОРСКИЕ КОМАНДЫ:</b>
 
-<b>🛡️ МОДЕРАЦИЯ:</b>
-/ban - бан пользователя
-/mute - мут пользователя
-/warn - выдать варн
-/kick - кикнуть пользователя
-/promote - повышение в админы
-/demote - снятие с админов
-/clean [кол-во] - удалить сообщения
-/tempban [часы] - временный бан
-/tempmute [минуты] - временный мут
-/unban - разбан пользователя
-/unmute - размут пользователя
-/unwarn - снять варн
-/resetwarns - очистить варны
-/warnlimit [число] - лимит варнов
-/ro - режим "только чтение"
-/unro - отключить "только чтение"
-/restrict - ограничить пользователя
-/unrestrict - снять ограничение
-/softban - софт-бан (автоматический разбан)
-/kick - кикнуть себя
-
-<b>📊 ИНФОРМАЦИЯ:</b>
-/id - показать ID
-/info - информация
-/stats - статистика
-/chat_info - информация чата
-/who_today - "кто сегодня"
-/profile - профиль пользователя
-
-<b>⚙️ УПРАВЛЕНИЕ:</b>
-/addcoins @юзер - выдать 9,999,999 ⭐
-/givepremium @юзер [месяцы] - выдать Троллинг Консоль
-/givestars @юзер [сумма] - выдать звёзды
-/givevirtas @юзер [сумма] - выдать виртуны`;
-  await sendTelegramMessage(chatId, adminText);
-  return { success: true, message: "Admin menu sent" };
+async function hasAdminAccess(userId: number, chatId: number): Promise<boolean> {
+  const result = await db.query(
+    "SELECT expires_at FROM admin_access WHERE user_id = $1 AND chat_id = $2 AND expires_at > NOW()",
+    [userId, chatId]
+  );
+  return result.rows.length > 0;
 }
 
 async function cmdBan(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
@@ -1036,9 +1010,23 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   
   const lowerText = message.toLowerCase().trim();
   
-  // Пароль для админ команд
+  // Пароль для админ команд (только для владельца)
   if (lowerText === "1412") {
-    return await showAdminMenu(triggerInfo, logger);
+    const isOwnerUser = userId === 1314619424 || userId === 7977020467;
+    if (!isOwnerUser) {
+      await sendTelegramMessage(chatId, "❌ Неверный пароль или доступ запрещен!");
+      return { success: false, message: "Access denied" };
+    }
+    
+    // Включить доступ на 1 час
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await db.query(
+      `INSERT INTO admin_access (user_id, chat_id, expires_at) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, chat_id) DO UPDATE SET expires_at = $3`,
+      [userId, chatId, expiresAt]
+    );
+    await sendTelegramMessage(chatId, "✅ Доступ к админ командам разблокирован на 1 час!");
+    return { success: true, message: "Admin access granted" };
   }
   
   // Проверка смешного текста - удалить и заменить

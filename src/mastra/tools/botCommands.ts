@@ -1008,11 +1008,11 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 }
 
 async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, text, hasMedia, mediaType } = triggerInfo.params;
+  const { chatId, userId, message, hasMedia, mediaType } = triggerInfo.params;
   
-  if (!text) return { success: true, message: "No text" };
+  if (!message) return { success: true, message: "No text" };
   
-  const lowerText = text.toLowerCase().trim();
+  const lowerText = message.toLowerCase().trim();
   
   // Media restriction check
   if (hasMedia && mediaType) {

@@ -48,38 +48,12 @@ const quotes = [
 ];
 
 const compliments = [
-  "Ты потрясающий человек! ✨",
-  "Твоя улыбка освещает весь чат! 😊",
-  "Ты делаешь этот мир лучше! 🌟",
-  "Ты умнее, чем думаешь! 🧠",
-  "С тобой всегда интересно! 💫",
+  "Ты просто светишься добротой! ✨",
+  "Твой юмор - лучший антидепрессант! 😄",
+  "Ты вдохновляешь людей вокруг себя! 🌟",
+  "Твоя улыбка может растопить даже сердце айсберга! ❤️",
+  "Ты - настоящий клад! 💎",
 ];
-
-function parseTime(timeStr: string): number | null {
-  const match = timeStr.match(/^(\d+)([mhdwM])$/);
-  if (!match) return null;
-  
-  const value = parseInt(match[1]);
-  const unit = match[2];
-  
-  const multipliers: Record<string, number> = {
-    m: 60,
-    h: 3600,
-    d: 86400,
-    w: 604800,
-    M: 2592000,
-  };
-  
-  return value * (multipliers[unit] || 60);
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds} сек`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} мин`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} ч`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} дн`;
-  return `${Math.floor(seconds / 604800)} нед`;
-}
 
 async function isAdmin(chatId: number, userId: number): Promise<boolean> {
   const member = await getChatMember(chatId, userId);
@@ -206,9 +180,11 @@ export const handleBotCommand = createTool({
           return await cmdRestrict(triggerInfo, isUserAdmin, logger);
         case "unrestrict":
           return await cmdUnrestrict(triggerInfo, isUserAdmin, logger);
+        case "promote":
+          return await cmdPromote(triggerInfo, isUserAdmin, logger);
+        case "demote":
+          return await cmdDemote(triggerInfo, isUserAdmin, logger);
         
-        case "antispam":
-          return await cmdAntispam(triggerInfo, args, isUserAdmin, logger);
         case "flood":
           return await cmdFlood(triggerInfo, args, isUserAdmin, logger);
         case "blacklist":
@@ -221,6 +197,10 @@ export const handleBotCommand = createTool({
           return await cmdLinks(triggerInfo, args, isUserAdmin, logger);
         case "badwords":
           return await cmdBadwords(triggerInfo, isUserAdmin, logger);
+        case "announce":
+          return await cmdAnnounce(triggerInfo, args, isOwnerUser, logger);
+        case "rp":
+          return await cmdShowRp(triggerInfo, logger);
         
         case "info":
           return await cmdInfo(triggerInfo, logger);
@@ -234,34 +214,20 @@ export const handleBotCommand = createTool({
         case "кто сегодня":
         case "кто сегодня в":
         case "кто":
-          return await cmdWhoToday(triggerInfo, args, logger);
-        case "marry":
-        case "пожениться":
-          return await cmdMarry(triggerInfo, logger);
-        case "accept_marry":
-        case "принять":
-        case "accept":
-          return await cmdAcceptMarry(triggerInfo, logger);
-        case "divorce":
-        case "развод":
-          return await cmdDivorce(triggerInfo, logger);
-        case "addcoins":
-        case "add_coins":
-        case "начислить":
-          return await cmdAddCoins(triggerInfo, args, isOwnerUser, logger);
-        case "givepremium":
-        case "выдать_премиум":
-          return await cmdGivePremium(triggerInfo, args, isOwnerUser, logger);
-        case "givestars":
-        case "выдать_звезды":
-          return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
-        case "givevirtas":
-        case "выдать_вирты":
-          return await cmdGiveVirtas(triggerInfo, args, isOwnerUser, logger);
+          return await cmdWhoToday(triggerInfo, logger);
+        
+        case "daily":
+          return await cmdDaily(triggerInfo, logger);
+        case "weekly":
+          return await cmdWeekly(triggerInfo, logger);
+        case "pay":
+          return await cmdPay(triggerInfo, args, logger);
+        case "transfer":
+          return await cmdTransfer(triggerInfo, args, logger);
+        case "top_rich":
+          return await cmdTopRich(triggerInfo, logger);
         case "virtas":
-        case "вирт":
-        case "вирты":
-          return await cmdVirtasBalance(triggerInfo, logger);
+          return await cmdVirtas(triggerInfo, logger);
         case "buyvirtas":
         case "buy_virtas":
         case "givervirtas":
@@ -330,188 +296,95 @@ export const handleBotCommand = createTool({
         case "voice":
           if (args[0] === "запретить" || args[0] === "off") {
             await db.updateChatSettings(chatId, { voice_allowed: false });
-            await sendTelegramMessage(chatId, "🚫 Голосовые теперь запрещены!");
+            await sendTelegramMessage(chatId, "🚫 Голосовые сообщения теперь запрещены!");
             return { success: true, message: "Voice disabled" };
           } else if (args[0] === "разрешить" || args[0] === "on") {
             await db.updateChatSettings(chatId, { voice_allowed: true });
-            await sendTelegramMessage(chatId, "✅ Голосовые теперь разрешены!");
+            await sendTelegramMessage(chatId, "✅ Голосовые сообщения теперь разрешены!");
             return { success: true, message: "Voice enabled" };
           }
           break;
         
+        case "addcoins":
+        case "add_coins":
+        case "начислить":
+          return await cmdAddCoins(triggerInfo, args, isOwnerUser, logger);
+        case "givepremium":
+        case "выдать_премиум":
+          return await cmdGivePremium(triggerInfo, args, isOwnerUser, logger);
+        case "givestars":
+        case "выдать_звезды":
+          return await cmdGiveStars(triggerInfo, args, isOwnerUser, logger);
+        case "givevirtas":
+        case "выдать_вирты":
+          return await cmdGiveVirtas(triggerInfo, args, isOwnerUser, logger);
+        case "virtas":
+        case "вирт":
+        case "вирты":
+          return await cmdVirtasBalance(triggerInfo, logger);
+        case "buyvirtas":
+        case "buy_virtas":
+        case "givervirtas":
+          return await cmdBuyVirtas(triggerInfo, args, logger);
+        case "roll":
+        case "dice":
+        case "кубик":
+          return await cmdDice(triggerInfo, logger);
+        case "casino":
+        case "казино":
+          return await cmdCasino(triggerInfo, args, logger);
+        case "slot":
+        case "slots":
+        case "слоты":
+          return await cmdSlot(triggerInfo, args, logger);
+        case "fish":
+        case "рыбалка":
+          return await cmdFish(triggerInfo, args, logger);
+        case "duel":
+        case "дуэль":
+          return await cmdDuel(triggerInfo, logger);
+        case "coin":
+        case "монета":
+          return await cmdCoin(triggerInfo, logger);
+        case "invisibility":
+        case "невидимость":
+        case "инвиз":
+        case "невидимка":
+          return await cmdInvisibility(triggerInfo, logger);
+        case "antispam":
+          return await cmdAntispam(triggerInfo, args, isUserAdmin, logger);
+        
+        case "funny_text":
+        case "смешной_текст":
+          return await cmdSmeshnoyText(triggerInfo, logger);
+        case "kloun":
+        case "клоун":
+          return await cmdKloun(triggerInfo, logger);
+        case "unmuteall":
+        case "размут_всем":
+          return await cmdUnmuteAll(triggerInfo, logger);
+        case "transform":
+        case "превратить":
+          return await cmdTransform(triggerInfo, args, logger);
+        
         case "profile":
-        case "me":
-        case "профиль":
           return await cmdProfile(triggerInfo, logger);
-        case "users":
-          return await cmdUsers(triggerInfo, logger);
-        case "admins":
-        case "adminlist":
-          return await cmdAdmins(triggerInfo, logger);
-        case "mods":
-        case "modlist":
-          return await cmdMods(triggerInfo, logger);
-        
-        case "chat_info":
-          return await cmdChatInfo(triggerInfo, logger);
-        case "stats":
-          return await cmdStats(triggerInfo, logger);
-        case "top_activity":
-        case "top":
-          return await cmdTopActivity(triggerInfo, logger);
-        case "top_warns":
-          return await cmdTopWarns(triggerInfo, logger);
-        case "my_stats":
-          return await cmdMyStats(triggerInfo, logger);
-        case "user_count":
-          return await cmdUserCount(triggerInfo, logger);
-        case "message_count":
-          return await cmdMessageCount(triggerInfo, logger);
-        
-        case "rank":
-          return await cmdRank(triggerInfo, logger);
-        case "level":
-          return await cmdLevel(triggerInfo, logger);
-        case "leaderboard":
-          return await cmdLeaderboard(triggerInfo, logger);
-        case "reputation":
-          return await cmdReputation(triggerInfo, logger);
-        case "rep_top":
-          return await cmdRepTop(triggerInfo, logger);
-        case "award":
-          return await cmdAward(triggerInfo, args, isOwnerUser || isUserAdmin, logger);
-        
-        case "set_welcome":
-          return await cmdSetWelcome(triggerInfo, args, isUserAdmin, logger);
-        case "set_rules":
-          return await cmdSetRules(triggerInfo, args, isUserAdmin, logger);
-        case "rules":
-          return await cmdRules(triggerInfo, logger);
-        case "set_goodbye":
-          return await cmdSetGoodbye(triggerInfo, args, isUserAdmin, logger);
-        case "welcome":
-          return await cmdWelcomeToggle(triggerInfo, args, isUserAdmin, logger);
-        
-        case "set_lang":
-          return await cmdSetLang(triggerInfo, args, isUserAdmin, logger);
-        case "log_channel":
-          return await cmdLogChannel(triggerInfo, args, isUserAdmin, logger);
-        case "report_channel":
-          return await cmdReportChannel(triggerInfo, args, isUserAdmin, logger);
-        case "auto_delete":
-          return await cmdAutoDelete(triggerInfo, args, isUserAdmin, logger);
-        case "clean_service":
-          return await cmdCleanService(triggerInfo, args, isUserAdmin, logger);
-        
-        case "media_limit":
-          return await cmdMediaLimit(triggerInfo, args, isUserAdmin, logger);
-        case "sticker_limit":
-          return await cmdStickerLimit(triggerInfo, args, isUserAdmin, logger);
-        case "gif_limit":
-          return await cmdGifLimit(triggerInfo, args, isUserAdmin, logger);
-        case "voice_limit":
-          return await cmdVoiceLimit(triggerInfo, args, isUserAdmin, logger);
-        case "forward_limit":
-          return await cmdForwardLimit(triggerInfo, args, isUserAdmin, logger);
-        
-        case "report":
-          return await cmdReport(triggerInfo, args, logger);
-        case "compliment":
-          return await cmdCompliment(triggerInfo, logger);
-        case "thank":
-          return await cmdThank(triggerInfo, logger);
-        case "rep":
-          return await cmdRep(triggerInfo, logger);
-        
+        case "balance":
+          return await cmdBalance(triggerInfo, logger);
+        case "marry":
+          return await cmdMarry(triggerInfo, logger);
+        case "accept_marry":
+          return await cmdAcceptMarry(triggerInfo, logger);
+        case "divorce":
+          return await cmdDivorce(triggerInfo, logger);
         case "bio":
           return await cmdBio(triggerInfo, args, logger);
-        case "afk":
-          return await cmdAfk(triggerInfo, args, logger);
-        case "back":
-          return await cmdBack(triggerInfo, logger);
-        case "bonus":
-          return await cmdBonus(triggerInfo, logger);
-        
-        case "stars":
-        case "balance":
-        case "баланс":
-          return await cmdBalance(triggerInfo, logger);
         case "shop":
           return await cmdShop(triggerInfo, logger);
         case "buy":
           return await cmdBuy(triggerInfo, args, logger);
-        case "prefixes":
-        case "my_prefixes":
-          return await cmdMyPrefixes(triggerInfo, logger);
-        case "setprefix":
-        case "set_prefix":
-          return await cmdSetPrefix(triggerInfo, args, logger);
         case "buy_premium":
-        case "premium":
           return await cmdBuyPremium(triggerInfo, logger);
-        case "transfer":
-          return await cmdTransfer(triggerInfo, args, logger);
-        case "daily":
-          return await cmdDaily(triggerInfo, logger);
-        case "weekly":
-          return await cmdWeekly(triggerInfo, logger);
-        case "pay":
-        case "отправить":
-          return await cmdPay(triggerInfo, args, logger);
-        case "top_rich":
-        case "топ_богачей":
-          return await cmdTopRich(triggerInfo, logger);
-        case "smeshnoy_text":
-        case "funny_text":
-          return await cmdSmeshnoyText(triggerInfo, logger);
-        case "kloun":
-        case "clown":
-          return await cmdKloun(triggerInfo, logger);
-        case "unmuteall":
-          return await cmdUnmuteAll(triggerInfo, logger);
-        case "transform":
-        case "превратить":
-        case "трансформ":
-          return await cmdTransform(triggerInfo, args, logger);
-
-        case "karma":
-          return await cmdKarma(triggerInfo, logger);
-        case "gift":
-          return await cmdGift(triggerInfo, args, logger);
-        case "hug":
-          return await cmdHug(triggerInfo, logger);
-        case "random":
-          return await cmdRandom(triggerInfo, args, logger);
-        case "guess":
-          return await cmdGuess(triggerInfo, args, logger);
-        
-        case "quiz":
-          return await cmdQuiz(triggerInfo, logger);
-        case "trivia":
-          return await cmdTrivia(triggerInfo, logger);
-        case "test":
-          return await cmdTest(triggerInfo, logger);
-        case "compat":
-          return await cmdCompat(triggerInfo, logger);
-        case "rate":
-          return await cmdRate(triggerInfo, args, logger);
-        
-        case "joke":
-          return await cmdJoke(triggerInfo, logger);
-        case "fact":
-          return await cmdFact(triggerInfo, logger);
-        case "quote":
-          return await cmdQuote(triggerInfo, logger);
-        case "cat":
-          return await cmdCat(triggerInfo, logger);
-        case "dog":
-          return await cmdDog(triggerInfo, logger);
-        
-        case "promote":
-          return await cmdPromote(triggerInfo, isUserAdmin, logger);
-        case "demote":
-          return await cmdDemote(triggerInfo, isUserAdmin, logger);
-        
         case "clean":
           return await cmdClean(triggerInfo, args, isUserAdmin, logger);
         case "clean_all":
@@ -535,10 +408,19 @@ export const handleBotCommand = createTool({
 });
 
 async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, firstName } = triggerInfo.params;
-  const message = `Привет, <b>${firstName}</b>! Я многофункциональный бот. Используй /help для списка команд.`;
-  await sendTelegramMessage(chatId, message);
-  return await cmdHelp(triggerInfo, logger);
+  const { chatId } = triggerInfo.params;
+  const startText = `🤖 <b>Добро пожаловать в бот!</b>
+
+Используй команды:
+/help - список команд
+/rp - РП команды
+/daily - ежедневный бонус
+/profile - твой профиль
+/balance - твой баланс
+
+✨ Или напиши текстовую команду без слеша!`;
+  await sendTelegramMessage(chatId, startText);
+  return { success: true, message: "Start message sent" };
 }
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
@@ -554,6 +436,7 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /daily - ежедневный бонус
 /virtas - вирты
 /buy_premium - купить премиум
+/rp - РП команды
 
 <b>🌟 ПРЕМИУМ КОМАНДЫ:</b>
 /funny_text - смешной текст
@@ -606,7 +489,8 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /addcoins @юзер - выдать 9,999,999 ⭐
 /givepremium @юзер [месяцы] - выдать Троллинг Консоль
 /givestars @юзер [сумма] - выдать звёзды
-/givevirtas @юзер [сумма] - выдать виртуны`;
+/givevirtas @юзер [сумма] - выдать виртуны
+/announce [текст] - объявление по всем чатам`;
   }
 
   helpText += `
@@ -619,10 +503,63 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   return { success: true, message: "Help message sent" };
 }
 
+async function cmdShowRp(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  const rpList = `<b>✨ РП КОМАНДЫ (пиши БЕЗ слеша):</b>
+
+<b>⚔️ Боевые:</b>
+ударить, убить, выстрелить, зарезать, отравить, взорвать, сжечь, задушить, толкнуть, пнуть, связать, арестовать, обезглавить, расстрелять
+
+<b>💕 Позитивные:</b>
+обнять, целовать, погладить, улыбнуться, подмигнуть, пожать, утешить, похвалить, танец, комплимент, ужин, цветы, серенада
+
+<b>🔥 Другие:</b>
+смеяться, плакать, вздохнуть, испугаться, разозлиться, восхититься, кусь, выебать, трахнуть
+
+<b>🌪️ Магия:</b>
+заморозить, поджечь, молния, исцелить, воскресить
+
+<b>ИСПОЛЬЗУЙ:</b>
+<код>ударить @юзер</код>
+(Нужен reply to message или @упоминание)`;
+  
+  await sendTelegramMessage(chatId, rpList);
+  return { success: true, message: "RP commands sent" };
+}
+
+async function cmdAnnounce(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+  const { userId, chatId } = triggerInfo.params;
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
+  
+  const message = args.join(" ");
+  if (!message) {
+    await sendTelegramMessage(chatId, "❌ Укажите текст объявления!");
+    return { success: false, message: "No message" };
+  }
+  
+  // Получить все чаты из БД
+  const chats = await db.query("SELECT DISTINCT chat_id FROM bot_users");
+  let sentCount = 0;
+  
+  for (const chatRow of chats.rows) {
+    try {
+      await sendTelegramMessage(chatRow.chat_id, `📢 <b>ОБЪЯВЛЕНИЕ ОТ ВЛАДЕЛЬЦА:</b>\n\n${message}`);
+      sentCount++;
+    } catch (e) {
+      logger?.warn("Failed to send announcement to chat", chatRow.chat_id);
+    }
+  }
+  
+  await sendTelegramMessage(chatId, `✅ Объявление отправлено в ${sentCount} чатов!`);
+  return { success: true, message: "Announcement sent" };
+}
 
 async function hasAdminAccess(userId: number, chatId: number): Promise<boolean> {
   const result = await db.query(
-    "SELECT expires_at FROM admin_access WHERE user_id = $1 AND chat_id = $2 AND expires_at > NOW()",
+    "SELECT * FROM admin_access WHERE user_id = $1 AND chat_id = $2 AND expires_at > NOW()",
     [userId, chatId]
   );
   return result.rows.length > 0;
@@ -803,303 +740,229 @@ async function cmdProfile(triggerInfo: TriggerInfoTelegram, logger: any) {
 async function cmdBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const user = await db.getUser(userId, chatId);
+  if (!user) return { success: false, message: "User not found" };
+  
   const virtas = await db.getUserVirtas(userId);
-  await sendTelegramMessage(chatId, `💰 Ваш баланс: <b>${user?.stars}</b> ⭐ и <b>${virtas.toLocaleString()}</b> виртов.`);
+  await sendTelegramMessage(chatId, `💰 Твой баланс:\n⭐ Звёзды: ${user.stars}\n💸 Вирты: ${virtas.toLocaleString()}`);
   return { success: true, message: "Balance sent" };
 }
 
 async function cmdDaily(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const res = await db.claimDailyBonus(userId, chatId);
-  await sendTelegramMessage(chatId, res.message);
-  return { success: true, message: "Daily bonus claimed" };
+  const user = await db.getUser(userId, chatId);
+  const lastDaily = user?.last_daily ? new Date(user.last_daily) : null;
+  const now = new Date();
+  
+  if (lastDaily && now.getTime() - lastDaily.getTime() < 86400000) {
+    const remaining = Math.ceil((86400000 - (now.getTime() - lastDaily.getTime())) / 3600000);
+    await sendTelegramMessage(chatId, `⏳ Вернись через ${remaining} часов для следующего бонуса!`);
+    return { success: false, message: "Cooldown active" };
+  }
+  
+  const reward = Math.floor(Math.random() * 50) + 50;
+  await db.updateUserStars(userId, chatId, reward, "Daily bonus");
+  await sendTelegramMessage(chatId, `✨ Ты получил ${reward} ⭐!`);
+  return { success: true, message: "Daily reward given" };
 }
 
-async function cmdDice(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  const val = Math.floor(Math.random() * 6) + 1;
-  await sendTelegramMessage(chatId, `🎲 Выпало: <b>${val}</b>`);
-  return { success: true, message: "Dice rolled" };
-}
-
-async function cmdCasino(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+async function cmdWeekly(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const amount = parseInt(args[0]) || 10;
+  const user = await db.getUser(userId, chatId);
+  const lastWeekly = user?.last_weekly ? new Date(user.last_weekly) : null;
+  const now = new Date();
   
-  const stars = await db.getUserStars(userId, chatId);
-  if (stars < amount) {
-    await sendTelegramMessage(chatId, "❌ Недостаточно звёзд!");
-    return { success: false, message: "Not enough stars" };
+  if (lastWeekly && now.getTime() - lastWeekly.getTime() < 604800000) {
+    const remaining = Math.ceil((604800000 - (now.getTime() - lastWeekly.getTime())) / 86400000);
+    await sendTelegramMessage(chatId, `⏳ Вернись через ${remaining} дней для следующего бонуса!`);
+    return { success: false, message: "Cooldown active" };
   }
   
-  const win = Math.random() > 0.6;
-  if (win) {
-    const prize = amount * 2;
-    await db.updateUserStars(userId, chatId, amount, "Казино: выигрыш");
-    await sendTelegramMessage(chatId, `🎰 <b>ПОБЕДА!</b> Вы выиграли <b>${prize}</b> ⭐!`);
-  } else {
-    await db.updateUserStars(userId, chatId, -amount, "Казино: проигрыш");
-    await sendTelegramMessage(chatId, `🎰 <b>Проигрыш...</b> Вы потеряли <b>${amount}</b> ⭐.`);
-  }
-  return { success: true, message: "Casino game done" };
+  const reward = Math.floor(Math.random() * 200) + 300;
+  await db.updateUserStars(userId, chatId, reward, "Weekly bonus");
+  await sendTelegramMessage(chatId, `✨ Ты получил ${reward} ⭐!`);
+  return { success: true, message: "Weekly reward given" };
 }
 
-async function cmdWhoToday(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const { chatId } = triggerInfo.params;
-  const text = args.join(" ") || "сегодня";
-  
-  const target = await db.getRandomUserFromChat(chatId);
-  
-  if (!target) {
-    await sendTelegramMessage(chatId, "❌ В чате нет пользователей.");
-    return { success: false, message: "No users found" };
-  }
-  
-  const targetName = target.first_name || (target.username ? `@${target.username}` : `пользователь с ID:${target.user_id}`);
-  
-  const phrases = [
-    `🔮 Ясно вижу, что <b>${targetName}</b> ${text}!`,
-    `🎲 Жребий пал на <b>${targetName}</b>: именно он ${text}!`,
-    `🌟 Звёзды говорят, что <b>${targetName}</b> ${text}!`,
-    `📡 Радары зафиксировали, что <b>${targetName}</b> ${text}!`,
-    `🎰 Джекпот! <b>${targetName}</b> ${text}!`,
-    `💯 Без сомнений, <b>${targetName}</b> — это ${text}!`,
-    `🤔 Гадалка шепнула, что <b>${targetName}</b> ${text}!`,
-  ];
-  
-  const answer = phrases[Math.floor(Math.random() * phrases.length)];
-  await sendTelegramMessage(chatId, answer);
-  return { success: true, message: "Who today answered" };
-}
-
-async function cmdMarry(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, firstName } = triggerInfo.params;
+async function cmdPay(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
   const target = await getTargetUser(triggerInfo);
+  const amount = parseInt(args[0]) || 0;
   
-  if (!target || target.userId === userId) {
-    await sendTelegramMessage(chatId, "❌ Кому вы предлагаете руку и сердце? (Ответьте на сообщение)");
-    return { success: false, message: "No target user" };
-  }
+  if (!target || amount <= 0) return { success: false, message: "Invalid payment" };
   
   const user = await db.getUser(userId, chatId);
-  if (user?.is_married_to) {
-    await sendTelegramMessage(chatId, "❌ Вы уже в браке!");
-    return { success: false, message: "Already married" };
+  if (user.stars < amount) {
+    await sendTelegramMessage(chatId, "❌ Недостаточно звёзд!");
+    return { success: false, message: "Insufficient funds" };
   }
   
-  // Store proposal in temp_restrictions table
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-  await db.addTempRestriction(userId, chatId, 'marry_proposal', target.userId, expiresAt, `Proposal to ${target.firstName}`);
-  
-  await sendTelegramMessage(chatId, `💍 <b>${firstName}</b> сделал предложение <b>${target.firstName}</b>!\nЧтобы принять, напишите <b>/accept_marry</b>`);
-  return { success: true, message: "Marriage proposal sent" };
+  await db.updateUserStars(userId, chatId, -amount, "Payment");
+  await db.updateUserStars(target.userId, chatId, amount, "Payment received");
+  await sendTelegramMessage(chatId, `💸 Ты отправил ${amount} ⭐ пользователю <b>${target.firstName}</b>.`);
+  return { success: true, message: "Payment done" };
 }
 
-async function cmdAcceptMarry(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, firstName } = triggerInfo.params;
-  
-  const proposal = await db.query(
-    "SELECT * FROM temp_restrictions WHERE chat_id = $1 AND restriction_type = 'marry_proposal' AND expires_at > NOW() LIMIT 1",
-    [chatId]
-  );
-  
-  if (proposal.rows.length === 0) {
-    await sendTelegramMessage(chatId, "❌ Нет активных предложений о браке.");
-    return { success: false, message: "No proposal found" };
-  }
-  
-  const p = proposal.rows[0];
-  if (p.user_id === userId) {
-    await sendTelegramMessage(chatId, "❌ Вы не можете принять собственное предложение!");
-    return { success: false, message: "Cannot accept own proposal" };
-  }
-  
-  await db.setMarried(p.user_id, userId, chatId);
-  await db.removeTempRestriction(p.user_id, chatId, 'marry_proposal');
-  
-  await sendTelegramMessage(chatId, `💍 <b>${firstName}</b> принял предложение! Поздравляем с браком! 💕`);
-  return { success: true, message: "Marriage accepted" };
-}
-
-async function cmdDivorce(triggerInfo: TriggerInfoTelegram, logger: any) {
+async function cmdTransfer(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  await db.divorce(userId, chatId);
-  await sendTelegramMessage(chatId, `😢 Развод оформлен...`);
-  return { success: true, message: "Divorced" };
+  const target = await getTargetUser(triggerInfo);
+  const amount = parseInt(args[0]) || 0;
+  if (!target || amount <= 0) return { success: false, message: "Invalid transfer" };
+  await db.updateUserStars(userId, chatId, -amount, "Transfer");
+  await db.updateUserStars(target.userId, chatId, amount, "Transfer");
+  await sendTelegramMessage(chatId, `💸 Вы перевели ${amount} ⭐ пользователю <b>${target.firstName}</b>.`);
+  return { success: true, message: "Transfer done" };
+}
+
+async function cmdTopRich(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  const top = await db.getTopActive(chatId, 5);
+  let text = "💰 <b>Топ богачей чата:</b>\n\n";
+  top.forEach((u: any, i: number) => {
+    text += `${i+1}. <b>${u.first_name}</b> — ${u.stars} ⭐\n`;
+  });
+  await sendTelegramMessage(chatId, text);
+  return { success: true, message: "Top rich sent" };
 }
 
 async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const virtas = await db.getUserVirtas(userId);
-  const options = {
-    replyMarkup: {
-      inline_keyboard: [
-        [
-          {
-            text: "💳 Купить 50 виртов (50 ⭐️)",
-            callback_data: "buy_virtas_50"
-          }
-        ],
-        [
-          {
-            text: "💳 Купить 100 виртов (100 ⭐️)",
-            callback_data: "buy_virtas_100"
-          }
-        ],
-        [
-          {
-            text: "💳 Купить 500 виртов (500 ⭐️)",
-            callback_data: "buy_virtas_500"
-          }
-        ]
-      ]
-    }
-  };
-  
-  await sendTelegramMessage(chatId, `💸 <b>Ваш баланс виртов:</b> ${virtas.toLocaleString()}\n\n<b>Курс:</b> 1 ⭐️ = 1 вирт\n\nВыберите пакет для покупки:`, options);
-  return { success: true, message: "Virtas menu sent" };
+  const msg = `💸 Твой баланс виртов: <b>${virtas.toLocaleString()}</b> 💸\n\n/buyvirtas 10 - купить 10k виртов за 10 ⭐`;
+  await sendTelegramMessage(chatId, msg);
+  return { success: true, message: "Virtas balance sent" };
 }
 
-
-async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  if (!isOwner) {
-    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
-    return { success: false, message: "Owner only" };
+  const amount = parseInt(args[0]) || 10;
+  const cost = amount;
+  
+  const user = await db.getUser(userId, chatId);
+  if (user.stars < cost) {
+    await sendTelegramMessage(chatId, `❌ Нужно ${cost} ⭐, а у тебя ${user.stars}!`);
+    return { success: false, message: "Insufficient funds" };
   }
   
-  const target = await getTargetUser(triggerInfo);
-  if (!target) {
-    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
-    return { success: false, message: "No target" };
-  }
-  
-  await db.query("UPDATE bot_users SET stars = 9999999 WHERE user_id = $1", [target.userId]);
-  await sendTelegramMessage(chatId, `💰 Баланс пользователя <b>${target.firstName}</b> установлен на 9,999,999 ⭐!`);
-  return { success: true, message: "Coins added" };
+  await db.updateUserStars(userId, chatId, -cost, "Virtas purchase");
+  await db.updateUserVirtas(userId, amount * 1000);
+  await sendTelegramMessage(chatId, `✅ Куплено ${amount * 1000} виртов за ${cost} ⭐!`);
+  return { success: true, message: "Virtas bought" };
 }
 
-async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+async function cmdWhoToday(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isOwner) {
-    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
-    return { success: false, message: "Owner only" };
-  }
-  
   const target = await getTargetUser(triggerInfo);
+  
   if (!target) {
     await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
     return { success: false, message: "No target" };
   }
   
-  const months = parseInt(args[0]) || 1;
-  await db.grantPremium(target.userId, months);
-  await sendTelegramMessage(chatId, `🌟 Пользователю <b>${target.firstName}</b> выдана "Троллинг Консоль" на ${months} мес.!`);
-  return { success: true, message: "Premium granted" };
+  const answers = [
+    `${target.firstName} - топ видвоселяк чата! 🤡`,
+    `${target.firstName} - король мема сегодня! 👑`,
+    `${target.firstName} - боженька чата! 😇`,
+    `${target.firstName} - самый норм человек! ✨`,
+    `${target.firstName} - просто легенда! 🔥`,
+  ];
+  
+  const answer = answers[Math.floor(Math.random() * answers.length)];
+  await sendTelegramMessage(chatId, `🎰 <b>Предсказание:</b> ${answer}`);
+  return { success: true, message: "Prediction sent" };
 }
 
-async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+async function cmdDice(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isOwner) {
-    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
-    return { success: false, message: "Owner only" };
-  }
-  
-  const target = await getTargetUser(triggerInfo);
-  if (!target) {
-    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
-    return { success: false, message: "No target" };
-  }
-  
-  const amount = parseInt(args[0]) || 1000;
-  await db.updateUserStars(target.userId, chatId, amount, "Выдача владельцем");
-  await sendTelegramMessage(chatId, `⭐ Пользователю <b>${target.firstName}</b> выдано ${amount} звёзд!`);
-  return { success: true, message: "Stars given" };
+  const roll = Math.floor(Math.random() * 6) + 1;
+  await sendTelegramMessage(chatId, `🎲 Выпало: <b>${roll}</b>`);
+  return { success: true, message: "Dice rolled" };
 }
 
-async function cmdGiveVirtas(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+async function cmdCasino(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isOwner) {
-    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
-    return { success: false, message: "Owner only" };
+  const bet = parseInt(args[0]) || 10;
+  const win = Math.random() > 0.5;
+  const msg = win ? `🎉 Ты выиграл ${bet * 2}!` : `😒 Ты проиграл ${bet}!`;
+  await sendTelegramMessage(chatId, msg);
+  return { success: true, message: "Casino done" };
+}
+
+async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isPrem = await db.isPremium(userId);
+  
+  if (!isPrem) {
+    await sendTelegramMessage(chatId, "❌ Эта команда требует Троллинг Консоль!");
+    return { success: false, message: "Not premium" };
   }
   
-  const target = await getTargetUser(triggerInfo);
-  if (!target) {
-    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
-    return { success: false, message: "No target" };
+  const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
+  await db.addTempRestriction(userId, chatId, 'funny_text', userId, expiresAt, JSON.stringify({ count: 0 }));
+  await sendTelegramMessage(chatId, "🤡 Теперь твои сообщения будут смешными! Действует 6 часов.");
+  return { success: true, message: "Funny text enabled" };
+}
+
+async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isPrem = await db.isPremium(userId);
+  
+  if (!isPrem) {
+    await sendTelegramMessage(chatId, "❌ Эта команда требует Троллинг Консоль!");
+    return { success: false, message: "Not premium" };
   }
   
-  const amount = parseInt(args[0]) || 1000;
-  await db.updateUserVirtas(target.userId, amount);
-  await sendTelegramMessage(chatId, `💸 Пользователю <b>${target.firstName}</b> выдано ${amount} виртов!`);
-  return { success: true, message: "Virtas given" };
+  const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
+  await db.addTempRestriction(userId, chatId, 'kloun', userId, expiresAt);
+  await sendTelegramMessage(chatId, "🤡 Ты официально клоун на 1 час!");
+  return { success: true, message: "Kloun mode enabled" };
+}
+
+async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isPrem = await db.isPremium(userId);
+  
+  if (!isPrem) {
+    await sendTelegramMessage(chatId, "❌ Эта команда требует Троллинг Консоль!");
+    return { success: false, message: "Not premium" };
+  }
+  
+  // Разограничить всех в чате
+  const users = await db.query("SELECT DISTINCT user_id FROM bot_users WHERE chat_id = $1", [chatId]);
+  for (const row of users.rows) {
+    try {
+      await restrictChatMember(chatId, row.user_id, { can_send_messages: true });
+    } catch (e) {}
+  }
+  
+  await sendTelegramMessage(chatId, "🔊 Все разогнаны!");
+  return { success: true, message: "All unmuted" };
+}
+
+async function cmdTransform(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isPrem = await db.isPremium(userId);
+  
+  if (!isPrem) {
+    await sendTelegramMessage(chatId, "❌ Эта команда требует Троллинг Консоль!");
+    return { success: false, message: "Not premium" };
+  }
+  
+  const forms = ["🐱 Кот", "🐶 Собака", "🦁 Лев", "🧛 Вампир", "👽 Инопланетянин", "💀 Скелет", "👰 Невеста"];
+  const form = forms[Math.floor(Math.random() * forms.length)];
+  
+  await sendTelegramMessage(chatId, `✨ ${triggerInfo.params.firstName} превратился в ${form}!`);
+  return { success: true, message: "Transformed" };
 }
 
 async function cmdInvisibility(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   if (!(await db.isPremium(userId))) {
-    await sendTelegramMessage(chatId, "❌ Эта команда доступна только для владельцев Троллинг Консоли!");
-    return { success: false, message: "Premium required" };
-  }
-  await sendTelegramMessage(chatId, "👻 Режим невидимости активирован на 1 час!");
-  return { success: true, message: "Invisibility activated" };
-}
-
-async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  if (!(await db.isPremium(userId))) return { success: false, message: "Prem req" };
-  
-  const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
-  await db.addTempRestriction(userId, chatId, 'funny_text', userId, expiresAt, JSON.stringify({ count: 0 }));
-  await sendTelegramMessage(chatId, "🤡 Ваши сообщения теперь будут ОЧЕНЬ смешными в течение 6 часов! (6 раз)");
-  return { success: true, message: "Funny text active" };
-}
-
-async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  if (!(await db.isPremium(userId))) return { success: false, message: "Prem req" };
-  
-  await sendTelegramMessage(chatId, "🤡 Статус КЛОУНА активирован везде на 1 час!");
-  return { success: true, message: "Clown mode active" };
-}
-
-async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  if (!(await db.isPremium(userId))) return { success: false, message: "Prem req" };
-  
-  await sendTelegramMessage(chatId, "🔓 Вы размучены во всех чатах!");
-  return { success: true, message: "Unmuted all" };
-}
-
-async function cmdTransform(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  if (!(await db.isPremium(userId))) return { success: false, message: "Prem req" };
-  
-  const forms = ["Волк 🐺", "Дракон 🐉", "Призрак 👻", "Робот 🤖", "Демон 😈", "Ангел 😇", "Кот 🐱"];
-  const form = forms[Math.floor(Math.random() * forms.length)];
-  await sendTelegramMessage(chatId, `✨ Вы успешно превратились в образ: <b>${form}</b>!`);
-  return { success: true, message: "Transformed" };
-}
-
-async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { callbackData, callbackId, chatId, userId } = triggerInfo.params;
-  
-  if (callbackData === "buy_premium_stars") {
-    return await cmdBuyPremium(triggerInfo, logger);
+    await sendTelegramMessage(chatId, "❌ Эта команда требует Троллинг Консоль!");
+    return { success: false, message: "Not premium" };
   }
   
-  // Virtas purchase callbacks
-  if (callbackData?.startsWith("buy_virtas_")) {
-    const amount = parseInt(callbackData.split("_")[2]);
-    const res = await db.buyVirtas(userId, amount);
-    await sendTelegramMessage(chatId, res.message);
-    await answerCallback(callbackId, res.success ? "Успешно!" : "Ошибка");
-    return { success: res.success, message: res.message };
-  }
-  
-  await answerCallback(callbackId, "Действие выполнено!");
-  return { success: true, message: "Callback answered" };
+  await sendTelegramMessage(chatId, `💨 ${triggerInfo.params.firstName} стал невидимым!`);
+  return { success: true, message: "Invisible" };
 }
 
 async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
@@ -1162,6 +1025,20 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       await db.addTempRestriction(userId, chatId, 'funny_text', userId, hasFunnyText.rows[0].expires_at, JSON.stringify(data));
     }
     return { success: true, message: "Funny text applied" };
+  }
+  
+  // Проверка черного списка - удалить сообщение если слово в списке
+  const blacklistWords = await db.getBlacklistWords(chatId);
+  const messageWords = message.toLowerCase().split(/\s+/);
+  for (const word of messageWords) {
+    if (blacklistWords.includes(word.toLowerCase())) {
+      const isUserAdmin = await isAdmin(chatId, userId);
+      if (!isUserAdmin) {
+        await deleteMessage(chatId, messageId);
+        await sendTelegramMessage(chatId, `🚫 Сообщение <b>${triggerInfo.params.firstName}</b> содержит запрещённое слово!`);
+        return { success: true, message: "Message deleted due to blacklist" };
+      }
+    }
   }
   
   // Media restriction check
@@ -1233,6 +1110,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     "трахнуть": "трахнул(а)",
     "убить": "убил(а)",
     "поцеловать": "поцеловал(а)",
+    "целовать": "целовал(а)",
     "кусь": "кусьнул(а)",
     "погладить": "погладил(а)",
     "выстрелить": "выстрелил(а) в",
@@ -1272,6 +1150,9 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       const action = rpTriggers[firstWord];
       await sendTelegramMessage(chatId, `✨ <b>${firstName}</b> ${action} <b>${target.firstName}</b>!`);
       return { success: true, message: "RP action done" };
+    } else {
+      await sendTelegramMessage(chatId, "❌ Используй reply на сообщение или @упоминание!");
+      return { success: false, message: "No valid target" };
     }
   }
   
@@ -1301,7 +1182,7 @@ async function cmdKick(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin
     await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
     return { success: false, message: "No target" };
   }
-  await unbanChatMember(chatId, target.userId); // In TG kick is unban after ban
+  await unbanChatMember(chatId, target.userId);
   await sendTelegramMessage(chatId, `👞 Пользователь <b>${target.firstName}</b> был кикнут.`);
   return { success: true, message: "Kicked" };
 }
@@ -1426,29 +1307,55 @@ async function cmdBuy(triggerInfo: TriggerInfoTelegram, args: string[], logger: 
   return { success: true, message: "Item bought" };
 }
 
-async function cmdTransfer(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const target = await getTargetUser(triggerInfo);
-  const amount = parseInt(args[0]) || 0;
-  if (!target || amount <= 0) return { success: false, message: "Invalid transfer" };
-  await db.updateUserStars(userId, chatId, -amount, "Transfer");
-  await db.updateUserStars(target.userId, chatId, amount, "Transfer");
-  await sendTelegramMessage(chatId, `💸 Вы перевели ${amount} ⭐ пользователю <b>${target.firstName}</b>.`);
-  return { success: true, message: "Transfer done" };
+  const user = await db.getUser(userId, chatId);
+  
+  if (user.stars < PREMIUM_PRICE) {
+    await sendTelegramMessage(chatId, `❌ Нужно ${PREMIUM_PRICE} ⭐, а у тебя ${user.stars}!`);
+    return { success: false, message: "Insufficient funds" };
+  }
+  
+  await db.updateUserStars(userId, chatId, -PREMIUM_PRICE, "Premium purchase");
+  await db.grantPremium(userId, 1);
+  await sendTelegramMessage(chatId, `✅ Ты купил Троллинг Консоль на 1 месяц!`);
+  return { success: true, message: "Premium bought" };
 }
 
-async function cmdTopRich(triggerInfo: TriggerInfoTelegram, logger: any) {
+async function cmdMarry(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  const top = await db.getTopActive(chatId, 5);
-  let text = "💰 <b>Топ богачей чата:</b>\n\n";
-  top.forEach((u: any, i: number) => {
-    text += `${i+1}. <b>${u.first_name}</b> — ${u.stars} ⭐\n`;
-  });
-  await sendTelegramMessage(chatId, text);
-  return { success: true, message: "Top rich sent" };
+  const target = await getTargetUser(triggerInfo);
+  if (!target) return { success: false, message: "No target" };
+  
+  await sendTelegramMessage(chatId, `💍 Предложение в браке отправлено пользователю <b>${target.firstName}</b>!`);
+  return { success: true, message: "Marriage proposal sent" };
 }
 
-// Admin stubs
+async function cmdAcceptMarry(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  await sendTelegramMessage(chatId, `💕 Вы вышли замуж/женились!`);
+  return { success: true, message: "Marriage accepted" };
+}
+
+async function cmdDivorce(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  await sendTelegramMessage(chatId, `😢 Вы развелись.`);
+  return { success: true, message: "Divorced" };
+}
+
+async function cmdInfo(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  const info = await db.getChatSettings(chatId);
+  await sendTelegramMessage(chatId, `📊 <b>Инфо о чате:</b>\nID: <code>${chatId}</code>\nТип: ${triggerInfo.params.chatType}`);
+  return { success: true, message: "Info sent" };
+}
+
+async function cmdUsers(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const count = await getChatMembersCount(triggerInfo.params.chatId);
+  await sendTelegramMessage(triggerInfo.params.chatId, `👥 В чате <b>${count?.result || 0}</b> участников.`);
+  return { success: true, message: "Members count sent" };
+}
+
 async function cmdWarnLimit(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
   if (!isAdmin) {
@@ -1640,424 +1547,79 @@ async function cmdBadwords(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, l
   return { success: true, message: "Badwords sent" };
 }
 
-async function cmdInfo(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  const info = await db.getChatSettings(chatId);
-  await sendTelegramMessage(chatId, `📊 <b>Инфо о чате:</b>\nID: <code>${chatId}</code>\nТип: ${triggerInfo.params.chatType}`);
-  return { success: true, message: "Info sent" };
-}
-
-async function cmdUsers(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const count = await getChatMembersCount(triggerInfo.params.chatId);
-  await sendTelegramMessage(triggerInfo.params.chatId, `👥 В чате <b>${count?.result || 0}</b> участников.`);
-  return { success: true, message: "Users count sent" };
-}
-
-async function cmdAdmins(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const admins = await getChatAdministrators(triggerInfo.params.chatId);
-  let text = "👮‍♂️ <b>Администрация чата:</b>\n\n";
-  admins?.result?.forEach((a: any) => {
-    text += `• ${a.user.first_name} (@${a.user.username || "нет"})\n`;
-  });
-  await sendTelegramMessage(triggerInfo.params.chatId, text);
-  return { success: true, message: "Admins sent" };
-}
-
-async function cmdMods(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdAdmins(triggerInfo, logger);
-}
-
-async function cmdChatInfo(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdInfo(triggerInfo, logger);
-}
-
-async function cmdStats(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const stats = await db.getChatStats(triggerInfo.params.chatId);
-  await sendTelegramMessage(triggerInfo.params.chatId, `📈 <b>Статистика чата:</b>\n👥 Юзеров: ${stats.userCount}\n💬 Сообщений: ${stats.messageCount}\n⚠️ Варнов: ${stats.warnCount}`);
-  return { success: true, message: "Stats sent" };
-}
-
-async function cmdTopActivity(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const top = await db.getTopActive(triggerInfo.params.chatId, 5);
-  let text = "🏆 <b>Топ активности:</b>\n\n";
-  top.forEach((u: any, i: number) => {
-    text += `${i+1}. ${u.first_name} — ${u.message_count} сообщений\n`;
-  });
-  await sendTelegramMessage(triggerInfo.params.chatId, text);
-  return { success: true, message: "Top activity sent" };
-}
-
-async function cmdTopWarns(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const top = await db.getTopWarns(triggerInfo.params.chatId, 5);
-  let text = "⚠️ <b>Топ по варнам:</b>\n\n";
-  top.forEach((u: any, i: number) => {
-    text += `${i+1}. ${u.first_name} — ${u.warn_count} варнов\n`;
-  });
-  await sendTelegramMessage(triggerInfo.params.chatId, text);
-  return { success: true, message: "Top warns sent" };
-}
-
-async function cmdMyStats(triggerInfo: TriggerInfoTelegram, logger: any) {
+async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const user = await db.getUser(userId, chatId);
-  await sendTelegramMessage(chatId, `📊 <b>Ваша статистика:</b>\n💬 Сообщений: ${user?.message_count}\n⚡ XP: ${user?.xp}\n📊 Уровень: ${user?.level}`);
-  return { success: true, message: "My stats sent" };
-}
-
-async function cmdUserCount(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdUsers(triggerInfo, logger);
-}
-
-async function cmdMessageCount(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const stats = await db.getChatStats(triggerInfo.params.chatId);
-  await sendTelegramMessage(triggerInfo.params.chatId, `💬 Всего сообщений в чате: <b>${stats.messageCount}</b>`);
-  return { success: true, message: "Msg count sent" };
-}
-
-async function cmdRank(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const user = await db.getUser(userId, chatId);
-  await sendTelegramMessage(chatId, `🎖 Ваш ранг: <b>${user?.level} уровень</b>`);
-  return { success: true, message: "Rank sent" };
-}
-
-async function cmdLevel(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdRank(triggerInfo, logger);
-}
-
-async function cmdLeaderboard(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdTopActivity(triggerInfo, logger);
-}
-
-async function cmdReputation(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const rep = await db.getReputation(userId, chatId);
-  await sendTelegramMessage(chatId, `🏆 Ваша репутация: <b>${rep}</b>`);
-  return { success: true, message: "Reputation sent" };
-}
-
-async function cmdRepTop(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const top = await db.getTopReputation(triggerInfo.params.chatId, 5);
-  let text = "🏆 <b>Топ репутации:</b>\n\n";
-  top.forEach((u: any, i: number) => {
-    text += `${i+1}. ${u.first_name} — ${u.reputation} реп.\n`;
-  });
-  await sendTelegramMessage(triggerInfo.params.chatId, text);
-  return { success: true, message: "Rep top sent" };
-}
-
-async function cmdAward(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  if (!isAdmin) return { success: false, message: "Admin only" };
-  const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
-  const val = parseInt(args[0]) || 1;
-  await db.updateReputation(target.userId, triggerInfo.params.chatId, triggerInfo.params.userId, val, "Awarded by admin");
-  await sendTelegramMessage(triggerInfo.params.chatId, `🏆 Пользователю <b>${target.firstName}</b> начислено ${val} репутации!`);
-  return { success: true, message: "Awarded" };
-}
-
-async function cmdSetWelcome(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const { chatId } = triggerInfo.params;
-  const text = args.join(" ");
-  await db.updateChatSettings(chatId, { welcome_text: text });
-  await sendTelegramMessage(chatId, "✅ Приветствие установлено!");
-  return { success: true, message: "Welcome set" };
-}
-
-async function cmdSetRules(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const text = args.join(" ");
-  await db.updateChatSettings(triggerInfo.params.chatId, { rules_text: text });
-  await sendTelegramMessage(triggerInfo.params.chatId, "✅ Правила установлены!");
-  return { success: true, message: "Rules set" };
-}
-
-async function cmdRules(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const settings = await db.getChatSettings(triggerInfo.params.chatId);
-  await sendTelegramMessage(triggerInfo.params.chatId, `📖 <b>Правила чата:</b>\n\n${settings?.rules_text || "Правила не установлены."}`);
-  return { success: true, message: "Rules sent" };
-}
-
-async function cmdSetGoodbye(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const text = args.join(" ");
-  await db.updateChatSettings(triggerInfo.params.chatId, { goodbye_text: text });
-  await sendTelegramMessage(triggerInfo.params.chatId, "✅ Прощание установлено!");
-  return { success: true, message: "Goodbye set" };
-}
-
-async function cmdWelcomeToggle(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const enable = args[0] !== "off";
-  await db.updateChatSettings(triggerInfo.params.chatId, { welcome_enabled: enable });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Приветствия ${enable ? "включены" : "выключены"}.`);
-  return { success: true, message: "Welcome toggled" };
-}
-
-async function cmdSetLang(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  await db.updateChatSettings(triggerInfo.params.chatId, { language: args[0] || "ru" });
-  await sendTelegramMessage(triggerInfo.params.chatId, `✅ Язык установлен на: ${args[0] || "ru"}`);
-  return { success: true, message: "Lang set" };
-}
-
-async function cmdLogChannel(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  await db.updateChatSettings(triggerInfo.params.chatId, { log_channel: args[0] });
-  await sendTelegramMessage(triggerInfo.params.chatId, "✅ Канал логов установлен!");
-  return { success: true, message: "Log channel set" };
-}
-
-async function cmdReportChannel(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  await db.updateChatSettings(triggerInfo.params.chatId, { report_channel: args[0] });
-  await sendTelegramMessage(triggerInfo.params.chatId, "✅ Канал жалоб установлен!");
-  return { success: true, message: "Report channel set" };
-}
-
-async function cmdAutoDelete(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const time = parseInt(args[0]) || 0;
-  await db.updateChatSettings(triggerInfo.params.chatId, { auto_delete_time: time });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Автоудаление через ${time} сек.`);
-  return { success: true, message: "Auto delete set" };
-}
-
-async function cmdCleanService(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const enable = args[0] !== "off";
-  await db.updateChatSettings(triggerInfo.params.chatId, { clean_service: enable });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Удаление сервис-сообщений ${enable ? "включено" : "выключено"}.`);
-  return { success: true, message: "Clean service toggled" };
-}
-
-async function cmdMediaLimit(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const val = parseInt(args[0]) || 0;
-  await db.updateChatSettings(triggerInfo.params.chatId, { media_limit: val });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Лимит медиа: ${val}`);
-  return { success: true, message: "Media limit set" };
-}
-
-async function cmdStickerLimit(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const val = parseInt(args[0]) || 0;
-  await db.updateChatSettings(triggerInfo.params.chatId, { sticker_limit: val });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Лимит стикеров: ${val}`);
-  return { success: true, message: "Sticker limit set" };
-}
-
-async function cmdGifLimit(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const val = parseInt(args[0]) || 0;
-  await db.updateChatSettings(triggerInfo.params.chatId, { gif_limit: val });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Лимит гифок: ${val}`);
-  return { success: true, message: "Gif limit set" };
-}
-
-async function cmdVoiceLimit(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const val = parseInt(args[0]) || 0;
-  await db.updateChatSettings(triggerInfo.params.chatId, { voice_limit: val });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Лимит голосовых: ${val}`);
-  return { success: true, message: "Voice limit set" };
-}
-
-async function cmdForwardLimit(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
-  const val = parseInt(args[0]) || 0;
-  await db.updateChatSettings(triggerInfo.params.chatId, { forward_limit: val });
-  await sendTelegramMessage(triggerInfo.params.chatId, `⚙️ Лимит пересылок: ${val}`);
-  return { success: true, message: "Forward limit set" };
-}
-
-async function cmdReport(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
-  await db.addReport(triggerInfo.params.userId, target.userId, triggerInfo.params.chatId, args.join(" "));
-  await sendTelegramMessage(triggerInfo.params.chatId, "✅ Жалоба отправлена администрации.");
-  return { success: true, message: "Report sent" };
-}
-
-async function cmdCompliment(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const c = compliments[Math.floor(Math.random() * compliments.length)];
-  await sendTelegramMessage(triggerInfo.params.chatId, c);
-  return { success: true, message: "Compliment sent" };
-}
-
-async function cmdThank(triggerInfo: TriggerInfoTelegram, logger: any) {
-  await sendTelegramMessage(triggerInfo.params.chatId, "🙏 Пожалуйста!");
-  return { success: true, message: "Thanked" };
-}
-
-async function cmdRep(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
-  await db.updateReputation(target.userId, triggerInfo.params.chatId, triggerInfo.params.userId, 1, "Rep cmd");
-  await sendTelegramMessage(triggerInfo.params.chatId, `🏆 Репутация <b>${target.firstName}</b> повышена!`);
-  return { success: true, message: "Rep increased" };
-}
-
-async function cmdAfk(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  await db.setAfk(triggerInfo.params.userId, triggerInfo.params.chatId, args.join(" "));
-  await sendTelegramMessage(triggerInfo.params.chatId, "💤 Вы ушли в AFK.");
-  return { success: true, message: "AFK set" };
-}
-
-async function cmdBack(triggerInfo: TriggerInfoTelegram, logger: any) {
-  await db.removeAfk(triggerInfo.params.userId, triggerInfo.params.chatId);
-  await sendTelegramMessage(triggerInfo.params.chatId, "👋 С возвращением!");
-  return { success: true, message: "AFK removed" };
-}
-
-async function cmdBonus(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdDaily(triggerInfo, logger);
-}
-
-async function cmdWeekly(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const amount = 300 + Math.floor(Math.random() * 201);
-  await db.updateUserStars(userId, chatId, amount, "Weekly bonus");
-  await sendTelegramMessage(chatId, `📅 Еженедельный бонус: <b>${amount}</b> ⭐ получен!`);
-  return { success: true, message: "Weekly bonus claimed" };
-}
-
-async function cmdPay(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  return await cmdTransfer(triggerInfo, args, logger);
-}
-
-async function cmdMyPrefixes(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const prefs = await db.getUserPrefixes(triggerInfo.params.userId);
-  let text = "🏷 <b>Ваши префиксы:</b>\n\n";
-  prefs.forEach((p: any, i: number) => {
-    text += `${i+1}. ${p.display}\n`;
-  });
-  await sendTelegramMessage(triggerInfo.params.chatId, text);
-  return { success: true, message: "Prefixes sent" };
-}
-
-async function cmdSetPrefix(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  await db.setUserPrefix(triggerInfo.params.userId, triggerInfo.params.chatId, args[0]);
-  await sendTelegramMessage(triggerInfo.params.chatId, "✅ Префикс установлен!");
-  return { success: true, message: "Prefix set" };
-}
-
-async function cmdBuyPremium(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
-  const invoice = {
-    chat_id: chatId,
-    title: "Троллинг Консоль (Премиум)",
-    description: "Доступ к эксклюзивным командам: невидимость, трансформация, размут и др. на 1 месяц.",
-    payload: `premium_${userId}`,
-    provider_token: "", // Пусто для Telegram Stars
-    currency: "XTR",
-    prices: [{ label: "Премиум", amount: 150 }]
-  };
-  
-  const options = {
-    replyMarkup: {
-      inline_keyboard: [
-        [
-          {
-            text: "💳 Оплатить 150 ⭐️",
-            pay: true
-          }
-        ]
-      ]
-    }
-  };
-
-  // В реальном окружении здесь вызывается sendInvoice
-  // Так как в триггерах нет обертки для sendInvoice, мы используем fetch напрямую к API Telegram
-  const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
-  await fetch(`${TELEGRAM_API}/sendInvoice`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(invoice)
-  });
-
-  return { success: true, message: "Premium invoice sent" };
-}
-
-async function cmdBuyVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  return await cmdVirtasBalance(triggerInfo, logger);
-}
-
-async function cmdKarma(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdReputation(triggerInfo, logger);
-}
-
-async function cmdGift(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
-  await sendTelegramMessage(triggerInfo.params.chatId, `🎁 <b>${triggerInfo.params.firstName}</b> подарил(а) подарок <b>${target.firstName}</b>!`);
-  return { success: true, message: "Gift sent" };
-}
-
-async function cmdHug(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
-  await sendTelegramMessage(triggerInfo.params.chatId, `✨ <b>${triggerInfo.params.firstName}</b> обнял(а) <b>${target.firstName}</b>!`);
-  return { success: true, message: "Hugged" };
-}
-
-async function cmdRandom(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const max = parseInt(args[0]) || 100;
-  const val = Math.floor(Math.random() * (max + 1));
-  await sendTelegramMessage(triggerInfo.params.chatId, `🎲 Случайное число (0-${max}): <b>${val}</b>`);
-  return { success: true, message: "Random generated" };
-}
-
-async function cmdGuess(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const val = Math.floor(Math.random() * 10) + 1;
-  const guess = parseInt(args[0]);
-  if (guess === val) {
-    await sendTelegramMessage(triggerInfo.params.chatId, `🎉 <b>УГАДАЛИ!</b> Было число ${val}`);
-  } else {
-    await sendTelegramMessage(triggerInfo.params.chatId, `❌ Не угадали. Было число <b>${val}</b>`);
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
   }
-  return { success: true, message: "Guess game done" };
+  
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  
+  await db.query("UPDATE bot_users SET stars = 9999999 WHERE user_id = $1", [target.userId]);
+  await sendTelegramMessage(chatId, `💰 Баланс пользователя <b>${target.firstName}</b> установлен на 9,999,999 ⭐!`);
+  return { success: true, message: "Coins added" };
 }
 
-async function cmdQuiz(triggerInfo: TriggerInfoTelegram, logger: any) {
-  await sendTelegramMessage(triggerInfo.params.chatId, "🧩 <b>Викторина:</b> Как называется столица Франции?\n\nОтправьте ответ в чат!");
-  return { success: true, message: "Quiz started" };
+async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
+  
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  
+  const months = parseInt(args[0]) || 1;
+  await db.grantPremium(target.userId, months);
+  await sendTelegramMessage(chatId, `🌟 Пользователю <b>${target.firstName}</b> выдана "Троллинг Консоль" на ${months} мес.!`);
+  return { success: true, message: "Premium granted" };
 }
 
-async function cmdTrivia(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return await cmdQuiz(triggerInfo, logger);
+async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
+  
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  
+  const amount = parseInt(args[0]) || 1000;
+  await db.updateUserStars(target.userId, chatId, amount, "Выдача владельцем");
+  await sendTelegramMessage(chatId, `⭐ Пользователю <b>${target.firstName}</b> выдано ${amount} звёзд!`);
+  return { success: true, message: "Stars given" };
 }
 
-async function cmdTest(triggerInfo: TriggerInfoTelegram, logger: any) {
-  await sendTelegramMessage(triggerInfo.params.chatId, "🧪 Тест функциональности бота: OK ✅");
-  return { success: true, message: "Test done" };
-}
-
-async function cmdCompat(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const val = Math.floor(Math.random() * 101);
-  await sendTelegramMessage(triggerInfo.params.chatId, `❤️ Совместимость: <b>${val}%</b>`);
-  return { success: true, message: "Compat sent" };
-}
-
-async function cmdRate(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
-  const val = Math.floor(Math.random() * 11);
-  await sendTelegramMessage(triggerInfo.params.chatId, `⭐ Оценка: <b>${val}/10</b>`);
-  return { success: true, message: "Rate sent" };
-}
-
-async function cmdJoke(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const j = jokes[Math.floor(Math.random() * jokes.length)];
-  await sendTelegramMessage(triggerInfo.params.chatId, j);
-  return { success: true, message: "Joke sent" };
-}
-
-async function cmdFact(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const f = facts[Math.floor(Math.random() * facts.length)];
-  await sendTelegramMessage(triggerInfo.params.chatId, f);
-  return { success: true, message: "Fact sent" };
-}
-
-async function cmdQuote(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const q = quotes[Math.floor(Math.random() * quotes.length)];
-  await sendTelegramMessage(triggerInfo.params.chatId, q);
-  return { success: true, message: "Quote sent" };
-}
-
-async function cmdCat(triggerInfo: TriggerInfoTelegram, logger: any) {
-  await sendTelegramMessage(triggerInfo.params.chatId, "🐱 Мяу! Вот вам котик 🐈");
-  return { success: true, message: "Cat sent" };
-}
-
-async function cmdDog(triggerInfo: TriggerInfoTelegram, logger: any) {
-  await sendTelegramMessage(triggerInfo.params.chatId, "🐶 Гав! Вот вам собачка 🐕");
-  return { success: true, message: "Dog sent" };
+async function cmdGiveVirtas(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
+  
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  
+  const amount = parseInt(args[0]) || 1000;
+  await db.updateUserVirtas(target.userId, amount);
+  await sendTelegramMessage(chatId, `💸 Пользователю <b>${target.firstName}</b> выдано ${amount} виртов!`);
+  return { success: true, message: "Virtas given" };
 }
 
 async function cmdPin(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
@@ -2110,4 +1672,12 @@ async function cmdUnrestrict(triggerInfo: TriggerInfoTelegram, isAdmin: boolean,
 
 async function cmdCleanAll(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
   return await cmdClean(triggerInfo, ["100"], isAdmin, logger);
+}
+
+function parseTime(timeStr: string): number {
+  const num = parseInt(timeStr);
+  if (timeStr.includes("h")) return num * 3600;
+  if (timeStr.includes("m")) return num * 60;
+  if (timeStr.includes("d")) return num * 86400;
+  return num * 3600;
 }

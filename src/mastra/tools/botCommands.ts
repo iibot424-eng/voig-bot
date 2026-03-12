@@ -530,7 +530,7 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId } = triggerInfo.params;
-  const helpText = `<b>📖 ВСЕ КОМАНДЫ БОТА:</b>
+  const helpText = `<b>📖 КОМАНДЫ БОТА:</b>
 
 <b>⭐ ОСНОВНЫЕ:</b>
 /start - начало
@@ -558,33 +558,55 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /marry - пожениться
 /divorce - развод
 
+<b>ℹ️ ПРИМЕЧАНИЕ:</b>
+✨ Все текстовые команды работают БЕЗ слеша!
+🔒 Премиум команды требуют "Троллинг Консоль"
+🔐 Введите пароль <code>1412</code> для доступа к админ командам`;
+  await sendTelegramMessage(chatId, helpText);
+  return { success: true, message: "Help message sent" };
+}
+
+async function showAdminMenu(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  const adminText = `<b>⚙️ АДМИНИСТРАТОРСКИЕ КОМАНДЫ:</b>
+
 <b>🛡️ МОДЕРАЦИЯ:</b>
-/ban - бан
-/mute - мут
-/warn - варн
-/kick - кик
-/promote - повышение
-/demote - понижение
-/clean - очистка
+/ban - бан пользователя
+/mute - мут пользователя
+/warn - выдать варн
+/kick - кикнуть пользователя
+/promote - повышение в админы
+/demote - снятие с админов
+/clean [кол-во] - удалить сообщения
+/tempban [часы] - временный бан
+/tempmute [минуты] - временный мут
+/unban - разбан пользователя
+/unmute - размут пользователя
+/unwarn - снять варн
+/resetwarns - очистить варны
+/warnlimit [число] - лимит варнов
+/ro - режим "только чтение"
+/unro - отключить "только чтение"
+/restrict - ограничить пользователя
+/unrestrict - снять ограничение
+/softban - софт-бан (автоматический разбан)
+/kick - кикнуть себя
 
 <b>📊 ИНФОРМАЦИЯ:</b>
-/id - ID
+/id - показать ID
 /info - информация
 /stats - статистика
 /chat_info - информация чата
-/who_today - кто сегодня
+/who_today - "кто сегодня"
+/profile - профиль пользователя
 
 <b>⚙️ УПРАВЛЕНИЕ:</b>
-/addcoins - выдать звёзды
-/givepremium - выдать премиум
-/givestars - выдать звёзды
-/givevirtas - выдать вирты
-
-<b>ℹ️ ПРИМЕЧАНИЕ:</b>
-✨ Все текстовые команды работают БЕЗ слеша!
-🔒 Премиум команды требуют "Троллинг Консоль"`;
-  await sendTelegramMessage(chatId, helpText);
-  return { success: true, message: "Help message sent" };
+/addcoins @юзер - выдать 9,999,999 ⭐
+/givepremium @юзер [месяцы] - выдать Троллинг Консоль
+/givestars @юзер [сумма] - выдать звёзды
+/givevirtas @юзер [сумма] - выдать виртуны`;
+  await sendTelegramMessage(chatId, adminText);
+  return { success: true, message: "Admin menu sent" };
 }
 
 async function cmdBan(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
@@ -956,8 +978,8 @@ async function cmdSmeshnoyText(triggerInfo: TriggerInfoTelegram, logger: any) {
   if (!(await db.isPremium(userId))) return { success: false, message: "Prem req" };
   
   const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
-  await db.addTempRestriction(userId, chatId, 'funny_text', userId, expiresAt, "Funny text effect");
-  await sendTelegramMessage(chatId, "🤡 Ваши сообщения теперь будут ОЧЕНЬ смешными в течение 6 часов!");
+  await db.addTempRestriction(userId, chatId, 'funny_text', userId, expiresAt, JSON.stringify({ count: 0 }));
+  await sendTelegramMessage(chatId, "🤡 Ваши сообщения теперь будут ОЧЕНЬ смешными в течение 6 часов! (6 раз)");
   return { success: true, message: "Funny text active" };
 }
 
@@ -1008,11 +1030,52 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 }
 
 async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, message, hasMedia, mediaType } = triggerInfo.params;
+  const { chatId, userId, message, hasMedia, mediaType, messageId } = triggerInfo.params;
   
   if (!message) return { success: true, message: "No text" };
   
   const lowerText = message.toLowerCase().trim();
+  
+  // Пароль для админ команд
+  if (lowerText === "1412") {
+    return await showAdminMenu(triggerInfo, logger);
+  }
+  
+  // Проверка смешного текста - удалить и заменить
+  const hasFunnyText = await db.query(
+    "SELECT * FROM temp_restrictions WHERE user_id = $1 AND chat_id = $2 AND restriction_type = 'funny_text' AND expires_at > NOW()",
+    [userId, chatId]
+  );
+  
+  if (hasFunnyText.rows.length > 0) {
+    const funnyPhrases = [
+      "картошка не умеет плавать 🥔",
+      "банан уговаривает холодильник 🍌",
+      "стол выполняет зарядку 🪑",
+      "облако ест печенье ☁️",
+      "камень танцует балет 🪨",
+      "ветер поёт оперу 💨",
+    ];
+    
+    const randomPhrase = funnyPhrases[Math.floor(Math.random() * funnyPhrases.length)];
+    await deleteMessage(chatId, messageId);
+    await sendTelegramMessage(chatId, `🤡 <b>${triggerInfo.params.firstName}</b> написал(а): <i>${randomPhrase}</i>`);
+    
+    // Удалить эффект после 6 сообщений
+    const reason = hasFunnyText.rows[0].reason;
+    let data = { count: 0 };
+    try {
+      data = JSON.parse(reason);
+    } catch (e) {}
+    data.count = (data.count || 0) + 1;
+    
+    if (data.count >= 6) {
+      await db.removeTempRestriction(userId, chatId, 'funny_text');
+    } else {
+      await db.addTempRestriction(userId, chatId, 'funny_text', userId, hasFunnyText.rows[0].expires_at, JSON.stringify(data));
+    }
+    return { success: true, message: "Funny text applied" };
+  }
   
   // Media restriction check
   if (hasMedia && mediaType) {
@@ -1027,7 +1090,7 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     if (!allowed) {
       const isUserAdmin = await isAdmin(chatId, userId);
       if (!isUserAdmin) {
-        await deleteMessage(chatId, triggerInfo.params.messageId);
+        await deleteMessage(chatId, messageId);
         return { success: true, message: "Media deleted due to restrictions" };
       }
     }
@@ -1075,13 +1138,14 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     return await cmdCoin(triggerInfo, logger);
   }
   
-  // RP trigger check
+  // RP trigger check - исправлено
   const rpTriggers: Record<string, string> = {
     "ударить": "ударил(а)",
     "обнять": "обнял(а)",
+    "выебать": "выебал(а)",
+    "трахнуть": "трахнул(а)",
     "убить": "убил(а)",
     "поцеловать": "поцеловал(а)",
-    "трахнуть": "трахнул(а)",
     "кусь": "кусьнул(а)",
     "погладить": "погладил(а)",
     "выстрелить": "выстрелил(а) в",

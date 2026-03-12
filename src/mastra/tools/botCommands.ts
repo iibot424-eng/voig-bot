@@ -739,15 +739,6 @@ async function cmdBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdDaily(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
-
-  if (isOwnerUser) {
-    const bonusAmount = 100;
-    await db.updateUserStars(userId, chatId, bonusAmount, "Ежедневный бонус (Владелец)");
-    await sendTelegramMessage(chatId, `⭐ Вы получили ${bonusAmount} ⭐ (Без КД для владельца)`);
-    return { success: true, message: "Daily bonus claimed by owner" };
-  }
-
   const res = await db.claimDailyBonus(userId, chatId);
   await sendTelegramMessage(chatId, res.message);
   return { success: true, message: "Daily bonus claimed" };
@@ -1666,30 +1657,6 @@ async function cmdBonus(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdWeekly(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
-
-  if (isOwnerUser) {
-    const bonusAmount = 500;
-    await db.updateUserStars(userId, chatId, bonusAmount, "Еженедельный бонус (Владелец)");
-    await sendTelegramMessage(chatId, `⭐ Вы получили ${bonusAmount} ⭐ (Без КД для владельца)`);
-    return { success: true, message: "Weekly bonus claimed by owner" };
-  }
-
-  const user = await db.getUser(userId, chatId);
-  if (!user) return { success: false, message: "User not found" };
-
-  const lastWeekly = user.last_weekly_bonus;
-  const now = new Date();
-  if (lastWeekly) {
-    const lastDate = new Date(lastWeekly);
-    const daysDiff = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysDiff < 7) {
-      const daysLeft = Math.ceil(7 - daysDiff);
-      await sendTelegramMessage(chatId, `❌ Еженедельный бонус можно получить через ${daysLeft} дн.`);
-      return { success: false, message: "Weekly bonus cooling down" };
-    }
-  }
-
   const amount = 300 + Math.floor(Math.random() * 201);
   await db.updateUserStars(userId, chatId, amount, "Weekly bonus");
   await sendTelegramMessage(chatId, `📅 Еженедельный бонус: <b>${amount}</b> ⭐ получен!`);

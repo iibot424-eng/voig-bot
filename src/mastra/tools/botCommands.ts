@@ -530,8 +530,11 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
 }
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  const helpText = `<b>📖 КОМАНДЫ БОТА:</b>
+  const { chatId, userId } = triggerInfo.params;
+  const isOwnerUser = userId === 1314619424 || userId === 7977020467;
+  const hasAdminPass = isOwnerUser && (await hasAdminAccess(userId, chatId));
+  
+  let helpText = `<b>📖 КОМАНДЫ БОТА:</b>
 
 <b>⭐ ОСНОВНЫЕ:</b>
 /start - начало
@@ -564,11 +567,24 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /kick, /ro, /unro, /restrict, /unrestrict
 /clean, /tempban, /tempmute, /resetwarns
 /antispam, /flood, /blacklist, /whitelist
-/caps, /links, /badwords, /warnlimit
+/caps, /links, /badwords, /warnlimit`;
+
+  if (hasAdminPass) {
+    helpText += `
+
+<b>⚙️ КОМАНДЫ ВЛАДЕЛЬЦА:</b>
+/addcoins @юзер - выдать 9,999,999 ⭐
+/givepremium @юзер [месяцы] - выдать Троллинг Консоль
+/givestars @юзер [сумма] - выдать звёзды
+/givevirtas @юзер [сумма] - выдать виртуны`;
+  }
+
+  helpText += `
 
 <b>ℹ️ ПРИМЕЧАНИЕ:</b>
 ✨ Все текстовые команды работают БЕЗ слеша!
 🔒 Премиум команды требуют "Троллинг Консоль"`;
+
   await sendTelegramMessage(chatId, helpText);
   return { success: true, message: "Help message sent" };
 }
@@ -889,12 +905,6 @@ async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isO
   const { chatId, userId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
   
-  const hasAccess = await hasAdminAccess(userId, chatId);
-  if (!hasAccess) {
-    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
-    return { success: false, message: "Password required" };
-  }
-  
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
   
@@ -904,14 +914,8 @@ async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isO
 }
 
 async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
+  const { chatId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
-  
-  const hasAccess = await hasAdminAccess(userId, chatId);
-  if (!hasAccess) {
-    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
-    return { success: false, message: "Password required" };
-  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
@@ -923,14 +927,8 @@ async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], 
 }
 
 async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
+  const { chatId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
-  
-  const hasAccess = await hasAdminAccess(userId, chatId);
-  if (!hasAccess) {
-    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
-    return { success: false, message: "Password required" };
-  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
@@ -942,14 +940,8 @@ async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], is
 }
 
 async function cmdGiveVirtas(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
-  const { chatId, userId } = triggerInfo.params;
+  const { chatId } = triggerInfo.params;
   if (!isOwner) return { success: false, message: "Owner only" };
-  
-  const hasAccess = await hasAdminAccess(userId, chatId);
-  if (!hasAccess) {
-    await sendTelegramMessage(chatId, "❌ Введите пароль 1412 для доступа к командам владельца");
-    return { success: false, message: "Password required" };
-  }
   
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
@@ -1033,23 +1025,23 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   
   const lowerText = message.toLowerCase().trim();
   
-  // Пароль для админ команд (только для владельца)
+  // Пароль для видимости команд владельца
   if (lowerText === "1412") {
     const isOwnerUser = userId === 1314619424 || userId === 7977020467;
     if (!isOwnerUser) {
-      await sendTelegramMessage(chatId, "❌ Неверный пароль или доступ запрещен!");
+      await sendTelegramMessage(chatId, "❌ Неверный пароль!");
       return { success: false, message: "Access denied" };
     }
     
-    // Включить доступ на 1 час
+    // Включить видимость команд владельца на 1 час (только для видимости в /help)
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await db.query(
       `INSERT INTO admin_access (user_id, chat_id, expires_at) VALUES ($1, $2, $3)
        ON CONFLICT (user_id, chat_id) DO UPDATE SET expires_at = $3`,
       [userId, chatId, expiresAt]
     );
-    await sendTelegramMessage(chatId, "✅ Доступ к админ командам разблокирован на 1 час!");
-    return { success: true, message: "Admin access granted" };
+    await sendTelegramMessage(chatId, "✅ Команды владельца видны в /help на 1 час!");
+    return { success: true, message: "Owner commands visible" };
   }
   
   // Проверка смешного текста - удалить и заменить

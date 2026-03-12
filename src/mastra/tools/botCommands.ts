@@ -672,10 +672,16 @@ async function cmdUnban(triggerInfo: TriggerInfoTelegram, args: string[], isAdmi
 
 async function cmdMute(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Permission denied" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Permission denied" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   await restrictChatMember(chatId, target.userId, { can_send_messages: false });
   await sendTelegramMessage(chatId, `🔇 Пользователь <b>${target.firstName}</b> замучен.`);
@@ -684,10 +690,16 @@ async function cmdMute(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin
 
 async function cmdUnmute(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Permission denied" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Permission denied" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   await restrictChatMember(chatId, target.userId, { 
     can_send_messages: true,
@@ -705,10 +717,16 @@ async function cmdUnmute(triggerInfo: TriggerInfoTelegram, args: string[], isAdm
 
 async function cmdWarn(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
   const { chatId, userId: adminId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Permission denied" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Permission denied" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   const reason = args.join(" ") || "Без причины";
   const count = await db.addWarning(target.userId, chatId, adminId, reason);
@@ -728,10 +746,16 @@ async function cmdWarn(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin
 
 async function cmdUnwarn(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Permission denied" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Permission denied" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   const removed = await db.removeWarning(target.userId, chatId);
   if (removed) {
@@ -1257,7 +1281,10 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
 // Helper functions for remaining commands
 async function cmdReadOnly(triggerInfo: TriggerInfoTelegram, enable: boolean, isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Admin only" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Admin only" };
+  }
   await restrictChatMember(chatId, triggerInfo.params.userId, { can_send_messages: !enable });
   await sendTelegramMessage(chatId, enable ? "🔇 Режим 'Только чтение' включен." : "🔊 Режим 'Только чтение' выключен.");
   return { success: true, message: "RO toggled" };
@@ -1265,9 +1292,15 @@ async function cmdReadOnly(triggerInfo: TriggerInfoTelegram, enable: boolean, is
 
 async function cmdKick(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Admin only" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Admin only" };
+  }
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   await unbanChatMember(chatId, target.userId); // In TG kick is unban after ban
   await sendTelegramMessage(chatId, `👞 Пользователь <b>${target.firstName}</b> был кикнут.`);
   return { success: true, message: "Kicked" };
@@ -1335,9 +1368,15 @@ async function cmdVirtas(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdPromote(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Permission denied" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Permission denied" };
+  }
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   await promoteChatMember(chatId, target.userId, { can_manage_chat: true, can_delete_messages: true, can_restrict_members: true });
   await sendTelegramMessage(chatId, `✅ Пользователь <b>${target.firstName}</b> назначен администратором.`);
   return { success: true, message: "Promoted" };
@@ -1345,9 +1384,15 @@ async function cmdPromote(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, lo
 
 async function cmdDemote(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isAdmin) return { success: false, message: "Permission denied" };
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Permission denied" };
+  }
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   await promoteChatMember(chatId, target.userId, { can_manage_chat: false });
   await sendTelegramMessage(chatId, `❌ Пользователь <b>${target.firstName}</b> снят с должности.`);
   return { success: true, message: "Demoted" };
@@ -1471,10 +1516,17 @@ async function cmdSoftBan(triggerInfo: TriggerInfoTelegram, args: string[], isAd
 }
 
 async function cmdTempBan(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
   const target = await getTargetUser(triggerInfo);
   const time = parseTime(args[0] || "1h");
-  if (!target || !time) return { success: false, message: "Invalid params" };
-  const { chatId } = triggerInfo.params;
+  if (!target || !time) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя и время!");
+    return { success: false, message: "Invalid params" };
+  }
   await banChatMember(chatId, target.userId);
   await db.addTempRestriction(target.userId, chatId, 'ban', triggerInfo.params.userId, new Date(Date.now() + time * 1000));
   await sendTelegramMessage(chatId, `🚫 Пользователь <b>${target.firstName}</b> забанен на ${args[0]}.`);
@@ -1482,10 +1534,17 @@ async function cmdTempBan(triggerInfo: TriggerInfoTelegram, args: string[], isAd
 }
 
 async function cmdTempMute(triggerInfo: TriggerInfoTelegram, args: string[], isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
   const target = await getTargetUser(triggerInfo);
   const time = parseTime(args[0] || "1h");
-  if (!target || !time) return { success: false, message: "Invalid params" };
-  const { chatId } = triggerInfo.params;
+  if (!target || !time) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя и время!");
+    return { success: false, message: "Invalid params" };
+  }
   await restrictChatMember(chatId, target.userId, { can_send_messages: false });
   await db.addTempRestriction(target.userId, chatId, 'mute', triggerInfo.params.userId, new Date(Date.now() + time * 1000));
   await sendTelegramMessage(chatId, `🔇 Пользователь <b>${target.firstName}</b> замучен на ${args[0]}.`);
@@ -2015,6 +2074,38 @@ async function cmdUnpin(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logg
   await unpinChatMessage(triggerInfo.params.chatId);
   await sendTelegramMessage(triggerInfo.params.chatId, "📌 Сообщение откреплено.");
   return { success: true, message: "Unpinned" };
+}
+
+async function cmdRestrict(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  await restrictChatMember(chatId, target.userId, { can_send_messages: false, can_send_media_messages: false });
+  await sendTelegramMessage(chatId, `🔒 Пользователь <b>${target.firstName}</b> ограничен.`);
+  return { success: true, message: "User restricted" };
+}
+
+async function cmdUnrestrict(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {
+  const { chatId } = triggerInfo.params;
+  if (!isAdmin) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только администраторам!");
+    return { success: false, message: "Not admin" };
+  }
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  await restrictChatMember(chatId, target.userId, { can_send_messages: true, can_send_media_messages: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true });
+  await sendTelegramMessage(chatId, `🔓 Пользователь <b>${target.firstName}</b> разограничен.`);
+  return { success: true, message: "User unrestricted" };
 }
 
 async function cmdCleanAll(triggerInfo: TriggerInfoTelegram, isAdmin: boolean, logger: any) {

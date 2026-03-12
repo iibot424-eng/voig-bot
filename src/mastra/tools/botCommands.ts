@@ -563,11 +563,29 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /divorce - развод
 
 <b>🛡️ АДМИНИСТРАТОРСКИЕ:</b>
-/ban, /unban, /mute, /unmute, /warn, /unwarn
-/kick, /ro, /unro, /restrict, /unrestrict
-/clean, /tempban, /tempmute, /resetwarns
-/antispam, /flood, /blacklist, /whitelist
-/caps, /links, /badwords, /warnlimit`;
+/ban - бан
+/unban - разбан
+/mute - мут
+/unmute - размут
+/warn - выдать варн
+/unwarn - снять варн
+/kick - кикнуть
+/ro - режим "только чтение"
+/unro - выключить "только чтение"
+/restrict - ограничить
+/unrestrict - снять ограничение
+/clean - удалить сообщения
+/tempban - временный бан
+/tempmute - временный мут
+/resetwarns - очистить варны
+/antispam - антиспам
+/flood - контроль флуда
+/blacklist - черный список слов
+/whitelist - удалить из черного списка
+/caps - фильтр заглавных букв
+/links - фильтр ссылок
+/badwords - показать черный список
+/warnlimit - лимит варнов`;
 
   if (hasAdminPass) {
     helpText += `
@@ -903,10 +921,16 @@ async function cmdVirtasBalance(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  if (!isOwner) return { success: false, message: "Owner only" };
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   await db.query("UPDATE bot_users SET stars = 9999999 WHERE user_id = $1", [target.userId]);
   await sendTelegramMessage(chatId, `💰 Баланс пользователя <b>${target.firstName}</b> установлен на 9,999,999 ⭐!`);
@@ -915,10 +939,16 @@ async function cmdAddCoins(triggerInfo: TriggerInfoTelegram, args: string[], isO
 
 async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isOwner) return { success: false, message: "Owner only" };
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   const months = parseInt(args[0]) || 1;
   await db.grantPremium(target.userId, months);
@@ -928,10 +958,16 @@ async function cmdGivePremium(triggerInfo: TriggerInfoTelegram, args: string[], 
 
 async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isOwner) return { success: false, message: "Owner only" };
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   const amount = parseInt(args[0]) || 1000;
   await db.updateUserStars(target.userId, chatId, amount, "Выдача владельцем");
@@ -941,10 +977,16 @@ async function cmdGiveStars(triggerInfo: TriggerInfoTelegram, args: string[], is
 
 async function cmdGiveVirtas(triggerInfo: TriggerInfoTelegram, args: string[], isOwner: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isOwner) return { success: false, message: "Owner only" };
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Эта команда доступна только владельцу!");
+    return { success: false, message: "Owner only" };
+  }
   
   const target = await getTargetUser(triggerInfo);
-  if (!target) return { success: false, message: "No target" };
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
   
   const amount = parseInt(args[0]) || 1000;
   await db.updateUserVirtas(target.userId, amount);

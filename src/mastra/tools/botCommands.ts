@@ -225,6 +225,10 @@ export const handleBotCommand = createTool({
           return await cmdAnnounce(triggerInfo, args, isOwnerUser, logger);
         case "rp":
           return await cmdShowRp(triggerInfo, logger);
+        case "donate":
+        case "пожертвовать":
+        case "донат":
+          return await cmdDonate(triggerInfo, args, logger);
         
         case "info":
           return await cmdInfo(triggerInfo, logger);
@@ -540,9 +544,19 @@ export const handleBotCommand = createTool({
 
 async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, firstName } = triggerInfo.params;
-  const message = `Привет, <b>${firstName}</b>! Я многофункциональный бот. Используй /help для списка команд.`;
+  const message = `🤖 <b>Привет, ${firstName}!</b>
+
+Я многофункциональный бот с 100+ командами для развлечений, модерации и экономики!
+
+📚 Главные команды:
+/help - полный список команд
+/donate - пополнить виртуны за звёзды
+/profile - твой профиль
+/daily - ежедневный бонус
+
+✨ Начни с /help для полного списка!`;
   await sendTelegramMessage(chatId, message);
-  return await cmdHelp(triggerInfo, logger);
+  return { success: true, message: "Start message sent" };
 }
 
 async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
@@ -556,7 +570,9 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /start - начало
 /help - помощь
 /daily - ежедневный бонус
+/donate - пополнить виртуны за ⭐
 /virtas - вирты
+/rp - РП команды
 /buy_premium - купить премиум
 
 <b>🌟 ПРЕМИУМ КОМАНДЫ:</b>
@@ -1290,6 +1306,9 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       const action = rpTriggers[firstWord];
       await sendTelegramMessage(chatId, `✨ <b>${firstName}</b> ${action} <b>${target.firstName}</b>!`);
       return { success: true, message: "RP action done" };
+    } else {
+      await sendTelegramMessage(chatId, "❌ Используй reply на сообщение или @упоминание!");
+      return { success: false, message: "No valid target" };
     }
   }
   
@@ -2181,4 +2200,22 @@ async function cmdAnnounce(triggerInfo: TriggerInfoTelegram, args: string[], isO
   
   await sendTelegramMessage(chatId, `✅ Объявление отправлено в ${sentCount} чатов!`);
   return { success: true, message: "Announcement sent" };
+}
+
+async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const starAmount = parseInt(args[0]) || 10;
+  
+  const user = await db.getUser(userId, chatId);
+  if (!user || user.stars < starAmount) {
+    await sendTelegramMessage(chatId, `❌ У тебя недостаточно ⭐! Нужно ${starAmount}, а у тебя ${user?.stars || 0}.`);
+    return { success: false, message: "Insufficient stars" };
+  }
+  
+  const virtasAmount = starAmount * 1000;
+  await db.updateUserStars(userId, chatId, -starAmount, "Пожертвование в виртуны");
+  await db.updateUserVirtas(userId, virtasAmount);
+  
+  await sendTelegramMessage(chatId, `✅ Ты пожертвовал ${starAmount} ⭐ и получил ${virtasAmount.toLocaleString()} 💸!\n\nКурс: 1 ⭐ = 1000 виртов`);
+  return { success: true, message: "Donation processed" };
 }

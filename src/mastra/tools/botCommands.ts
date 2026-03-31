@@ -2206,9 +2206,7 @@ async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logge
   const { chatId, userId } = triggerInfo.params;
   const starAmount = parseInt(args[0]) || 10;
   
-  // Покупка виртов за реальные звёзды телеграма (1⭐ = 1000 виртов)
-  const virtasAmount = starAmount * 1000;
-  
-  await sendTelegramMessage(chatId, `💸 Отправь ${starAmount} реальных ⭐ телеграма боту, чтобы получить ${virtasAmount.toLocaleString()} виртов!\n\n💳 Курс: 1 реальная ⭐ = 1000 виртов\n\n(После отправки звёзд вирты появятся в твоём аккаунте)`);
+  // Покупка виртов за реальные звёзды телеграма (1⭐ = 1 вирт)
+  await sendTelegramMessage(chatId, `💸 Отправь ${starAmount} реальных ⭐ телеграма боту, чтобы получить ${starAmount} виртов!\n\n💳 Курс: 1 реальная ⭐ = 1 вирт\n\n(После отправки звёзд вирты появятся в твоём аккаунте)`);
   return { success: true, message: "Payment info sent" };
 }

@@ -550,7 +550,7 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 📚 Главные команды:
 /help - полный список команд
-/donate - пополнить виртуны за звёзды
+/donate - конвертировать игровые ⭐ в реальные звёзды (вирты)
 /profile - твой профиль
 /daily - ежедневный бонус
 
@@ -570,7 +570,7 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /start - начало
 /help - помощь
 /daily - ежедневный бонус
-/donate - пополнить виртуны за ⭐
+/donate - конвертировать игровые ⭐ в реальные звёзды
 /virtas - вирты
 /rp - РП команды
 /buy_premium - купить премиум
@@ -2212,10 +2212,10 @@ async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logge
     return { success: false, message: "Insufficient stars" };
   }
   
-  const virtasAmount = starAmount * 1000;
-  await db.updateUserStars(userId, chatId, -starAmount, "Пожертвование в виртуны");
-  await db.updateUserVirtas(userId, virtasAmount);
+  // Вирты = реальные звёзды телеграма (1 вир = 1 ⭐)
+  await db.updateUserStars(userId, chatId, -starAmount, "Пожертвование - конвертация в реальные ⭐");
+  await db.updateUserVirtas(userId, starAmount);
   
-  await sendTelegramMessage(chatId, `✅ Ты пожертвовал ${starAmount} ⭐ и получил ${virtasAmount.toLocaleString()} 💸!\n\nКурс: 1 ⭐ = 1000 виртов`);
-  return { success: true, message: "Donation processed" };
+  await sendTelegramMessage(chatId, `✅ Ты конвертировал ${starAmount} игровых ⭐ в ${starAmount} реальных ⭐ (виртуны)!\n\nТеперь у тебя есть реальные звёзды телеграма для перевода друзьям или размена.`);
+  return { success: true, message: "Conversion processed" };
 }

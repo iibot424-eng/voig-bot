@@ -456,9 +456,13 @@ export const handleBotCommand = createTool({
           return await cmdSetPrefix(triggerInfo, args, logger);
         case "buy_premium":
         case "premium":
-          return await cmdBuyPremium(triggerInfo, logger);
+        case "buy_console":
+        case "buy_trolling":
+          return await cmdBuyConsole(triggerInfo, args, logger);
         case "transfer":
-          return await cmdTransfer(triggerInfo, args, logger);
+        case "send_virtas":
+        case "sendvirtas":
+          return await cmdSendVirtas(triggerInfo, args, logger);
         case "daily":
           return await cmdDaily(triggerInfo, logger);
         case "weekly":
@@ -570,12 +574,13 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /start - начало
 /help - помощь
 /daily - ежедневный бонус
-/donate - купить виртуны за реальные ⭐ телеграма
-/virtas - вирты
+/donate - купить виртуны за реальные ⭐ телеграма (1⭐ = 1 вирт)
+/virtas - баланс виртов
+/transfer @юзер [сумма] - отправить виртов
+/buy_console - купить Троллинг Консоль (200 виртов/месяц)
 /rp - РП команды
-/buy_premium - купить премиум
 
-<b>🌟 ПРЕМИУМ КОМАНДЫ:</b>
+<b>🎭 ТРОЛЛИНГ КОНСОЛЬ (200 виртов/месяц):</b>
 /funny_text - смешной текст
 /kloun - клоун
 /unmuteall - размут
@@ -2253,4 +2258,45 @@ async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logge
   // Покупка виртов за реальные звёзды телеграма (1⭐ = 1 вирт)
   await sendTelegramMessage(chatId, `💸 Отправь ${starAmount} реальных ⭐ телеграма боту, чтобы получить ${starAmount} виртов!\n\n💳 Курс: 1 реальная ⭐ = 1 вирт\n\n(После отправки звёзд вирты появятся в твоём аккаунте)`);
   return { success: true, message: "Payment info sent" };
+}
+
+async function cmdBuyConsole(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const months = parseInt(args[0]) || 1;
+  const cost = 200 * months; // 200 виртов в месяц
+  
+  const virtas = await db.getUserVirtas(userId);
+  if (virtas < cost) {
+    await sendTelegramMessage(chatId, `❌ У тебя недостаточно виртов! Нужно ${cost}, а у тебя ${virtas.toLocaleString()}.`);
+    return { success: false, message: "Insufficient virtas" };
+  }
+  
+  await db.updateUserVirtas(userId, -cost);
+  await db.grantPremium(userId, months);
+  
+  await sendTelegramMessage(chatId, `🎭 ✅ Ты купил Троллинг Консоль на ${months} месяц(ев) за ${cost} виртов!\n\nТеперь доступны:\n/funny_text, /kloun, /unmuteall, /transform, /invisibility`);
+  return { success: true, message: "Console purchased" };
+}
+
+async function cmdSendVirtas(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const target = await getTargetUser(triggerInfo);
+  const amount = parseInt(args[0]) || 10;
+  
+  if (!target || amount <= 0) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя и сумму!");
+    return { success: false, message: "Invalid params" };
+  }
+  
+  const userVirtas = await db.getUserVirtas(userId);
+  if (userVirtas < amount) {
+    await sendTelegramMessage(chatId, `❌ У тебя недостаточно виртов! Нужно ${amount}, а у тебя ${userVirtas.toLocaleString()}.`);
+    return { success: false, message: "Insufficient virtas" };
+  }
+  
+  await db.updateUserVirtas(userId, -amount);
+  await db.updateUserVirtas(target.userId, amount);
+  
+  await sendTelegramMessage(chatId, `💸 Ты отправил ${amount} виртов пользователю <b>${target.firstName}</b>!`);
+  return { success: true, message: "Virtas sent" };
 }

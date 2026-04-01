@@ -1094,11 +1094,35 @@ async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function cmdTransform(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  if (!(await db.isPremium(userId))) return { success: false, message: "Prem req" };
+  if (!(await db.isPremium(userId))) {
+    await sendTelegramMessage(chatId, "❌ Эта команда требует Троллинг Консоль!");
+    return { success: false, message: "Not premium" };
+  }
   
-  const forms = ["Волк 🐺", "Дракон 🐉", "Призрак 👻", "Робот 🤖", "Демон 😈", "Ангел 😇", "Кот 🐱"];
-  const form = forms[Math.floor(Math.random() * forms.length)];
-  await sendTelegramMessage(chatId, `✨ Вы успешно превратились в образ: <b>${form}</b>!`);
+  const target = await getTargetUser(triggerInfo);
+  if (!target) {
+    await sendTelegramMessage(chatId, "❌ Укажите пользователя!");
+    return { success: false, message: "No target" };
+  }
+  
+  // Выбрать животное и его звук
+  const animals = [
+    { name: "🐱 Кот", sound: "мяу" },
+    { name: "🐶 Собака", sound: "гав" },
+    { name: "🐄 Корова", sound: "муу" },
+    { name: "🐑 Овца", sound: "бээ" },
+    { name: "🐔 Курица", sound: "кукареку" },
+    { name: "🦗 Сверчок", sound: "крр" },
+    { name: "🐸 Лягушка", sound: "кваа" },
+  ];
+  
+  const animal = animals[Math.floor(Math.random() * animals.length)];
+  
+  // Применить трансформацию на 1 час
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  await db.addTempRestriction(target.userId, chatId, 'transform', userId, expiresAt, JSON.stringify({ animalSound: animal.sound }));
+  
+  await sendTelegramMessage(chatId, `✨ <b>${target.firstName}</b> превратился в ${animal.name}!\n\nТеперь он должен начинать каждое сообщение со звука "${animal.sound}" 🔊`);
   return { success: true, message: "Transformed" };
 }
 
@@ -1182,6 +1206,26 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
       await db.addTempRestriction(userId, chatId, 'funny_text', userId, hasFunnyText.rows[0].expires_at, JSON.stringify(data));
     }
     return { success: true, message: "Funny text applied" };
+  }
+  
+  // Проверка трансформации - требует звука животного в начале
+  const hasTransform = await db.query(
+    "SELECT * FROM temp_restrictions WHERE user_id = $1 AND chat_id = $2 AND restriction_type = 'transform' AND expires_at > NOW()",
+    [userId, chatId]
+  );
+  
+  if (hasTransform.rows.length > 0) {
+    try {
+      const data = JSON.parse(hasTransform.rows[0].reason);
+      const requiredSound = data.animalSound.toLowerCase();
+      const firstWord = lowerText.split(" ")[0];
+      
+      if (!firstWord.includes(requiredSound)) {
+        await deleteMessage(chatId, messageId);
+        await sendTelegramMessage(chatId, `❌ <b>${triggerInfo.params.firstName}</b>! Нужно начинать сообщение со звука "${requiredSound}"! 🔊`);
+        return { success: true, message: "Transform sound required" };
+      }
+    } catch (e) {}
   }
   
   // Проверка черного списка - удалить сообщение если слово в списке

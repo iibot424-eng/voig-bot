@@ -145,6 +145,7 @@ export const handleBotCommand = createTool({
     
     await db.getOrCreateUser(userId, chatId, userName, firstName, lastName);
     await db.getOrCreateChat(chatId, triggerInfo.params.chatTitle, triggerInfo.params.chatType);
+    await db.initGameStatsTable().catch(() => {});
     
     // Обработка успешного платежа
     if (successful_payment) {
@@ -293,6 +294,11 @@ export const handleBotCommand = createTool({
         case "fish":
         case "рыбалка":
           return await cmdFish(triggerInfo, args, logger);
+        case "field":
+        case "поле":
+        case "field_of_wonders":
+        case "поле_чудес":
+          return await cmdFieldOfWonders(triggerInfo, args, logger);
         case "duel":
         case "дуэль":
           return await cmdDuel(triggerInfo, logger);
@@ -597,6 +603,7 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 /casino - казино
 /slots - слоты
 /fish - рыбалка
+/поле_чудес - угадай слово (рейтинг)
 /duel - дуэль
 /coin - монета
 /profile - профиль
@@ -1148,9 +1155,7 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
     const amountMap: { [key: string]: number } = {
       "buy_50": 50,
       "buy_100": 100,
-      "buy_250": 250,
-      "buy_500": 500,
-      "buy_1000": 1000
+      "buy_500": 500
     };
     
     const starAmount = amountMap[callbackData];
@@ -1197,6 +1202,12 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId, message, hasMedia, mediaType, messageId } = triggerInfo.params;
   
   if (!message) return { success: true, message: "No text" };
+  
+  // Проверяем игру "Поле чудес"
+  const fieldResult = await processFieldGuess(triggerInfo, logger);
+  if (fieldResult?.guessed || fieldResult?.wrong || fieldResult?.processed) {
+    return fieldResult;
+  }
   
   const lowerText = message.toLowerCase().trim();
   
@@ -2337,24 +2348,19 @@ async function cmdAnnounce(triggerInfo: TriggerInfoTelegram, args: string[], isO
 async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
   
-  // Отправить клавиатуру с вариантами покупки
   const keyboard = {
     inline_keyboard: [
       [
-        { text: "⭐ 50 звёзд = 50 виртов", callback_data: "buy_50" },
-        { text: "⭐ 100 звёзд = 100 виртов", callback_data: "buy_100" }
+        { text: "50 виртов за 50 ⭐", callback_data: "buy_50" },
+        { text: "100 виртов за 100 ⭐", callback_data: "buy_100" }
       ],
       [
-        { text: "⭐ 250 звёзд = 250 виртов", callback_data: "buy_250" },
-        { text: "⭐ 500 звёзд = 500 виртов", callback_data: "buy_500" }
-      ],
-      [
-        { text: "⭐ 1000 звёзд = 1000 виртов", callback_data: "buy_1000" }
+        { text: "500 виртов за 500 ⭐", callback_data: "buy_500" }
       ]
     ]
   };
   
-  await sendTelegramMessage(chatId, `💳 <b>Выбери количество виртов для покупки:</b>\n\n💫 Курс: 1 реальная ⭐ телеграма = 1 вирт\n\nНажми кнопку ниже:`, keyboard);
+  await sendTelegramMessage(chatId, "💳 Выбери пакет:", keyboard);
   return { success: true, message: "Payment options sent" };
 }
 
@@ -2437,4 +2443,159 @@ export async function handleSuccessfulPayment(triggerInfo: TriggerInfoTelegram, 
     await sendTelegramMessage(chatId, "❌ Ошибка при добавлении виртов. Обратитесь в поддержку.");
     return { success: false, message: "Processing error" };
   }
+}
+
+// Поле чудес - угадай слово
+const fieldWords = [
+  "программист", "компьютер", "интернет", "телеграм", "разработка",
+  "приложение", "функция", "переменная", "алгоритм", "данные",
+  "сервер", "база", "клиент", "сеть", "протокол",
+  "код", "ошибка", "отладка", "тестирование", "документация",
+  "котенок", "щенок", "слоненок", "львенок", "медвежонок",
+  "солнце", "луна", "звезда", "облако", "ветер",
+  "горы", "реки", "озера", "лес", "море"
+];
+
+const gameStates = new Map<string, {
+  word: string;
+  guessed: Set<string>;
+  wrongGuesses: Set<string>;
+  attempts: number;
+  startTime: number;
+  participants: Set<number>;
+}>();
+
+async function cmdFieldOfWonders(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const gameId = `${chatId}_field`;
+  
+  // Если уже идёт игра
+  if (gameStates.has(gameId)) {
+    await sendTelegramMessage(chatId, "⚠️ В этом чате уже идёт игра \"Поле чудес\"! Дождись окончания.");
+    return { success: false, message: "Game already in progress" };
+  }
+  
+  // Выбираем слово
+  const word = fieldWords[Math.floor(Math.random() * fieldWords.length)].toUpperCase();
+  const gameState = {
+    word,
+    guessed: new Set<string>(),
+    wrongGuesses: new Set<string>(),
+    attempts: 0,
+    startTime: Date.now(),
+    participants: new Set([userId])
+  };
+  
+  gameStates.set(gameId, gameState);
+  
+  // Показываем поле
+  const display = word
+    .split("")
+    .map(letter => gameState.guessed.has(letter) ? letter : "█")
+    .join(" ");
+  
+  await sendTelegramMessage(chatId, `🎮 <b>Поле чудес!</b>\n\n${display}\n\nЭто слово из ${word.length} букв. У вас 3 минуты!\n\nПишите буквы или само слово.`);
+  
+  // Таймер 3 минуты
+  setTimeout(async () => {
+    if (gameStates.has(gameId)) {
+      const state = gameStates.get(gameId)!;
+      gameStates.delete(gameId);
+      
+      await sendTelegramMessage(chatId, `⏰ Время вышло! Слово было: <b>${word}</b>`);
+      
+      // Сохраняем статистику
+      for (const participantId of state.participants) {
+        await db.query(
+          `INSERT INTO game_stats (user_id, chat_id, game_type, won) 
+           VALUES ($1, $2, 'field_of_wonders', false)
+           ON CONFLICT (user_id, chat_id, game_type) 
+           DO UPDATE SET attempts = game_stats.attempts + 1`,
+          [participantId, chatId]
+        );
+      }
+    }
+  }, 3 * 60 * 1000);
+  
+  return { success: true, message: "Game started" };
+}
+
+// Обработка сообщений во время игры
+async function processFieldGuess(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId, message } = triggerInfo.params;
+  const gameId = `${chatId}_field`;
+  
+  if (!gameStates.has(gameId) || !message) return null;
+  
+  const gameState = gameStates.get(gameId)!;
+  const input = message.trim().toUpperCase();
+  
+  // Проверка целого слова
+  if (input.length > 1) {
+    if (input === gameState.word) {
+      gameStates.delete(gameId);
+      
+      await db.query(
+        `INSERT INTO game_stats (user_id, chat_id, game_type, won) 
+         VALUES ($1, $2, 'field_of_wonders', true)
+         ON CONFLICT (user_id, chat_id, game_type) 
+         DO UPDATE SET won = game_stats.won + 1`,
+        [userId, chatId]
+      );
+      
+      await sendTelegramMessage(chatId, `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 Ты чемпион!`);
+      return { guessed: true };
+    } else {
+      await sendTelegramMessage(chatId, `❌ Неверное слово!`);
+      return { wrong: true };
+    }
+  }
+  
+  // Проверка букв
+  const letter = input;
+  if (letter.length !== 1 || gameState.guessed.has(letter) || gameState.wrongGuesses.has(letter)) {
+    return null;
+  }
+  
+  if (gameState.word.includes(letter)) {
+    gameState.guessed.add(letter);
+    gameState.participants.add(userId);
+    
+    // Проверяем, угадано ли целое слово
+    const isWon = gameState.word.split("").every(l => gameState.guessed.has(l));
+    
+    const display = gameState.word
+      .split("")
+      .map(l => gameState.guessed.has(l) ? l : "█")
+      .join(" ");
+    
+    if (isWon) {
+      gameStates.delete(gameId);
+      
+      await db.query(
+        `INSERT INTO game_stats (user_id, chat_id, game_type, won) 
+         VALUES ($1, $2, 'field_of_wonders', true)
+         ON CONFLICT (user_id, chat_id, game_type) 
+         DO UPDATE SET won = game_stats.won + 1`,
+        [userId, chatId]
+      );
+      
+      await sendTelegramMessage(chatId, `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 Ты чемпион!`);
+      return { guessed: true };
+    }
+    
+    await sendTelegramMessage(chatId, `✅ Верно! ${display}\n\n${gameState.wrongGuesses.size > 0 ? `❌ Неверные: ${Array.from(gameState.wrongGuesses).join(", ")}` : ""}`);
+  } else {
+    gameState.wrongGuesses.add(letter);
+    gameState.participants.add(userId);
+    
+    const display = gameState.word
+      .split("")
+      .map(l => gameState.guessed.has(l) ? l : "█")
+      .join(" ");
+    
+    await sendTelegramMessage(chatId, `❌ Буквы ${letter} нет. ${display}\n\n❌ Неверные: ${Array.from(gameState.wrongGuesses).join(", ")}`);
+  }
+  
+  return { processed: true };
 }

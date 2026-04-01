@@ -587,3 +587,43 @@ export async function buyVirtas(userId: number, starsAmount: number): Promise<{ 
   
   return { success: true, message: `✅ Вы купили ${virtasAmount} виртов за ${starsAmount} ⭐!` };
 }
+
+export async function initGameStatsTable() {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS game_stats (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        chat_id BIGINT NOT NULL,
+        game_type VARCHAR(50) NOT NULL,
+        won INT DEFAULT 0,
+        attempts INT DEFAULT 1,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, chat_id, game_type)
+      )
+    `);
+    console.log("✅ game_stats table initialized");
+  } catch (e) {
+    console.log("⚠️ game_stats table already exists or error:", e);
+  }
+}
+
+export async function getGameStats(userId: number, chatId: number, gameType: string) {
+  const result = await query(
+    `SELECT * FROM game_stats WHERE user_id = $1 AND chat_id = $2 AND game_type = $3`,
+    [userId, chatId, gameType]
+  );
+  return result.rows[0];
+}
+
+export async function getGameLeaderboard(chatId: number, gameType: string, limit = 10) {
+  const result = await query(
+    `SELECT user_id, won, attempts, (won::float / NULLIF(attempts, 0)) as winrate
+     FROM game_stats 
+     WHERE chat_id = $1 AND game_type = $2 
+     ORDER BY won DESC, winrate DESC 
+     LIMIT $3`,
+    [chatId, gameType, limit]
+  );
+  return result.rows;
+}

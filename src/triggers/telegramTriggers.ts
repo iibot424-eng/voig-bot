@@ -352,6 +352,32 @@ function parseMessage(payload: any): TriggerInfoTelegram {
   const message: TelegramMessage = payload.message || payload.edited_message;
   const callbackQuery: TelegramCallbackQuery = payload.callback_query;
   
+  // Обработка успешного платежа
+  if (message?.successful_payment) {
+    return {
+      type: "telegram/payment",
+      params: {
+        userId: message.from?.id || 0,
+        chatId: message.chat.id,
+        userName: message.from?.username || "",
+        firstName: message.from?.first_name || "",
+        lastName: message.from?.last_name,
+        message: "",
+        messageId: message.message_id,
+        isCommand: false,
+        isCallback: false,
+        hasMedia: false,
+        isForwarded: false,
+        hasLinks: false,
+        mentionedUsers: [],
+        chatType: message.chat.type || "private",
+        chatTitle: message.chat.title,
+        successful_payment: message.successful_payment,
+      },
+      payload,
+    };
+  }
+  
   if (callbackQuery) {
     const cbMessage = callbackQuery.message;
     return {

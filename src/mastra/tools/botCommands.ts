@@ -139,12 +139,17 @@ export const handleBotCommand = createTool({
   execute: async ({ triggerInfo, mastra }: { triggerInfo: TriggerInfoTelegram; mastra?: any }) => {
     const logger = mastra?.getLogger();
     
-    const { chatId, userId, userName, firstName, lastName, command, commandArgs, isCallback, callbackData, callbackId } = triggerInfo.params;
+    const { chatId, userId, userName, firstName, lastName, command, commandArgs, isCallback, callbackData, callbackId, successful_payment } = triggerInfo.params;
     
-    logger?.info("🤖 [BotCommand] Processing", { command, userId, chatId, isCallback, callbackData });
+    logger?.info("🤖 [BotCommand] Processing", { command, userId, chatId, isCallback, callbackData, hasPayment: !!successful_payment });
     
     await db.getOrCreateUser(userId, chatId, userName, firstName, lastName);
     await db.getOrCreateChat(chatId, triggerInfo.params.chatTitle, triggerInfo.params.chatType);
+    
+    // Обработка успешного платежа
+    if (successful_payment) {
+      return await handleSuccessfulPayment(triggerInfo, logger);
+    }
     
     if (isCallback && callbackId) {
       return await handleCallback(triggerInfo, logger);
@@ -1138,7 +1143,44 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
     return await cmdBuyPremium(triggerInfo, logger);
   }
   
-  // Virtas purchase callbacks
+  // Покупка виртов через Telegram Stars (1 звезда = 1 вирт)
+  if (callbackData?.startsWith("buy_")) {
+    const amountMap: { [key: string]: number } = {
+      "buy_50": 50,
+      "buy_100": 100,
+      "buy_250": 250,
+      "buy_500": 500,
+      "buy_1000": 1000
+    };
+    
+    const starAmount = amountMap[callbackData];
+    if (!starAmount) {
+      await answerCallback(callbackId, "Неверное значение");
+      return { success: false, message: "Invalid amount" };
+    }
+    
+    // Отправить инвойс через Telegram Payments
+    // Используем встроенную систему звёзд телеграма (XTR)
+    try {
+      await sendInvoice(chatId, {
+        title: `Покупка ${starAmount} виртов`,
+        description: `${starAmount} виртов = ${starAmount} реальных ⭐ телеграма\n\nКурс: 1⭐ = 1 вирт`,
+        payload: `virtas_${starAmount}`,
+        provider_token: "381763275:TEST:ZGVmYXVsdA==", // Тестовый токен
+        start_parameter: `virtas_${starAmount}`,
+        currency: "XTR", // Telegram Stars
+        prices: [{ label: `${starAmount} виртов`, amount: starAmount }]
+      });
+      await answerCallback(callbackId, "Платёж открыт!");
+    } catch (e) {
+      logger?.error("Failed to send invoice", e);
+      await answerCallback(callbackId, "Ошибка платежа");
+      await sendTelegramMessage(chatId, "❌ Ошибка при открытии платежа. Попробуй позже.");
+    }
+    return { success: true, message: "Invoice sent" };
+  }
+  
+  // Старые callbacks
   if (callbackData?.startsWith("buy_virtas_")) {
     const amount = parseInt(callbackData.split("_")[2]);
     const res = await db.buyVirtas(userId, amount);
@@ -2294,11 +2336,26 @@ async function cmdAnnounce(triggerInfo: TriggerInfoTelegram, args: string[], isO
 
 async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
   const { chatId, userId } = triggerInfo.params;
-  const starAmount = parseInt(args[0]) || 10;
   
-  // Покупка виртов за реальные звёзды телеграма (1⭐ = 1 вирт)
-  await sendTelegramMessage(chatId, `💸 Отправь ${starAmount} реальных ⭐ телеграма боту, чтобы получить ${starAmount} виртов!\n\n💳 Курс: 1 реальная ⭐ = 1 вирт\n\n(После отправки звёзд вирты появятся в твоём аккаунте)`);
-  return { success: true, message: "Payment info sent" };
+  // Отправить клавиатуру с вариантами покупки
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: "⭐ 50 звёзд = 50 виртов", callback_data: "buy_50" },
+        { text: "⭐ 100 звёзд = 100 виртов", callback_data: "buy_100" }
+      ],
+      [
+        { text: "⭐ 250 звёзд = 250 виртов", callback_data: "buy_250" },
+        { text: "⭐ 500 звёзд = 500 виртов", callback_data: "buy_500" }
+      ],
+      [
+        { text: "⭐ 1000 звёзд = 1000 виртов", callback_data: "buy_1000" }
+      ]
+    ]
+  };
+  
+  await sendTelegramMessage(chatId, `💳 <b>Выбери количество виртов для покупки:</b>\n\n💫 Курс: 1 реальная ⭐ телеграма = 1 вирт\n\nНажми кнопку ниже:`, keyboard);
+  return { success: true, message: "Payment options sent" };
 }
 
 async function cmdBuyConsole(triggerInfo: TriggerInfoTelegram, args: string[], logger: any) {
@@ -2340,4 +2397,44 @@ async function cmdSendVirtas(triggerInfo: TriggerInfoTelegram, args: string[], l
   
   await sendTelegramMessage(chatId, `💸 Ты отправил ${amount} виртов пользователю <b>${target.firstName}</b>!`);
   return { success: true, message: "Virtas sent" };
+}
+
+// Обработка успешного платежа
+export async function handleSuccessfulPayment(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const payment = triggerInfo.params.successful_payment;
+  
+  if (!payment) return { success: false, message: "No payment data" };
+  
+  logger?.info("💰 [Payment] Successful payment received", { 
+    userId, 
+    chatId, 
+    payload: payment.invoice_payload,
+    amount: payment.total_amount
+  });
+  
+  // Парсируем payload: virtas_50, virtas_100 и т.д.
+  const match = payment.invoice_payload?.match(/virtas_(\d+)/);
+  if (!match) {
+    await sendTelegramMessage(chatId, "❌ Ошибка обработки платежа: неизвестный тип товара.");
+    return { success: false, message: "Unknown payload" };
+  }
+  
+  const virtasAmount = parseInt(match[1]);
+  
+  try {
+    // Добавляем виртовы пользователю
+    await db.updateUserVirtas(userId, virtasAmount);
+    
+    logger?.info("✅ [Payment] Virtas added", { userId, virtasAmount });
+    
+    // Отправляем уведомление
+    await sendTelegramMessage(chatId, `✅ <b>Платёж успешно принят!</b>\n\n💫 Ты получил <b>${virtasAmount} виртов</b>\n\nТвой новый баланс: ${await db.getUserVirtas(userId)} виртов`);
+    
+    return { success: true, message: "Payment processed" };
+  } catch (e) {
+    logger?.error("❌ [Payment] Failed to process payment", e);
+    await sendTelegramMessage(chatId, "❌ Ошибка при добавлении виртов. Обратитесь в поддержку.");
+    return { success: false, message: "Processing error" };
+  }
 }

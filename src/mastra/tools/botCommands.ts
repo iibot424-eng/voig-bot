@@ -1233,6 +1233,48 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
     } catch (e) {}
   }
   
+  // Проверка ссылок
+  const settings = await db.getChatSettings(chatId);
+  if (settings?.links_filter && triggerInfo.params.hasLinks) {
+    const isUserAdmin = await isAdmin(chatId, userId);
+    if (!isUserAdmin) {
+      await deleteMessage(chatId, messageId);
+      await sendTelegramMessage(chatId, `🔗 <b>${triggerInfo.params.firstName}</b>! Ссылки запрещены в этом чате!`);
+      return { success: true, message: "Link detected and deleted" };
+    }
+  }
+  
+  // Проверка капса
+  if (settings?.caps_filter && message.length > 5) {
+    const capsCount = (message.match(/[A-ZА-Я]/g) || []).length;
+    const capsPercentage = (capsCount / message.length) * 100;
+    if (capsPercentage > 70) { // Более 70% заглавных букв
+      const isUserAdmin = await isAdmin(chatId, userId);
+      if (!isUserAdmin) {
+        await deleteMessage(chatId, messageId);
+        await sendTelegramMessage(chatId, `📢 <b>${triggerInfo.params.firstName}</b>! Слишком много ЗАГЛАВНЫХ букв!`);
+        return { success: true, message: "Caps detected and deleted" };
+      }
+    }
+  }
+  
+  // Проверка флуда (контроль спама по количеству сообщений)
+  if (settings?.flood_control) {
+    const recentMessages = await db.query(
+      "SELECT COUNT(*) as count FROM message_stats WHERE user_id = $1 AND chat_id = $2 AND timestamp > NOW() - INTERVAL '10 seconds'",
+      [userId, chatId]
+    );
+    const messageCount = recentMessages.rows[0]?.count || 0;
+    if (messageCount > 5) { // Более 5 сообщений за 10 секунд
+      const isUserAdmin = await isAdmin(chatId, userId);
+      if (!isUserAdmin) {
+        await deleteMessage(chatId, messageId);
+        await sendTelegramMessage(chatId, `⚠️ <b>${triggerInfo.params.firstName}</b>! Не спам! 🤐`);
+        return { success: true, message: "Flood detected" };
+      }
+    }
+  }
+  
   // Проверка черного списка - удалить сообщение если слово в списке
   const blacklistWords = await db.getBlacklistWords(chatId);
   const messageWords = message.toLowerCase().split(/\s+/);
@@ -1249,7 +1291,6 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   
   // Media restriction check
   if (hasMedia && mediaType) {
-    const settings = await db.getChatSettings(chatId);
     let allowed = true;
     
     if (mediaType === "photo" && settings?.photo_allowed === false) allowed = false;

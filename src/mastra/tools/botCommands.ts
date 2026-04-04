@@ -265,12 +265,15 @@ export const handleBotCommand = createTool({
         case "профиль":
           return await cmdProfile(triggerInfo, logger);
         case "balance":
+          return await cmdBalance(triggerInfo, logger);
         case "rating":
           return await cmdRating(triggerInfo, logger);
+        case "global_rating":
+        case "грейтинг":
+          return await cmdGlobalRating(triggerInfo, logger);
         case "sessions":
         case "users":
           return isOwnerUser ? await cmdSessions(triggerInfo, logger) : await sendTelegramMessage(chatId, "❌ Только владелец!");
-          return await cmdBalance(triggerInfo, logger);
         case "id":
           return await cmdId(triggerInfo, logger);
         case "info":
@@ -620,7 +623,8 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 /id - ID
 /info @юзер - инфо юзера
 /stats - статистика
-/rating - рейтинг Поля чудес`;
+/rating - твой рейтинг Поля чудес
+/global_rating - топ 10 в Поле чудес 🏆`;
         break;
       case "rp":
         text = `🎬 РП-КОМАНДЫ (пиши БЕЗ слеша):
@@ -1684,6 +1688,33 @@ async function cmdRating(triggerInfo: TriggerInfoTelegram, logger: any) {
   const rating = stats.won;
   await sendTelegramMessage(chatId, `📊 Твой рейтинг: <b>${rating}</b>\n📈 Попыток: ${stats.attempts}`);
   return { success: true, message: "Rating shown" };
+}
+
+async function cmdGlobalRating(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId } = triggerInfo.params;
+  try {
+    const topPlayers = await db.getGlobalFieldRating(10);
+    
+    if (topPlayers.length === 0) {
+      await sendTelegramMessage(chatId, "📊 В Поле чудес пока никто не играл 😅");
+      return { success: true, message: "No players yet" };
+    }
+    
+    let msg = "🏆 <b>ГЛОБАЛЬНЫЙ РЕЙТИНГ - Поле чудес</b>\n\n";
+    topPlayers.forEach((player, idx) => {
+      const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`;
+      const name = player.first_name || `Юзер #${player.user_id}`;
+      msg += `${medal} <b>${name}</b> - ${player.total_rating} 🏆\n`;
+    });
+    
+    await sendTelegramMessage(chatId, msg);
+    logger?.info("🏆 [GlobalRating] Shown", { topPlayers: topPlayers.length });
+    return { success: true, message: "Global rating shown" };
+  } catch (err) {
+    logger?.error("🏆 [GlobalRating] Error:", err);
+    await sendTelegramMessage(chatId, `❌ Ошибка при получении рейтинга: ${err}`);
+    return { success: false, message: String(err) };
+  }
 }
 
 async function cmdSessions(triggerInfo: TriggerInfoTelegram, logger: any) {

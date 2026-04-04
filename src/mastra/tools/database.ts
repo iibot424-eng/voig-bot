@@ -663,3 +663,17 @@ export async function shouldSendAwakeMessage(chatId: number): Promise<boolean> {
     return false;
   }
 }
+
+export async function getGlobalFieldRating(limit = 10) {
+  const result = await query(
+    `SELECT gs.user_id, bu.first_name, SUM(gs.won) as total_rating
+     FROM game_stats gs
+     JOIN bot_users bu ON gs.user_id = bu.user_id
+     WHERE gs.game_type = 'field_of_wonders'
+     GROUP BY gs.user_id, bu.first_name
+     ORDER BY total_rating DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}

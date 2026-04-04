@@ -1220,36 +1220,94 @@ async function cmdClean(triggerInfo: TriggerInfoTelegram, args: string[], isUser
 
 async function cmdAntispam(triggerInfo: TriggerInfoTelegram, args: string[], isUserAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isUserAdmin) return { success: false, message: "Not admin" };
-  await sendTelegramMessage(chatId, `🛡️ Антиспам ${args[0] !== "off" ? "включен" : "выключен"}!`);
-  return { success: true, message: "Antispam toggled" };
+  logger?.info("⚠️ [Antispam] Command called", { chatId, isUserAdmin });
+  
+  if (!isUserAdmin) {
+    await sendTelegramMessage(chatId, "❌ Только админ!");
+    return { success: false, message: "Not admin" };
+  }
+  
+  try {
+    const enable = args[0] !== "off";
+    await db.updateChatSettings(chatId, { antispam: enable });
+    await sendTelegramMessage(chatId, `⚙️ Антиспам ${enable ? "✅ включен" : "❌ выключен"}!`);
+    logger?.info("⚠️ [Antispam] Success");
+    return { success: true, message: "Antispam toggled" };
+  } catch (err) {
+    logger?.error("⚠️ [Antispam] Error:", err);
+    await sendTelegramMessage(chatId, `❌ Ошибка: ${err}`);
+    return { success: false, message: String(err) };
+  }
 }
 
 async function cmdFlood(triggerInfo: TriggerInfoTelegram, args: string[], isUserAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isUserAdmin) return { success: false, message: "Not admin" };
-  const enable = args[0] !== "off";
-  await db.updateChatSettings(chatId, { flood_control: enable });
-  await sendTelegramMessage(chatId, `⚙️ Контроль флуда ${enable ? "включен" : "выключен"}.`);
-  return { success: true, message: "Flood toggled" };
+  logger?.info("⛔ [Flood] Command called", { chatId, isUserAdmin });
+  
+  if (!isUserAdmin) {
+    await sendTelegramMessage(chatId, "❌ Только админ!");
+    return { success: false, message: "Not admin" };
+  }
+  
+  try {
+    const enable = args[0] !== "off";
+    await db.updateChatSettings(chatId, { flood_control: enable });
+    await sendTelegramMessage(chatId, `⚙️ Контроль флуда ${enable ? "✅ включен" : "❌ выключен"}.`);
+    logger?.info("⛔ [Flood] Success");
+    return { success: true, message: "Flood toggled" };
+  } catch (err) {
+    logger?.error("⛔ [Flood] Error:", err);
+    await sendTelegramMessage(chatId, `❌ Ошибка: ${err}`);
+    return { success: false, message: String(err) };
+  }
 }
 
 async function cmdCaps(triggerInfo: TriggerInfoTelegram, args: string[], isUserAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isUserAdmin) return { success: false, message: "Not admin" };
-  const enable = args[0] !== "off";
-  await db.updateChatSettings(chatId, { caps_filter: enable });
-  await sendTelegramMessage(chatId, `⚙️ Фильтр капса ${enable ? "включен" : "выключен"}.`);
-  return { success: true, message: "Caps toggled" };
+  logger?.info("🔤 [Caps] Command called", { chatId, isUserAdmin });
+  
+  if (!isUserAdmin) {
+    await sendTelegramMessage(chatId, "❌ Только админ!");
+    return { success: false, message: "Not admin" };
+  }
+  
+  try {
+    const enable = args[0] !== "off";
+    await db.updateChatSettings(chatId, { caps_filter: enable });
+    await sendTelegramMessage(chatId, `⚙️ Фильтр капса ${enable ? "✅ включен" : "❌ выключен"}.`);
+    logger?.info("🔤 [Caps] Success");
+    return { success: true, message: "Caps toggled" };
+  } catch (err) {
+    logger?.error("🔤 [Caps] Error:", err);
+    await sendTelegramMessage(chatId, `❌ Ошибка: ${err}`);
+    return { success: false, message: String(err) };
+  }
 }
 
 async function cmdLinks(triggerInfo: TriggerInfoTelegram, args: string[], isUserAdmin: boolean, logger: any) {
   const { chatId } = triggerInfo.params;
-  if (!isUserAdmin) return { success: false, message: "Not admin" };
+  logger?.info("🔗 [Links] Command called", { chatId, args, isUserAdmin });
+  
+  if (!isUserAdmin) {
+    logger?.warn("🔗 [Links] User not admin");
+    await sendTelegramMessage(chatId, "❌ Только админ!");
+    return { success: false, message: "Not admin" };
+  }
+  
   const enable = args[0] !== "off";
-  await db.updateChatSettings(chatId, { links_filter: enable });
-  await sendTelegramMessage(chatId, `⚙️ Фильтр ссылок ${enable ? "включен" : "выключен"}.`);
-  return { success: true, message: "Links toggled" };
+  logger?.info("🔗 [Links] Updating settings", { chatId, enable });
+  
+  try {
+    await db.updateChatSettings(chatId, { links_filter: enable });
+    const msg = `⚙️ Фильтр ссылок ${enable ? "✅ включен" : "❌ выключен"}.`;
+    await sendTelegramMessage(chatId, msg);
+    logger?.info("🔗 [Links] Success");
+    return { success: true, message: "Links toggled" };
+  } catch (err) {
+    logger?.error("🔗 [Links] Error:", err);
+    await sendTelegramMessage(chatId, `❌ Ошибка: ${err}`);
+    return { success: false, message: String(err) };
+  }
 }
 
 async function cmdBlacklist(triggerInfo: TriggerInfoTelegram, args: string[], isUserAdmin: boolean, logger: any) {

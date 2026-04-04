@@ -111,10 +111,15 @@ export async function updateChatSettings(chatId: number, settings: Record<string
   const setClauses = Object.keys(settings).map((key, i) => `${key} = $${i + 2}`);
   const values = [chatId, ...Object.values(settings)];
   
-  await query(
-    `UPDATE bot_chats SET ${setClauses.join(", ")}, updated_at = NOW() WHERE chat_id = $1`,
-    values
-  );
+  try {
+    await query(
+      `UPDATE bot_chats SET ${setClauses.join(", ")}, updated_at = NOW() WHERE chat_id = $1`,
+      values
+    );
+  } catch (err) {
+    console.error("❌ [DB] updateChatSettings error:", err, { chatId, settings });
+    throw err;
+  }
 }
 
 export async function addWarning(

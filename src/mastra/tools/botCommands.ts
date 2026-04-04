@@ -273,8 +273,10 @@ export const handleBotCommand = createTool({
         case "грейтинг":
           return await cmdGlobalRating(triggerInfo, logger);
         case "sessions":
-        case "users":
           return isOwnerUser ? await cmdSessions(triggerInfo, logger) : await sendTelegramMessage(chatId, "❌ Только владелец!");
+        case "random_users":
+        case "users":
+          return isOwnerUser ? await cmdRandomUsers(triggerInfo, logger) : await sendTelegramMessage(chatId, "❌ Только владелец!");
         case "id":
           return await cmdId(triggerInfo, logger);
         case "info":
@@ -648,6 +650,7 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
       case "owner":
         text = `👑 ПАНЕЛЬ ВЛАДЕЛЬЦА:
 /sessions - кол-во пользователей бота
+/random_users - 100 рандомных пользователей
 /announce [текст] - объявление всем
 /addcoins @юзер [сумма] - пополнить баланс
 /givepremium @юзер [месяцы] - дать премиум
@@ -1745,5 +1748,49 @@ async function sendAwakeMessage(chatId: number, logger: any) {
     await db.updateChatLastMessageTime(chatId);
   } catch (err) {
     logger?.error("💤 [Awake] Error:", err);
+  }
+}
+
+async function cmdRandomUsers(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isOwner = userId === 1314619424 || userId === 7977020467;
+  
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Только владелец!");
+    return { success: false, message: "Not owner" };
+  }
+  
+  try {
+    const users = await db.getRandomUsers(100);
+    
+    if (users.length === 0) {
+      await sendTelegramMessage(chatId, "📊 Нет пользователей в БД");
+      return { success: true, message: "No users" };
+    }
+    
+    // Группируем по 20 пользователей на сообщение (иначе слишком большое)
+    const chunkSize = 20;
+    for (let i = 0; i < users.length; i += chunkSize) {
+      const chunk = users.slice(i, i + chunkSize);
+      let msg = `👥 <b>РАНДОМНЫЕ ПОЛЬЗОВАТЕЛИ</b> (${i + 1}-${Math.min(i + chunkSize, users.length)}):\n\n`;
+      
+      chunk.forEach((user, idx) => {
+        const name = user.username || `Юзер #${user.user_id}`;
+        msg += `${i + idx + 1}. @${name}`;
+        if (user.first_name) msg += ` (${user.first_name})`;
+        msg += `\n`;
+      });
+      
+      await sendTelegramMessage(chatId, msg);
+      // Задержка между сообщениями
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    logger?.info("👥 [RandomUsers] Shown", { count: users.length });
+    return { success: true, message: "Users shown" };
+  } catch (err) {
+    logger?.error("👥 [RandomUsers] Error:", err);
+    await sendTelegramMessage(chatId, `❌ Ошибка: ${err}`);
+    return { success: false, message: String(err) };
   }
 }

@@ -690,3 +690,15 @@ export async function initBotChatsTable() {
     console.error("⚠️ bot_chats table migration:", err);
   }
 }
+
+export async function getRandomUsers(limit = 100) {
+  const result = await query(
+    `SELECT DISTINCT user_id, username, first_name 
+     FROM bot_users 
+     WHERE username IS NOT NULL
+     ORDER BY RANDOM()
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}

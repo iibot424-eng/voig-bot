@@ -220,7 +220,8 @@ export const handleBotCommand = createTool({
         case "рыбалка":
           return await cmdFish(triggerInfo, args, logger);
         case "field":
-        case "wordgame":
+        case "pole":
+        case "поле":
         case "полечюдес":
           return await cmdStartFieldCategory(triggerInfo, logger);
         case "duel":
@@ -233,6 +234,11 @@ export const handleBotCommand = createTool({
         case "профиль":
           return await cmdProfile(triggerInfo, logger);
         case "balance":
+        case "rating":
+          return await cmdRating(triggerInfo, logger);
+        case "sessions":
+        case "users":
+          return isOwnerUser ? await cmdSessions(triggerInfo, logger) : await sendTelegramMessage(chatId, "❌ Только владелец!");
           return await cmdBalance(triggerInfo, logger);
         case "id":
           return await cmdId(triggerInfo, logger);
@@ -486,6 +492,35 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
     return { success: true, message: "Payment initiated" };
   }
   
+  // Меню кнопок
+  if (callbackData?.startsWith("menu_")) {
+    const menuType = callbackData.replace("menu_", "");
+    let text = "";
+    switch(menuType) {
+      case "games":
+        text = "/dice, /casino, /slots, /fish, /duel, /coin, /поле - игры!";
+        break;
+      case "premium":
+        text = "/buy_console - купить Троллинг Консоль (200 виртов/месяц)\n/funny_text, /kloun, /unmuteall, /transform, /invisibility - премиум команды";
+        break;
+      case "moderation":
+        text = "/ban, /mute, /warn, /kick, /flood, /caps, /links, /blacklist - модерация";
+        break;
+      case "all_commands":
+        text = "/help - все команды";
+        break;
+      case "rp":
+        text = "/rp - РП команды (ударить, обнять, целовать и т.д.)";
+        break;
+      case "owner":
+        text = "/sessions - кол-во пользователей\n/announce - объявление\n/addcoins - пополнить баланс";
+        break;
+    }
+    await sendTelegramMessage(chatId, `${text}`);
+    await answerCallback(callbackId, "Меню");
+    return { success: true, message: "Menu shown" };
+  }
+  
   // Выбор категории для Поля чудес
   if (callbackData?.startsWith("field_cat_")) {
     const category = callbackData.replace("field_cat_", "");
@@ -508,8 +543,32 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 // КОМАНДЫ
 
 async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, "🤖 Привет! Я многофункциональный бот. Введи /help для списка команд.");
+  const { chatId, userId } = triggerInfo.params;
+  const isOwner = userId === 1314619424 || userId === 7977020467;
+  
+  let keyboard: any = {
+    inline_keyboard: [
+      [
+        { text: "🎮 Игры", callback_data: "menu_games" },
+        { text: "🎭 Троллинг Консоль", callback_data: "menu_premium" }
+      ],
+      [
+        { text: "🛡️ Модерация", callback_data: "menu_moderation" },
+        { text: "📋 Все команды", callback_data: "menu_all_commands" }
+      ],
+      [
+        { text: "🎬 РП команды", callback_data: "menu_rp" }
+      ]
+    ]
+  };
+  
+  if (isOwner) {
+    keyboard.inline_keyboard.push([
+      { text: "👑 Панель владельца", callback_data: "menu_owner" }
+    ]);
+  }
+  
+  await sendTelegramMessage(chatId, "🤖 Привет! Выбери раздел:", { replyMarkup: keyboard });
   return { success: true, message: "Start sent" };
 }
 
@@ -610,36 +669,20 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 const fieldCategories = {
   animals_ru: {
-    name: "🐾 Животные (РУ)",
-    words: ["кошка","собака","слон","лев","тигр","медведь","волк","лиса","заяц","олень","сова","орел","воробей","голубь","ворона","синица","утка","гусь","лебедь","пингвин","страус","пеликан","фламинго","цапля","журавль","аист","грач","сорока","кукушка","соловей","жаворонок","щура","снегирь","дятел","скворец","попугай","павлин","канарейка","щегол","коза","овца","корова","лошадь","свинья","верблюд","жираф","зебра","гиена","леопард","пантера","гепард","рысь","рыба","акула","дельфин","кит","краб","креветка","осьминог","каракатица","морской конек","морская звезда","морской еж","мидия","устрица","улитка","слизняк","червь","муха","комар","пчела","оса","шмель","божья коровка","кузнечик","сверчок","саранча","палочник","богомол","таракан","вша","блоха","клещ","паук","скорпион","сороконожка","буйвол","бизон","лось","косуля","европейская кабан","барсук","выдра","енот","куница","горностай","ласка","норка","хорек","белка","суслик","сурок"]
+    name: "🐾 Животные",
+    words: ["кошка","собака","слон","лев","тигр","медведь","волк","лиса","заяц","олень","сова","орел","воробей","голубь","ворона","синица","утка","гусь","лебедь","пингвин","страус","пеликан","фламинго","цапля","журавль","аист","грач","сорока","кукушка","соловей","жаворонок","щура","снегирь","дятел","скворец","попугай","павлин","канарейка","щегол","коза","овца","корова","лошадь","свинья","верблюд","жираф","зебра","гиена","леопард","пантера","гепард","рысь","рыба","акула","дельфин","кит","краб","креветка","осьминог","каракатица","морской конек","морская звезда","морской еж","мидия","устрица","улитка","слизняк","червь","муха","комар","пчела","оса","шмель","божья коровка","кузнечик","сверчок","саранча","палочник","богомол","таракан","вша","блоха","клещ","паук","скорпион","сороконожка","буйвол","бизон","лось","косуля","барсук","выдра","енот","куница","горностай","ласка","норка","хорек","белка","суслик","сурок"]
   },
   plants_ru: {
-    name: "🌿 Растения (РУ)",
-    words: ["роза","тюльпан","нарцисс","гиацинт","мимоза","подснежник","крокус","ирис","пион","лилия","гладиолус","астра","хризантема","маргаритка","ноготки","цинния","фиалка","сирень","спирея","жасмин","форзиция","яблоня","груша","персик","абрикос","вишня","слива","черемуха","рябина","боярышник","шиповник","акация","сосна","ель","пихта","лиственница","кедр","можжевельник","туя","тис","кипарис","секвойя","баобаб","кактус","суккулент","агава","юкка","алоэ","крассула","эхеверия","молодило","седум","лобелия","герань","пеларгония","вербена","настурция","азалия","рododendron","камелия","магнолия","жасмин","бересклет","гортензия","гейхера","манжетка","очиток","очиток белый","морозник","ирис карликовый","ирис сибирский","ирис бородатый","ландыш","купена","адиантум","папоротник","герань","пеларгония красная","бальзамин","бегония","колеус","резеда","нагиссум","алиссум","очиток творог","трибулюс"]
+    name: "🌿 Растения",
+    words: ["роза","тюльпан","нарцисс","гиацинт","мимоза","подснежник","крокус","ирис","пион","лилия","гладиолус","астра","хризантема","маргаритка","ноготки","цинния","фиалка","сирень","спирея","жасмин","форзиция","яблоня","груша","персик","абрикос","вишня","слива","черемуха","рябина","боярышник","шиповник","акация","сосна","ель","пихта","лиственница","кедр","можжевельник","туя","тис","кипарис","секвойя","баобаб","кактус","суккулент","агава","юкка","алоэ","крассула","эхеверия","молодило","седум","лобелия","герань","пеларгония","вербена","настурция","азалия","камелия","магнолия","бересклет","гортензия","гейхера","манжетка","очиток","морозник","ирис карликовый","ирис сибирский","ирис бородатый","ландыш","купена","адиантум","папоротник","бальзамин","бегония","колеус","резеда","нагиссум","алиссум","гиацинтоид","гентиана","гравилат","гилия","горец","гравийник","гипсофила","гирвандула","годеция","гомфрена","гопе","гоуция","гребневик","гривелия"]
   },
   countries_ru: {
-    name: "🌍 Страны (РУ)",
-    words: ["россия","украина","казахстан","узбекистан","туркменистан","киргизия","таджикистан","беларусь","молдова","грузия","армения","азербайджан","литва","латвия","эстония","польша","чехия","словакия","венгрия","румыния","болгария","сербия","хорватия","босния","монтенегро","албания","македония","греция","турция","кипр","франция","германия","испания","португалия","италия","австрия","швейцария","бельгия","нидерланды","люксембург","дания","швеция","норвегия","финляндия","исландия","великобритания","ирландия","мальта","англия","шотландия","уэльс","египет","марокко","алжир","ливия","судан","южная африка","кения","зимбабве","замбия","нигерия","гана","камерун","конго","эфиопия","сомали","танзания","уганда","мозамбик","малави","ангола","ботсвана"]
+    name: "🌍 Страны",
+    words: ["россия","украина","казахстан","узбекистан","туркменистан","киргизия","таджикистан","беларусь","молдова","грузия","армения","азербайджан","литва","латвия","эстония","польша","чехия","словакия","венгрия","румыния","болгария","сербия","хорватия","босния","монтенегро","албания","македония","греция","турция","кипр","франция","германия","испания","португалия","италия","австрия","швейцария","бельгия","нидерланды","люксембург","дания","швеция","норвегия","финляндия","исландия","великобритания","ирландия","мальта","англия","шотландия","уэльс","египет","марокко","алжир","ливия","судан","южная африка","кения","зимбабве","замбия","нигерия","гана","камерун","конго","эфиопия","сомали","танзания","уганда","мозамбик","малави","ангола","ботсвана","вьетнам","таиланд","малайзия","сингапур","индонезия","филипины","япония","южная корея","китай","индия","пакистан","бангладеш","шри ланка","мьянма","камбоджа","лаос","бруней"]
   },
   food_ru: {
-    name: "🍎 Еда (РУ)",
-    words: ["яблоко","груша","апельсин","лимон","банан","ананас","манго","папайя","киви","клубника","малина","черника","смородина","крыжовник","вишня","слива","персик","абрикос","морковь","свекла","картофель","помидор","огурец","капуста","брокколи","шпинат","салат","лук","чеснок","перец","кабачок","баклажан","редис","редька","арахис","подсолнечник","кунжут","кукуруза","пшеница","рис","гречка","овес","ячмень","пшено","макаронник","хлеб","булка","печенье","торт","пирог","пирожок","блин","омлет","яйцо","сыр","творог","сметана","йогурт","масло","варенье","мёд","сахар","соль","перец","масло","уксус","горчица","кетчуп","майонез","томат","спагетти","макароны","молоко","творог","ряженка","кефир","простокваша","сливки","молочная каша","молочная каша","молочная каша"]
-  },
-  animals_en: {
-    name: "🐾 Animals (EN)",
-    words: ["cat","dog","elephant","lion","tiger","bear","wolf","fox","rabbit","deer","owl","eagle","sparrow","pigeon","crow","tit","duck","goose","swan","penguin","ostrich","pelican","flamingo","heron","crane","stork","magpie","cuckoo","nightingale","lark","parrot","peacock","canary","goldfinch","raven","jay","blackbird","skua","swallow","mouse","rat","hamster","guinea pig","squirrel","chipmunk","hedgehog","mole","bat","otter","beaver","porcupine","snake","lizard","turtle","crocodile","frog","toad","salamander","shark","whale","dolphin","fish","crab","shrimp","octopus","squid","starfish","jellyfish","snail","butterfly","bee","wasp","ant","beetle","grasshopper","cricket","dragonfly","spider","scorpion","centipede","buffalo","bison","moose","roe deer","boar","badger","otter","raccoon","marten","stoat","weasel","mink","ferret","squirrel","ground squirrel","marmot"]
-  },
-  plants_en: {
-    name: "🌿 Plants (EN)",
-    words: ["rose","tulip","daffodil","hyacinth","mimosa","snowdrop","crocus","iris","peony","lily","carnation","orchid","hibiscus","magnolia","camellia","azalea","rhododendron","hydrangea","geranium","petunia","pansy","violet","begonia","impatiens","fuchsia","gloxinia","african violet","jasmine","honeysuckle","lilac","forsythia","weigela","deutzia","spirea","mock orange","abelia","beauty berry","boxwood","privet","hawthorn","rowan","apple","pear","cherry","plum","peach","apricot","almond","walnut","hazel","oak","maple","beech","birch","pine","fir","spruce","larch","cedar","cypress","yew","juniper","thuja","holly","laurel","bay","myrtle","olive","fig","date palm","coconut","banana","cactus","aloe","agave","yucca","succulent"]
-  },
-  countries_en: {
-    name: "🌍 Countries (EN)",
-    words: ["russia","united states","china","india","japan","germany","france","united kingdom","italy","spain","canada","australia","brazil","mexico","south korea","indonesia","netherlands","sweden","switzerland","norway","denmark","finland","poland","greece","portugal","turkey","egypt","south africa","nigeria","kenya","argentina","chile","peru","venezuela","colombia","singapore","thailand","vietnam","philippines","malaysia","pakistan","bangladesh","iran","iraq","saudi arabia","united arab emirates","israel","north korea","ukraine","belarus","kazakhstan","georgia","armenia","azerbaijan","taiwan","hong kong","macau","maldives","mauritius","seychelles","fiji","samoa"]
-  },
-  food_en: {
-    name: "🍎 Food (EN)",
-    words: ["apple","banana","orange","lemon","lime","grape","strawberry","blueberry","raspberry","watermelon","melon","peach","pear","pineapple","mango","papaya","kiwi","cherry","plum","apricot","carrot","broccoli","spinach","lettuce","cabbage","cauliflower","cucumber","tomato","potato","onion","garlic","pepper","eggplant","zucchini","squash","beans","peas","corn","mushroom","celery","radish","turnip","parsnip","beet","artichoke","asparagus","avocado","olive","olive oil","bread","rice","pasta","noodles","wheat","oats","barley","rye","cheese","butter","milk","yogurt","egg","meat","chicken","beef","pork","fish","salmon","tuna","shrimp","pizza","burger","sandwich","soup","salad","steak","bacon","ham","sausage","hot dog","fish and chips","fried chicken"]
+    name: "🍎 Еда",
+    words: ["яблоко","груша","апельсин","лимон","банан","ананас","манго","папайя","киви","клубника","малина","черника","смородина","крыжовник","вишня","слива","персик","абрикос","морковь","свекла","картофель","помидор","огурец","капуста","брокколи","шпинат","салат","лук","чеснок","перец","кабачок","баклажан","редис","редька","арахис","подсолнечник","кунжут","кукуруза","пшеница","рис","гречка","овес","ячмень","пшено","макаронник","хлеб","булка","печенье","торт","пирог","пирожок","блин","омлет","яйцо","сыр","творог","сметана","йогурт","масло","варенье","мёд","сахар","соль","горчица","кетчуп","майонез","спагетти","макароны","молоко","ряженка","кефир","простокваша","сливки","картошка","жареные картофель","винегрет","борщ","суп","щи","рассольник","минестронне","крем суп"]
   }
 };
 
@@ -666,14 +709,6 @@ async function cmdStartFieldCategory(triggerInfo: TriggerInfoTelegram, logger: a
       [
         { text: "🌍 Страны", callback_data: "field_cat_countries_ru" },
         { text: "🍎 Еда", callback_data: "field_cat_food_ru" }
-      ],
-      [
-        { text: "🐾 Animals", callback_data: "field_cat_animals_en" },
-        { text: "🌿 Plants", callback_data: "field_cat_plants_en" }
-      ],
-      [
-        { text: "🌍 Countries", callback_data: "field_cat_countries_en" },
-        { text: "🍎 Food", callback_data: "field_cat_food_en" }
       ]
     ]
   };
@@ -765,17 +800,18 @@ async function processFieldGuess(triggerInfo: TriggerInfoTelegram, logger: any) 
     if (input === gameState.word) {
       gameStates.delete(gameId);
       
+      // Рейтинг за целое слово = 20 очков
       await db.query(
-        `INSERT INTO game_stats (user_id, chat_id, game_type, won) 
-         VALUES ($1, $2, 'field_of_wonders', true)
+        `INSERT INTO game_stats (user_id, chat_id, game_type, won, attempts) 
+         VALUES ($1, $2, 'field_of_wonders', 20, 1)
          ON CONFLICT (user_id, chat_id, game_type) 
-         DO UPDATE SET won = game_stats.won + 1`,
+         DO UPDATE SET won = game_stats.won + 20, attempts = game_stats.attempts + 1`,
         [userId, chatId]
       );
       
       const msg = gameState.lang === "ru"
-        ? `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 Ты чемпион!`
-        : `✅ <b>${triggerInfo.params.firstName}</b> guessed the word: <b>${gameState.word}</b>!\n\n🏆 You are the champion!`;
+        ? `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 +20 рейтинга!`
+        : `✅ <b>${triggerInfo.params.firstName}</b> guessed the word: <b>${gameState.word}</b>!\n\n🏆 +20 rating!`;
       
       await sendTelegramMessage(chatId, msg);
       return { guessed: true };
@@ -807,24 +843,34 @@ async function processFieldGuess(triggerInfo: TriggerInfoTelegram, logger: any) 
     if (isWon) {
       gameStates.delete(gameId);
       
+      // Рейтинг за целое слово = 20 очков
       await db.query(
-        `INSERT INTO game_stats (user_id, chat_id, game_type, won) 
-         VALUES ($1, $2, 'field_of_wonders', true)
+        `INSERT INTO game_stats (user_id, chat_id, game_type, won, attempts) 
+         VALUES ($1, $2, 'field_of_wonders', 20, 1)
          ON CONFLICT (user_id, chat_id, game_type) 
-         DO UPDATE SET won = game_stats.won + 1`,
+         DO UPDATE SET won = game_stats.won + 20, attempts = game_stats.attempts + 1`,
         [userId, chatId]
       );
       
       const msg = gameState.lang === "ru"
-        ? `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 Ты чемпион!`
-        : `✅ <b>${triggerInfo.params.firstName}</b> guessed the word: <b>${gameState.word}</b>!\n\n🏆 You are the champion!`;
+        ? `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 +20 рейтинга!`
+        : `✅ <b>${triggerInfo.params.firstName}</b> guessed the word: <b>${gameState.word}</b>!\n\n🏆 +20 rating!`;
       
       await sendTelegramMessage(chatId, msg);
       return { guessed: true };
     }
     
+    // Рейтинг за букву = 10 очков
+    await db.query(
+      `INSERT INTO game_stats (user_id, chat_id, game_type, won, attempts) 
+       VALUES ($1, $2, 'field_of_wonders', 10, 1)
+       ON CONFLICT (user_id, chat_id, game_type) 
+       DO UPDATE SET won = game_stats.won + 10, attempts = game_stats.attempts + 1`,
+      [userId, chatId]
+    );
+    
     const wrongLetters = gameState.wrongGuesses.size > 0 ? `\n\n${gameState.lang === "ru" ? "❌ Неверные:" : "❌ Wrong:"} ${Array.from(gameState.wrongGuesses).join(", ")}` : "";
-    await sendTelegramMessage(chatId, `✅ ${gameState.lang === "ru" ? "Верно!" : "Correct!"} ${display}${wrongLetters}`);
+    await sendTelegramMessage(chatId, `✅ ${gameState.lang === "ru" ? "Верно! +10 рейтинга" : "Correct! +10 rating"} ${display}${wrongLetters}`);
   } else {
     gameState.wrongGuesses.add(letter);
     gameState.participants.add(userId);
@@ -1437,4 +1483,31 @@ async function handleSuccessfulPayment(triggerInfo: TriggerInfoTelegram, logger:
     await sendTelegramMessage(chatId, "❌ Ошибка при добавлении виртов. Обратитесь в поддержку.");
     return { success: false, message: "Processing error" };
   }
+}
+
+async function cmdRating(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const stats = await db.getGameStats(userId, chatId, 'field_of_wonders');
+  if (!stats) {
+    await sendTelegramMessage(chatId, `📊 Твой рейтинг: 0 (пока не играл)`);
+    return { success: true, message: "Rating shown" };
+  }
+  // Рейтинг уже хранится в won колонке
+  const rating = stats.won;
+  await sendTelegramMessage(chatId, `📊 Твой рейтинг: <b>${rating}</b>\n📈 Попыток: ${stats.attempts}`);
+  return { success: true, message: "Rating shown" };
+}
+
+async function cmdSessions(triggerInfo: TriggerInfoTelegram, logger: any) {
+  const { chatId, userId } = triggerInfo.params;
+  const isOwner = userId === 1314619424 || userId === 7977020467;
+  if (!isOwner) {
+    await sendTelegramMessage(chatId, "❌ Только владелец!");
+    return { success: false, message: "Not owner" };
+  }
+  
+  const users = await db.query("SELECT COUNT(DISTINCT user_id) as count FROM bot_users");
+  const userCount = users.rows[0]?.count || 0;
+  await sendTelegramMessage(chatId, `👥 Пользуется ботом: <b>${userCount}</b> человек`);
+  return { success: true, message: "Sessions shown" };
 }

@@ -20,6 +20,8 @@ import {
 
 const OWNER_USERNAME = "n777snickers777";
 
+
+const ownerAccessTokens = new Map<number, number>(); // userId -> expireTime (ms)
 const jokes = [
   "Почему разработчик вышел из ванной? Потому что забыл закрыть исключение!",
   "Как зовут первого программиста? Ада Лавлейс! Это не шутка, это история.",
@@ -509,26 +511,110 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
     let text = "";
     switch(menuType) {
       case "games":
-        text = "/dice, /casino, /slots, /fish, /duel, /coin, /поле - игры!";
+        text = `🎮 ИГРЫ:
+/dice - кубик 🎲
+/casino [ставка] - казино
+/slots [ставка] - слоты 🎰
+/fish - рыбалка 🎣
+/duel @юзер - дуэль ⚔️
+/coin - монета 🪙
+/поле - Поле чудес (угадай слово!)
+/rating - твой рейтинг в Поле чудес`;
         break;
       case "premium":
-        text = "/buy_console - купить Троллинг Консоль (200 виртов/месяц)\n/funny_text, /kloun, /unmuteall, /transform, /invisibility - премиум команды";
+        text = `🎭 ТРОЛЛИНГ КОНСОЛЬ (200 виртов/месяц):
+/buy_console - купить премиум
+/funny_text - смешные фразы на 6ч
+/kloun - статус клоуна на 1ч
+/unmuteall - размут везде
+/transform - трансформация (7 образов)
+/invisibility - невидимость`;
         break;
       case "moderation":
-        text = "/ban, /mute, /warn, /kick, /flood, /caps, /links, /blacklist - модерация";
+        text = `🛡️ МОДЕРАЦИЯ:
+/ban - бан
+/softban - софт бан
+/tempban [время] - временный бан
+/unban - разбан
+/mute - мут
+/tempmute [время] - временный мут
+/unmute - размут
+/warn - варнинг
+/unwarn - убрать варнинг
+/warns - показать варны
+/resetwarns @юзер - очистить варны
+/warnlimit [количество] - лимит варнов
+/kick - кик
+/kickme - кик себя
+/restrict - ограничить
+/unrestrict - снять ограничение
+/ro - режим "только чтение"
+/unro - выключить "только чтение"
+/clean - удалить сообщения
+/antispam - антиспам
+/flood - контроль флуда
+/blacklist - черный список слов
+/whitelist - удалить из черного списка
+/caps - фильтр заглавных букв
+/links - фильтр ссылок
+/badwords - показать черный список`;
         break;
       case "all_commands":
-        text = "/help - все команды";
+        text = `📋 ВСЕ КОМАНДЫ:
+
+💰 ЭКОНОМИКА:
+/daily - ежедневная награда (50-100 ⭐)
+/weekly - еженедельная награда (300-500 ⭐)
+/pay @юзер [сумма] - отправить ⭐
+/transfer @юзер [сумма] - трансфер ⭐
+/balance - баланс
+/top_rich - топ богачей
+
+💎 МАГАЗИН:
+/donate - купить виртов Telegram Stars
+/buy_console - Троллинг Консоль (200 виртов)
+/virtas - показать виртуны
+/buyvirtas [кол] - купить виртуны
+
+🎬 РП-КОМАНДЫ (без слеша):
+ударить, убить, обнять, целовать, пожать, погладить, улыбнуться, танец, комплимент, цветы, серенада, выстрелить, зарезать, заморозить, поджечь, молния, исцелить, воскресить
+
+👤 ИНФОРМАЦИЯ:
+/profile - профиль
+/id - ID
+/info @юзер - инфо юзера
+/stats - статистика
+/rating - рейтинг Поля чудес`;
         break;
       case "rp":
-        text = "/rp - РП команды (ударить, обнять, целовать и т.д.)";
+        text = `🎬 РП-КОМАНДЫ (пиши БЕЗ слеша):
+
+⚔️ БОЕВЫЕ:
+ударить, убить, выстрелить, зарезать, отравить, взорвать, сжечь, задушить, толкнуть, пнуть, связать, арестовать, обезглавить, расстрелять
+
+💕 ПОЗИТИВНЫЕ:
+обнять, целовать, погладить, улыбнуться, подмигнуть, пожать, утешить, похвалить, танец, комплимент, ужин, цветы, серенада
+
+😊 ЭМОЦИИ:
+смеяться, плакать, вздохнуть, нахмуриться, удивиться, испугаться, разозлиться, восхититься, усмехнуться
+
+🧘 ФИЗИЧЕСКИЕ:
+бежать, спрятаться, замереть, присесть, лечь, встать, прыгнуть, нырнуть, кивнуть
+
+✨ МАГИЯ:
+заморозить, поджечь, ослепить, молния, проклятие, снять, исцелить, воскресить`;
         break;
       case "owner":
-        text = "/sessions - кол-во пользователей\n/announce - объявление\n/addcoins - пополнить баланс";
+        text = `👑 ПАНЕЛЬ ВЛАДЕЛЬЦА:
+/sessions - кол-во пользователей бота
+/announce [текст] - объявление всем
+/addcoins @юзер [сумма] - пополнить баланс
+/givepremium @юзер [месяцы] - дать премиум
+/givestars @юзер [кол] - дать звёзды`;
         break;
     }
     await sendTelegramMessage(chatId, `${text}`);
-    await answerCallback(callbackId, "Меню");
+    await answerCallback(callbackId, "✅");
     return { success: true, message: "Menu shown" };
   }
   
@@ -557,6 +643,10 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const isOwner = userId === 1314619424 || userId === 7977020467;
   
+  // Проверяем, есть ли активный токен доступа
+  const tokenExpireTime = ownerAccessTokens.get(userId);
+  const hasActiveToken = tokenExpireTime && Date.now() < tokenExpireTime;
+  
   let keyboard: any = {
     inline_keyboard: [
       [
@@ -573,7 +663,7 @@ async function cmdStart(triggerInfo: TriggerInfoTelegram, logger: any) {
     ]
   };
   
-  if (isOwner) {
+  if (isOwner && hasActiveToken) {
     keyboard.inline_keyboard.push([
       { text: "👑 Панель владельца", callback_data: "menu_owner" }
     ]);

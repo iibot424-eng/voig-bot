@@ -677,3 +677,16 @@ export async function getGlobalFieldRating(limit = 10) {
   );
   return result.rows;
 }
+
+export async function initBotChatsTable() {
+  try {
+    // Добавляем колонку last_message_time если её нет
+    await query(
+      `ALTER TABLE bot_chats 
+       ADD COLUMN IF NOT EXISTS last_message_time TIMESTAMP DEFAULT NOW()`
+    );
+    console.log("✅ bot_chats table updated with last_message_time");
+  } catch (err) {
+    console.error("⚠️ bot_chats table migration:", err);
+  }
+}

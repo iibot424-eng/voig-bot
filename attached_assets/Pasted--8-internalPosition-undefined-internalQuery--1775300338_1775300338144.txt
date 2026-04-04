@@ -1,0 +1,50 @@
+подсказка: не определено,
+  позиция: '8',
+  internalPosition: undefined,
+  internalQuery: не определено,
+  где: не определено,
+  схема: не определена,
+  таблица: не определена,
+  столбец: не определен,
+  Тип данных: не определен,
+  ограничение: не определено,
+  файл: 'parse_relation.c',
+  строка: '3716',
+  routine: 'errorMissingColumn'
+}
+✅ Таблица game_stats инициализирована
+{"level":"error","time":"2026-04-04T10:51:32.160Z","name":"Mastra","error":{"message":"столбец \"last_message_time\" отношения \"bot_chats\" не существует","stack":"error: столбец \"last_message_time\" отношения \"bot_chats\" не существует\n в /opt/render/project/src/.mastra/output/node_modules/pg/lib/client.js:545:17\n в process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n в async query (file:///opt/render/project/src/.mastra/output/mastra.mjs:177248:20)\n в async updateChatLastMessageTime (file:///opt/render/project/src/.mastra/output/mastra.mjs:177765:3)\n at async execute (file:///opt/render/project/src/.mastra/output/mastra.mjs:178237:5)\n at async Tool.execute (file:///opt/render/project/src/.mastra/output/mastra.mjs:547:24)\n at async handler (file:///opt/render/project/src/.mastra/output/mastra.mjs:199703:28)\n at async handler (file:///opt/render/project/src/.mastra/output/mastra.mjs:178119:13)\n at async dispatch (file:///opt/render/project/src/.mastra/output/node_modules/hono/dist/compose.js:22:17)\n at async Mastra.server.middleware (file:///opt/render/project/src/.mastra/output/mastra.mjs:199571:9)"},"msg":"❌ [Telegram Trigger] Direct execution error:"}
+{"level":"info","time":"2026-04-04T10:52:02.631Z","name":"Mastra","update_id":88381111,"type":"message","full_payload":"{\"update_id\":88381111,\"message\":{\"message_id\":1798,\"from\":{\"id\":7977020467,\"is_bot\":false,\"first_name\":\"Klaba\",\"username\":\"n777 snickers777\",\"language_code\":\"ru\"},\"chat\":{\"id\":7977020467,\"first_name\":\"Klaba\",\"username\":\"n777snickers777\",\"type\":\"private\"},\"date\":1775299922,\"text\":\"/start\",\"entities\":[{\"offset\":0,\"length\":6,\"type\":\"bot_command\"}]}}","msg":"📥 [Telegram] Обновление получено"}
+{"level":"info","time":"2026-04-04T10:52:02.631Z","name":"Mastra","type":"telegram/command","chatId":7977020467,"command":"start","msg":"🎯 [Telegram] Processing"}
+{"level":"info","time":"2026-04-04T10:52:02.631Z","name":"Mastra","type":"telegram/command","userId":7977020467,"chatId":7977020467,"command":"start","msg":"🎯 [Telegram Trigger] Обработка сообщения"}
+Ошибка при проверке сообщения о пробуждении: ошибка: столбец "last_message_time" не существует.
+    в /opt/render/project/src/.mastra/output/node_modules/pg/lib/client.js:545:17
+    в process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    при выполнении асинхронного запроса (file:///opt/render/project/src/.mastra/output/mastra.mjs:177248:20)
+    в async getChatLastMessageTime (file:///opt/render/project/src/.mastra/output/mastra.mjs:177771:18)
+    в async shouldSendAwakeMessage (file:///opt/render/project/src/.mastra/output/mastra.mjs:177779:22)
+    в async sendAwakeMessage (file:///opt/render/project/src/.mastra/output/mastra.mjs:179577:24)
+    при асинхронном выполнении (file:///opt/render/project/src/.mastra/output/mastra.mjs:178222:5)
+    в async Tool.execute (file:///opt/render/project/src/.mastra/output/mastra.mjs:547:24)
+    в асинхронном обработчике (file:///opt/render/project/src/.mastra/output/mastra.mjs:199703:28)
+    в асинхронном обработчике (file:///opt/render/project/src/.mastra/output/mastra.mjs:178119:13) {
+  длина: 116,
+  уровень серьезности: 'ОШИБКА',
+  код: '42703',
+  подробности: не определено,
+  подсказка: не определено,
+  позиция: '8',
+  internalPosition: undefined,
+  internalQuery: не определено,
+  где: не определено,
+  схема: не определена,
+  таблица: не определена,
+  столбец: не определен,
+  Тип данных: не определен,
+  ограничение: не определено,
+  файл: 'parse_relation.c',
+  строка: '3716',
+  routine: 'errorMissingColumn'
+}
+✅ Таблица game_stats инициализирована
+{"level":"error","time":"2026-04-04T10:52:03.463Z","name":"Mastra","error":{"message":"столбец \"last_message_time\" отношения \"bot_chats\" не существует","stack":"error: столбец \"last_message_time\" отношения \"bot_chats\" не существует\n в /opt/render/project/src/.mastra/output/node_modules/pg/lib/client.js:545:17\n в process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n в async query (file:///opt/render/project/src/.mastra/output/mastra.mjs:177248:20)\n в async updateChatLastMessageTime (file:///opt/render/project/src/.mastra/output/mastra.mjs:177765:3)\n at async execute (file:///opt/render/project/src/.mastra/output/mastra.mjs:178237:5)\n at async Tool.execute (file:///opt/render/project/src/.mastra/output/mastra.mjs:547:24)\n at async handler (file:///opt/render/project/src/.mastra/output/mastra.mjs:199703:28)\n at async handler (file:///opt/render/project/src/.mastra/output/mastra.mjs:178119:13)\n at async dispatch (file:///opt/render/project/src/.mastra/output/node_modules/hono/dist/compose.js:22:17)\n at async Mastra.server.middleware (file:///opt/render/project/src/.mastra/output/mastra.mjs:199571:9)"},"msg":"❌ [Telegram Trigger] Direct execution error:"}

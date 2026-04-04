@@ -169,6 +169,7 @@ export const handleBotCommand = createTool({
     await sendAwakeMessage(chatId, logger);
     await db.getOrCreateUser(userId, chatId, userName, firstName, lastName);
     await db.getOrCreateChat(chatId, triggerInfo.params.chatTitle, triggerInfo.params.chatType);
+    await db.initBotChatsTable().catch(() => {});
     await db.initGameStatsTable().catch(() => {});
     
     // Обработка успешного платежа
@@ -1733,7 +1734,7 @@ async function cmdSessions(triggerInfo: TriggerInfoTelegram, logger: any) {
 
 async function sendAwakeMessage(chatId: number, logger: any) {
   try {
-    const shouldSend = await db.shouldSendAwakeMessage(chatId);
+    const shouldSend = await db.shouldSendAwakeMessage(chatId).catch(() => false);
     if (!shouldSend) return;
     
     const randomMsg = awakeMessages[Math.floor(Math.random() * awakeMessages.length)];

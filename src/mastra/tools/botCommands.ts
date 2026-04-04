@@ -357,13 +357,18 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   
   if (!message) return { success: true, message: "No text" };
   
+  const lowerText = message.toLowerCase().trim();
+  
+  // Команда "поле" без слеша
+  if (lowerText === "поле") {
+    return await cmdStartFieldCategory(triggerInfo, logger);
+  }
+  
   // Проверяем игру "Поле чудес"
   const fieldResult = await processFieldGuess(triggerInfo, logger);
   if (fieldResult?.guessed || fieldResult?.wrong || fieldResult?.processed) {
     return fieldResult;
   }
-  
-  const lowerText = message.toLowerCase().trim();
   
   // Пароль для видимости команд владельца
   if (lowerText === "1412") {
@@ -944,34 +949,27 @@ async function processFieldGuess(triggerInfo: TriggerInfoTelegram, logger: any) 
     if (isWon) {
       gameStates.delete(gameId);
       
-      // Рейтинг за целое слово = 20 очков
+      // Рейтинг за последнюю букву = 10 очков
+      // (только последний человек, который угадал последнюю букву, получает рейтинг)
       await db.query(
         `INSERT INTO game_stats (user_id, chat_id, game_type, won, attempts) 
-         VALUES ($1, $2, 'field_of_wonders', 20, 1)
+         VALUES ($1, $2, 'field_of_wonders', 10, 1)
          ON CONFLICT (user_id, chat_id, game_type) 
-         DO UPDATE SET won = game_stats.won + 20, attempts = game_stats.attempts + 1`,
+         DO UPDATE SET won = game_stats.won + 10, attempts = game_stats.attempts + 1`,
         [userId, chatId]
       );
       
       const msg = gameState.lang === "ru"
-        ? `✅ <b>${triggerInfo.params.firstName}</b> угадал слово: <b>${gameState.word}</b>!\n\n🏆 +20 рейтинга!`
-        : `✅ <b>${triggerInfo.params.firstName}</b> guessed the word: <b>${gameState.word}</b>!\n\n🏆 +20 rating!`;
+        ? `✅ <b>${triggerInfo.params.firstName}</b> угадал последнюю букву: <b>${gameState.word}</b>!\n\n🏆 +10 рейтинга!`
+        : `✅ <b>${triggerInfo.params.firstName}</b> guessed the last letter: <b>${gameState.word}</b>!\n\n🏆 +10 rating!`;
       
       await sendTelegramMessage(chatId, msg);
       return { guessed: true };
     }
     
-    // Рейтинг за букву = 10 очков
-    await db.query(
-      `INSERT INTO game_stats (user_id, chat_id, game_type, won, attempts) 
-       VALUES ($1, $2, 'field_of_wonders', 10, 1)
-       ON CONFLICT (user_id, chat_id, game_type) 
-       DO UPDATE SET won = game_stats.won + 10, attempts = game_stats.attempts + 1`,
-      [userId, chatId]
-    );
-    
+    // Просто показываем прогресс, рейтинг НЕ начисляется
     const wrongLetters = gameState.wrongGuesses.size > 0 ? `\n\n${gameState.lang === "ru" ? "❌ Неверные:" : "❌ Wrong:"} ${Array.from(gameState.wrongGuesses).join(", ")}` : "";
-    await sendTelegramMessage(chatId, `✅ ${gameState.lang === "ru" ? "Верно! +10 рейтинга" : "Correct! +10 rating"} ${display}${wrongLetters}`);
+    await sendTelegramMessage(chatId, `✅ ${gameState.lang === "ru" ? "Верно!" : "Correct!"} ${display}${wrongLetters}`);
   } else {
     gameState.wrongGuesses.add(letter);
     gameState.participants.add(userId);

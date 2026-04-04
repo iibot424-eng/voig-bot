@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as db from "./database";
 import {
   sendTelegramMessage,
+  sendInvoice,
   answerCallback,
   banChatMember,
   unbanChatMember,
@@ -472,11 +473,11 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
   }
   
   // Покупка виртов через Telegram Stars (1 звезда = 1 вирт)
-  if (callbackData?.startsWith("buy_")) {
+  if (callbackData?.startsWith("pay_")) {
     const amountMap: { [key: string]: number } = {
-      "buy_50": 50,
-      "buy_100": 100,
-      "buy_500": 500
+      "pay_50": 50,
+      "pay_100": 100,
+      "pay_500": 500
     };
     
     const starAmount = amountMap[callbackData];
@@ -485,11 +486,21 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
       return { success: false, message: "Invalid amount" };
     }
     
-    // Telegram Payments (встроенная система звёзд XTR)
-    // Сообщить пользователю о том что платёж будет отправлен
-    await answerCallback(callbackId, "Откройте платёж");
-    await sendTelegramMessage(chatId, `💳 Отправляю инвойс для оплаты ${starAmount} звёзд...`);
-    return { success: true, message: "Payment initiated" };
+    try {
+      await sendInvoice(
+        chatId,
+        `Покупка ${starAmount} виртов`,
+        `Получишь ${starAmount} виртов в свой аккаунт бота`,
+        `virtas_${starAmount}_${Date.now()}`,
+        "XTR",
+        [{ label: `${starAmount} виртов`, amount: starAmount }]
+      );
+      await answerCallback(callbackId, "Открываю платёж...");
+    } catch (err) {
+      console.error("Invoice error:", err);
+      await sendTelegramMessage(chatId, `❌ Ошибка платежа: ${err}`);
+    }
+    return { success: true, message: "Invoice sent" };
   }
   
   // Меню кнопок
@@ -928,16 +939,16 @@ async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logge
   const keyboard = {
     inline_keyboard: [
       [
-        { text: "50 виртов за 50 ⭐", callback_data: "buy_50" },
-        { text: "100 виртов за 100 ⭐", callback_data: "buy_100" }
+        { text: "50 виртов за 50 ⭐", callback_data: "pay_50" },
+        { text: "100 виртов за 100 ⭐", callback_data: "pay_100" }
       ],
       [
-        { text: "500 виртов за 500 ⭐", callback_data: "buy_500" }
+        { text: "500 виртов за 500 ⭐", callback_data: "pay_500" }
       ]
     ]
   };
   
-  await sendTelegramMessage(chatId, "💳 Выбери пакет:", { replyMarkup: keyboard });
+  await sendTelegramMessage(chatId, "💳 Выбери пакет виртов:", { replyMarkup: keyboard });
   return { success: true, message: "Payment options sent" };
 }
 

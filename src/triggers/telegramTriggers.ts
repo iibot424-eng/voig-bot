@@ -120,6 +120,37 @@ export async function sendTelegramMessage(
   return response.json();
 }
 
+export async function sendInvoice(
+  chatId: number,
+  title: string,
+  description: string,
+  payload: string,
+  currency: string,
+  prices: Array<{ label: string; amount: number }>
+): Promise<any> {
+  const body: any = {
+    chat_id: chatId,
+    title,
+    description,
+    payload,
+    currency,
+    prices,
+    start_parameter: `invoice_${Date.now()}`,
+  };
+  
+  // Telegram Stars используют встроенную систему, не требует provider_token
+  if (currency !== "XTR" && process.env.TELEGRAM_PAYMENT_PROVIDER_TOKEN) {
+    body.provider_token = process.env.TELEGRAM_PAYMENT_PROVIDER_TOKEN;
+  }
+  
+  const response = await fetch(`${TELEGRAM_API}/sendInvoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return response.json();
+}
+
 export async function answerCallback(
   callbackId: string,
   text?: string,

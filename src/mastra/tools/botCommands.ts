@@ -30,6 +30,29 @@ const jokes = [
   "Почему у программистов всегда холодный кофе? Потому что они пьют Java! ☕",
 ];
 
+const awakeMessages = [
+  "🔔 Ребята, давайте поговорим! Что нового?",
+  "👋 Привет! Кто-нибудь здесь? Или я разговариваю со стеной? 😅",
+  "💬 Как дела в чате? Расскажите что-нибудь интересное!",
+  "🎯 Эй, очнитесь! Время для интересных обсуждений!",
+  "🚀 Чат, пора оживать! Кто готов к беседе?",
+  "😴 Слышу тишину... Может поговорим о чём-нибудь?",
+  "🎭 Скучно скучать одному! Кто присоединится?",
+  "🔥 Давайте разогреем атмосферу в чате!",
+  "💫 Просыпайтесь! Здесь творятся чудеса!",
+  "🎪 Кто в настроении для веселого диалога?",
+  "⚡ Энергия уходит! Поговорим для зарядки?",
+  "🌟 Не даёте мне скучать, ребята! Пишите!",
+  "🎨 Чат нуждается в свежих идеях! Что у вас есть?",
+  "🎵 Молчание золото, но в чате оно скучновато 😄",
+  "🏆 Может сыграем в игру или обсудим что-то?",
+  "💡 У кого-нибудь есть интересная история?",
+  "🌈 Пора развеселиться! Кто со мной?",
+  "📢 Внимание, внимание! Кто слышит мой голос?",
+  "🎁 Чем я могу вас порадовать? Скажите!",
+  "✨ Пора оживлять чат! Кто первый начнёт?",
+];
+
 const facts = [
   "Первый программист в мире — женщина. Ада Лавлейс написала первую программу в 1843 году.",
   "Название «баг» появилось, когда в 1947 году в компьютер залетела настоящая моль.",
@@ -142,6 +165,8 @@ export const handleBotCommand = createTool({
     
     logger?.info("🤖 [BotCommand] Processing", { command, userId, chatId, isCallback, callbackData, hasPayment: !!successful_payment });
     
+    // Проверяем, нужно ли отправить сообщение оживления чата
+    await sendAwakeMessage(chatId, logger);
     await db.getOrCreateUser(userId, chatId, userName, firstName, lastName);
     await db.getOrCreateChat(chatId, triggerInfo.params.chatTitle, triggerInfo.params.chatType);
     await db.initGameStatsTable().catch(() => {});
@@ -159,6 +184,9 @@ export const handleBotCommand = createTool({
       await db.updateMessageStats(userId, chatId);
       return await handleNonCommand(triggerInfo, logger);
     }
+    
+    // Обновляем время последнего сообщения в чате
+    await db.updateChatLastMessageTime(chatId);
     
     const args = commandArgs || [];
     const isOwnerUser = userName?.toLowerCase() === OWNER_USERNAME || userId === 1314619424 || userId === 7977020467;
@@ -356,6 +384,9 @@ async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId, message, hasMedia, mediaType, messageId } = triggerInfo.params;
   
   if (!message) return { success: true, message: "No text" };
+  
+  // Обновляем время последнего сообщения
+  await db.updateChatLastMessageTime(chatId);
   
   const lowerText = message.toLowerCase().trim();
   
@@ -1667,4 +1698,20 @@ async function cmdSessions(triggerInfo: TriggerInfoTelegram, logger: any) {
   const userCount = users.rows[0]?.count || 0;
   await sendTelegramMessage(chatId, `👥 Пользуется ботом: <b>${userCount}</b> человек`);
   return { success: true, message: "Sessions shown" };
+}
+
+async function sendAwakeMessage(chatId: number, logger: any) {
+  try {
+    const shouldSend = await db.shouldSendAwakeMessage(chatId);
+    if (!shouldSend) return;
+    
+    const randomMsg = awakeMessages[Math.floor(Math.random() * awakeMessages.length)];
+    await sendTelegramMessage(chatId, randomMsg);
+    logger?.info("💤 [Awake] Sent message to inactive chat", { chatId });
+    
+    // Обновляем время, чтобы не спамить
+    await db.updateChatLastMessageTime(chatId);
+  } catch (err) {
+    logger?.error("💤 [Awake] Error:", err);
+  }
 }

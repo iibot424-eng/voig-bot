@@ -632,3 +632,34 @@ export async function getGameLeaderboard(chatId: number, gameType: string, limit
   );
   return result.rows;
 }
+
+export async function updateChatLastMessageTime(chatId: number) {
+  await query(
+    "UPDATE bot_chats SET last_message_time = NOW() WHERE chat_id = $1",
+    [chatId]
+  );
+}
+
+export async function getChatLastMessageTime(chatId: number) {
+  const result = await query(
+    "SELECT last_message_time FROM bot_chats WHERE chat_id = $1",
+    [chatId]
+  );
+  return result.rows[0]?.last_message_time;
+}
+
+export async function shouldSendAwakeMessage(chatId: number): Promise<boolean> {
+  try {
+    const lastTime = await getChatLastMessageTime(chatId);
+    if (!lastTime) return false;
+    
+    const lastDate = new Date(lastTime);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60);
+    
+    return hoursDiff >= 48; // 2 дня = 48 часов
+  } catch (err) {
+    console.error("Error checking awake message:", err);
+    return false;
+  }
+}

@@ -516,7 +516,7 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
     return await cmdBuyPremium(triggerInfo, logger);
   }
   
-  // Покупка виртов через Telegram Stars (1 звезда = 1 вирт)
+  // Покупка виртов через Telegram Stars (1 монета = 1 вирт)
   if (callbackData?.startsWith("pay_")) {
     const amountMap: { [key: string]: number } = {
       "pay_50": 50,
@@ -605,10 +605,10 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
         text = `📋 ВСЕ КОМАНДЫ:
 
 💰 ЭКОНОМИКА:
-/daily - ежедневная награда (50-100 ⭐)
-/weekly - еженедельная награда (300-500 ⭐)
-/pay @юзер [сумма] - отправить ⭐
-/transfer @юзер [сумма] - трансфер ⭐
+/daily - ежедневная награда (50-100 🪙)
+/weekly - еженедельная награда (300-500 🪙)
+/pay @юзер [сумма] - отправить 🪙
+/transfer @юзер [сумма] - трансфер 🪙
 /balance - баланс
 /top_rich - топ богачей
 
@@ -654,7 +654,7 @@ async function handleCallback(triggerInfo: TriggerInfoTelegram, logger: any) {
 /announce [текст] - объявление всем
 /addcoins @юзер [сумма] - пополнить баланс
 /givepremium @юзер [месяцы] - дать премиум
-/givestars @юзер [кол] - дать звёзды`;
+/givestars @юзер [кол] - дать монеты`;
         break;
     }
     await sendTelegramMessage(chatId, `${text}`);
@@ -724,11 +724,11 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
   
   let helpText = `<b>📖 СПРАВКА ПО КОМАНДАМ:</b>
 
-<b>⭐ ОСНОВНЫЕ:</b>
+<b>🪙 ОСНОВНЫЕ:</b>
 /start - начало
 /help - помощь
 /daily - ежедневный бонус
-/donate - купить виртуны за реальные ⭐ телеграма (1⭐ = 1 вирт)
+/donate - купить виртуны за реальные 🪙 телеграма (1🪙 = 1 вирт)
 /virtas - баланс виртов
 /transfer @юзер [сумма] - отправить виртов
 /buy_console - купить Троллинг Консоль (200 виртов/месяц)
@@ -792,9 +792,9 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
     helpText += `
 
 <b>⚙️ КОМАНДЫ ВЛАДЕЛЬЦА:</b>
-/addcoins @юзер - пополнить баланс до 9,999,999⭐
+/addcoins @юзер - пополнить баланс до 9,999,999🪙
 /givepremium @юзер [месяцы] - выдать Троллинг консоль
-/givestars @юзер [количество] - выдать звёзды
+/givestars @юзер [количество] - выдать монеты
 /announce - объявление всем чатам`;
   }
   
@@ -815,7 +815,7 @@ async function cmdHelp(triggerInfo: TriggerInfoTelegram, logger: any) {
 const fieldCategories = {
   animals_ru: {
     name: "🐾 Животные",
-    words: ["кошка","собака","слон","лев","тигр","медведь","волк","лиса","заяц","олень","сова","орел","воробей","голубь","ворона","синица","утка","гусь","лебедь","пингвин","страус","пеликан","фламинго","цапля","журавль","аист","грач","сорока","кукушка","соловей","жаворонок","щура","снегирь","дятел","скворец","попугай","павлин","канарейка","щегол","коза","овца","корова","лошадь","свинья","верблюд","жираф","зебра","гиена","леопард","пантера","гепард","рысь","рыба","акула","дельфин","кит","краб","креветка","осьминог","каракатица","морской конек","морская звезда","морской еж","мидия","устрица","улитка","слизняк","червь","муха","комар","пчела","оса","шмель","божья коровка","кузнечик","сверчок","саранча","палочник","богомол","таракан","вша","блоха","клещ","паук","скорпион","сороконожка","буйвол","бизон","лось","косуля","барсук","выдра","енот","куница","горностай","ласка","норка","хорек","белка","суслик","сурок"]
+    words: ["кошка","собака","слон","лев","тигр","медведь","волк","лиса","заяц","олень","сова","орел","воробей","голубь","ворона","синица","утка","гусь","лебедь","пингвин","страус","пеликан","фламинго","цапля","журавль","аист","грач","сорока","кукушка","соловей","жаворонок","щура","снегирь","дятел","скворец","попугай","павлин","канарейка","щегол","коза","овца","корова","лошадь","свинья","верблюд","жираф","зебра","гиена","леопард","пантера","гепард","рысь","рыба","акула","дельфин","кит","краб","креветка","осьминог","каракатица","морской конек","морская монета","морской еж","мидия","устрица","улитка","слизняк","червь","муха","комар","пчела","оса","шмель","божья коровка","кузнечик","сверчок","саранча","палочник","богомол","таракан","вша","блоха","клещ","паук","скорпион","сороконожка","буйвол","бизон","лось","косуля","барсук","выдра","енот","куница","горностай","ласка","норка","хорек","белка","суслик","сурок"]
   },
   plants_ru: {
     name: "🌿 Растения",
@@ -1066,11 +1066,11 @@ async function cmdDonate(triggerInfo: TriggerInfoTelegram, args: string[], logge
   const keyboard = {
     inline_keyboard: [
       [
-        { text: "50 виртов за 50 ⭐", callback_data: "pay_50" },
-        { text: "100 виртов за 100 ⭐", callback_data: "pay_100" }
+        { text: "50 виртов за 50 🪙", callback_data: "pay_50" },
+        { text: "100 виртов за 100 🪙", callback_data: "pay_100" }
       ],
       [
-        { text: "500 виртов за 500 ⭐", callback_data: "pay_500" }
+        { text: "500 виртов за 500 🪙", callback_data: "pay_500" }
       ]
     ]
   };
@@ -1124,7 +1124,7 @@ async function cmdProfile(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const user = await db.getUser(userId, chatId);
   if (!user) return { success: false, message: "User not found" };
-  await sendTelegramMessage(chatId, `👤 <b>${user.first_name}</b>\n💎 Виртов: ${user.virtas || 0}\n⭐ Звёзд: ${user.stars || 0}\n📊 Уровень: ${user.level || 1}`);
+  await sendTelegramMessage(chatId, `👤 <b>${user.first_name}</b>\n💎 Виртов: ${user.virtas || 0}\n🪙 Звёзд: ${user.stars || 0}\n📊 Уровень: ${user.level || 1}`);
   return { success: true, message: "Profile shown" };
 }
 
@@ -1139,7 +1139,7 @@ async function cmdDaily(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const stars = Math.floor(Math.random() * 50) + 50;
   await db.updateUserStars(userId, stars);
-  await sendTelegramMessage(chatId, `⭐ Ты получил ${stars} звёзд!`);
+  await sendTelegramMessage(chatId, `🪙 Ты получил ${stars} монет!`);
   return { success: true, message: "Daily claimed" };
 }
 
@@ -1197,7 +1197,7 @@ async function cmdWeekly(triggerInfo: TriggerInfoTelegram, logger: any) {
   const { chatId, userId } = triggerInfo.params;
   const stars = Math.floor(Math.random() * 200) + 300;
   await db.updateUserStars(userId, stars);
-  await sendTelegramMessage(chatId, `⭐ Ты получил ${stars} звёзд!`);
+  await sendTelegramMessage(chatId, `🪙 Ты получил ${stars} монет!`);
   return { success: true, message: "Weekly claimed" };
 }
 

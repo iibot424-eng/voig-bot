@@ -693,10 +693,10 @@ export async function initBotChatsTable() {
 
 export async function getRandomUsers(limit = 100) {
   const result = await query(
-    `SELECT DISTINCT user_id, username, first_name 
+    `SELECT user_id, username, first_name 
      FROM bot_users 
-     WHERE username IS NOT NULL
-     ORDER BY RANDOM()
+     WHERE username IS NOT NULL 
+     ORDER BY RANDOM() 
      LIMIT $1`,
     [limit]
   );

@@ -702,3 +702,148 @@ export async function getRandomUsers(limit = 100) {
   );
   return result.rows;
 }
+
+// =================== ТАБЛИЦЫ ПРЕМИУМ ЭФФЕКТОВ ===================
+
+export async function initPremiumTables() {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS premium_effects (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        chat_id BIGINT NOT NULL,
+        effect_type VARCHAR(50) NOT NULL,
+        extra_data TEXT,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, chat_id, effect_type)
+      )
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS premium_cooldowns (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        chat_id BIGINT NOT NULL,
+        command VARCHAR(50) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        UNIQUE(user_id, chat_id, command)
+      )
+    `);
+    console.log("✅ premium_effects & premium_cooldowns tables initialized");
+  } catch (e) {
+    console.log("⚠️ premium tables error:", e);
+  }
+}
+
+export async function setPremiumEffect(
+  userId: number,
+  chatId: number,
+  effectType: string,
+  expiresAt: Date,
+  extraData?: string
+) {
+  await query(
+    `INSERT INTO premium_effects (user_id, chat_id, effect_type, expires_at, extra_data)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (user_id, chat_id, effect_type) DO UPDATE SET expires_at = $4, extra_data = $5`,
+    [userId, chatId, effectType, expiresAt, extraData || null]
+  );
+}
+
+export async function getPremiumEffect(
+  userId: number,
+  chatId: number,
+  effectType: string
+) {
+  const result = await query(
+    `SELECT * FROM premium_effects WHERE user_id = $1 AND chat_id = $2 AND effect_type = $3 AND expires_at > NOW()`,
+    [userId, chatId, effectType]
+  );
+  return result.rows[0] || null;
+}
+
+export async function removePremiumEffect(
+  userId: number,
+  chatId: number,
+  effectType: string
+) {
+  await query(
+    `DELETE FROM premium_effects WHERE user_id = $1 AND chat_id = $2 AND effect_type = $3`,
+    [userId, chatId, effectType]
+  );
+}
+
+export async function getUserActiveEffects(userId: number, chatId: number) {
+  const result = await query(
+    `SELECT * FROM premium_effects WHERE user_id = $1 AND chat_id = $2 AND expires_at > NOW()`,
+    [userId, chatId]
+  );
+  return result.rows;
+}
+
+export async function checkPremiumCooldown(
+  userId: number,
+  chatId: number,
+  command: string
+): Promise<number> {
+  // Владелец без КД
+  if (userId === 1314619424 || userId === 7977020467) return 0;
+  const result = await query(
+    `SELECT EXTRACT(EPOCH FROM (expires_at - NOW())) as seconds_left
+     FROM premium_cooldowns
+     WHERE user_id = $1 AND chat_id = $2 AND command = $3 AND expires_at > NOW()`,
+    [userId, chatId, command]
+  );
+  if (result.rows.length === 0) return 0;
+  return Math.ceil(result.rows[0].seconds_left);
+}
+
+export async function setPremiumCooldown(
+  userId: number,
+  chatId: number,
+  command: string,
+  expiresAt: Date
+) {
+  // Владелец без КД
+  if (userId === 1314619424 || userId === 7977020467) return;
+  await query(
+    `INSERT INTO premium_cooldowns (user_id, chat_id, command, expires_at)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, chat_id, command) DO UPDATE SET expires_at = $4`,
+    [userId, chatId, command, expiresAt]
+  );
+}
+
+export async function getFunnyTextCount(userId: number, chatId: number): Promise<number> {
+  const effect = await getPremiumEffect(userId, chatId, "funny_text");
+  if (!effect) return 0;
+  return parseInt(effect.extra_data || "0");
+}
+
+export async function decrementFunnyText(userId: number, chatId: number): Promise<number> {
+  const effect = await getPremiumEffect(userId, chatId, "funny_text");
+  if (!effect) return 0;
+  const remaining = parseInt(effect.extra_data || "0") - 1;
+  if (remaining <= 0) {
+    await removePremiumEffect(userId, chatId, "funny_text");
+    return 0;
+  }
+  await query(
+    `UPDATE premium_effects SET extra_data = $4 WHERE user_id = $1 AND chat_id = $2 AND effect_type = $3`,
+    [userId, chatId, "funny_text", String(remaining)]
+  );
+  return remaining;
+}
+
+export async function getMuteImmunity(userId: number, chatId: number): Promise<boolean> {
+  const effect = await getPremiumEffect(userId, chatId, "mute_immunity");
+  return !!effect;
+}
+
+export async function getAllChatsForUser(userId: number): Promise<number[]> {
+  const result = await query(
+    `SELECT DISTINCT chat_id FROM bot_users WHERE user_id = $1`,
+    [userId]
+  );
+  return result.rows.map((r: any) => r.chat_id);
+}

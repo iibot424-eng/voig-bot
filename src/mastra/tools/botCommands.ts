@@ -19,9 +19,67 @@ import {
 } from "../../triggers/telegramTriggers";
 
 const OWNER_USERNAME = "n777snickers777";
-
+const OWNER_IDS = [1314619424, 7977020467];
 
 const ownerAccessTokens = new Map<number, number>(); // userId -> expireTime (ms)
+
+// =================== ДАННЫЕ ДЛЯ ТРОЛЛИНГ КОНСОЛИ ===================
+
+const TRANSFORM_ANIMALS = [
+  { name: "Собака 🐕", sound: "гав" },
+  { name: "Кошка 🐱", sound: "мяу" },
+  { name: "Медведь 🐻", sound: "рык" },
+  { name: "Свинья 🐷", sound: "хрю" },
+  { name: "Корова 🐮", sound: "му" },
+  { name: "Петух 🐓", sound: "ку-ка-ре-ку" },
+  { name: "Лошадь 🐴", sound: "и-го-го" },
+];
+
+const FUNNY_PHRASES = [
+  "{name} думает, что картошка умеет плавать",
+  "{name} только что объяснил коту смысл жизни",
+  "{name} пытается приготовить суп из воздуха",
+  "{name} считает, что 2+2=рыба",
+  "{name} верит, что луна сделана из сыра",
+  "{name} спорит с зеркалом и проигрывает",
+  "{name} учит пингвинов танцевать вальс",
+  "{name} хочет запатентовать невидимый велосипед",
+  "{name} рассказывает анекдоты камням",
+  "{name} пытается сфотографировать ветер",
+  "{name} уверен, что радуга — тропа эльфов",
+  "{name} ищет выключатель у солнца",
+  "{name} разговаривает с лужами о погоде",
+  "{name} коллекционирует пустые коробки из-под воздуха",
+  "{name} пытается погладить молнию",
+  "{name} обучает рыб читать книги",
+  "{name} считает дождь личным оскорблением",
+  "{name} хочет построить замок из облаков",
+  "{name} ищет интернет в лесу",
+  "{name} пробует перевести мяуканье на русский язык",
+  "{name} уверен, что трава зелёная из зависти",
+  "{name} пытается остановить время, стоя неподвижно",
+  "{name} считает, что все кошки — агенты ЦРУ",
+  "{name} обещает научить облака писать стихи",
+  "{name} убеждён, что звёзды — это дырки в небе",
+  "{name} спорит с будильником и всегда проигрывает",
+  "{name} видит смысл жизни в пакетах с пакетами",
+  "{name} решил, что еда вкуснее если есть её стоя",
+  "{name} разговаривает с принтером и принтер отвечает",
+  "{name} пытается пересчитать все звёзды до обеда",
+  "{name} думает, что холодильник дружит с плитой",
+  "{name} верит, что сахар исчезает сам по себе",
+  "{name} написал диссертацию о вкусе тишины",
+  "{name} убеждён, что подушка помнит все сны",
+  "{name} хочет научить огонь плавать",
+  "{name} считает, что тени живут своей жизнью",
+  "{name} пытается измерить скорость мысли линейкой",
+  "{name} уверен, что пыль — это маленькие мечты",
+  "{name} ищет смысл жизни в орфографическом словаре",
+  "{name} верит, что у каждого стула есть характер",
+  "{name} пытается убедить кота есть суп с ложки",
+  "{name} считает, что понедельник создан специально для страданий",
+  "{name} хочет научить шкаф говорить",
+];
 const jokes = [
   "Почему разработчик вышел из ванной? Потому что забыл закрыть исключение!",
   "Как зовут первого программиста? Ада Лавлейс! Это не шутка, это история.",
@@ -171,6 +229,7 @@ export const handleBotCommand = createTool({
     await db.getOrCreateChat(chatId, triggerInfo.params.chatTitle, triggerInfo.params.chatType);
     await db.initBotChatsTable().catch(() => {});
     await db.initGameStatsTable().catch(() => {});
+    await db.initPremiumTables().catch(() => {});
     
     // Обработка успешного платежа
     if (successful_payment) {
@@ -387,14 +446,58 @@ async function hasAdminAccess(userId: number, chatId: number): Promise<boolean> 
 }
 
 async function handleNonCommand(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId, userId, message, hasMedia, mediaType, messageId } = triggerInfo.params;
+  const { chatId, userId, message, hasMedia, mediaType, messageId, firstName } = triggerInfo.params;
   
-  if (!message) return { success: true, message: "No text" };
+  if (!message && !hasMedia) return { success: true, message: "No text" };
   
   // Обновляем время последнего сообщения
   await db.updateChatLastMessageTime(chatId);
   
-  const lowerText = message.toLowerCase().trim();
+  // ========= ПРОВЕРКА ТРАНСФОРМАЦИИ =========
+  if (message) {
+    const transformEffect = await db.getPremiumEffect(userId, chatId, "transform").catch(() => null);
+    if (transformEffect) {
+      try {
+        const animalData = JSON.parse(transformEffect.extra_data || "{}");
+        const requiredSound = animalData.sound || "";
+        const msgLower = message.toLowerCase().trim();
+        const startsWithSound = msgLower.startsWith(requiredSound.toLowerCase());
+
+        if (!startsWithSound) {
+          // Удаляем сообщение
+          await deleteMessage(chatId, messageId).catch(() => {});
+          logger?.info("🐾 [Transform] Deleted message without animal sound", { userId, requiredSound });
+          return { success: true, message: "Transform: message deleted" };
+        }
+      } catch (e) {
+        logger?.warn("🐾 [Transform] Parse error", e);
+      }
+    }
+  }
+
+  // ========= ПРОВЕРКА СМЕШНОГО ТЕКСТА =========
+  if (message) {
+    const funnyEffect = await db.getPremiumEffect(userId, chatId, "funny_text").catch(() => null);
+    if (funnyEffect) {
+      const remaining = parseInt(funnyEffect.extra_data || "0");
+      if (remaining > 0) {
+        // Удаляем оригинальное сообщение
+        await deleteMessage(chatId, messageId).catch(() => {});
+
+        // Отправляем смешную фразу
+        const phrase = FUNNY_PHRASES[Math.floor(Math.random() * FUNNY_PHRASES.length)];
+        const funnyMsg = phrase.replace("{name}", `<b>${firstName}</b>`);
+        await sendTelegramMessage(chatId, `😂 ${funnyMsg}`);
+
+        // Уменьшаем счётчик
+        const newRemaining = await db.decrementFunnyText(userId, chatId).catch(() => 0);
+        logger?.info("😂 [FunnyText] Replaced message", { userId, remaining: newRemaining });
+        return { success: true, message: "FunnyText: message replaced" };
+      }
+    }
+  }
+
+  const lowerText = (message || "").toLowerCase().trim();
   
   // Команда "поле" без слеша
   if (lowerText === "поле") {
@@ -1050,8 +1153,148 @@ async function cmdVirtas(triggerInfo: TriggerInfoTelegram, logger: any) {
   return { success: true, message: "Balance shown" };
 }
 
+// =================== РП КОМАНДЫ ===================
+
+const RP_COMMANDS: Record<string, { emoji: string; text: string }> = {
+  // Боевые
+  "ударить": { emoji: "👊", text: "{from} ударил {to}" },
+  "бить": { emoji: "👊", text: "{from} бьёт {to}" },
+  "убить": { emoji: "💀", text: "{from} убил {to}" },
+  "убивает": { emoji: "💀", text: "{from} убивает {to}" },
+  "выстрелить": { emoji: "🔫", text: "{from} выстрелил в {to}" },
+  "зарезать": { emoji: "🔪", text: "{from} зарезал {to}" },
+  "отравить": { emoji: "☠️", text: "{from} отравил {to}" },
+  "взорвать": { emoji: "💥", text: "{from} взорвал {to}" },
+  "сжечь": { emoji: "🔥", text: "{from} сжёг {to}" },
+  "задушить": { emoji: "😵", text: "{from} задушил {to}" },
+  "толкнуть": { emoji: "🤜", text: "{from} толкнул {to}" },
+  "пнуть": { emoji: "🦵", text: "{from} пнул {to}" },
+  "связать": { emoji: "🪢", text: "{from} связал {to}" },
+  "арестовать": { emoji: "🚔", text: "{from} арестовал {to}" },
+  "обезглавить": { emoji: "⚔️", text: "{from} обезглавил {to}" },
+  "расстрелять": { emoji: "🔫", text: "{from} расстрелял {to}" },
+  "укусить": { emoji: "🦷", text: "{from} укусил {to}" },
+  "шлёпнуть": { emoji: "🤚", text: "{from} шлёпнул {to}" },
+  // Позитивные
+  "обнять": { emoji: "🤗", text: "{from} обнял {to}" },
+  "обнимает": { emoji: "🤗", text: "{from} обнимает {to}" },
+  "целовать": { emoji: "💋", text: "{from} поцеловал {to}" },
+  "целует": { emoji: "💋", text: "{from} целует {to}" },
+  "погладить": { emoji: "🤝", text: "{from} погладил {to}" },
+  "гладит": { emoji: "🤝", text: "{from} гладит {to}" },
+  "улыбнуться": { emoji: "😊", text: "{from} улыбнулся {to}" },
+  "подмигнуть": { emoji: "😉", text: "{from} подмигнул {to}" },
+  "пожать": { emoji: "🤝", text: "{from} пожал руку {to}" },
+  "утешить": { emoji: "🫂", text: "{from} утешил {to}" },
+  "похвалить": { emoji: "👏", text: "{from} похвалил {to}" },
+  "танец": { emoji: "💃", text: "{from} танцует с {to}" },
+  "комплимент": { emoji: "🌹", text: "{from} сделал комплимент {to}" },
+  "ужин": { emoji: "🍽️", text: "{from} пригласил {to} на ужин" },
+  "цветы": { emoji: "💐", text: "{from} подарил цветы {to}" },
+  "серенада": { emoji: "🎸", text: "{from} спел серенаду для {to}" },
+  "поцеловать": { emoji: "💋", text: "{from} поцеловал {to}" },
+  "обнимашки": { emoji: "🤗", text: "{from} устроил обнимашки с {to}" },
+  // Эмоции
+  "смеяться": { emoji: "😂", text: "{from} смеётся над {to}" },
+  "плакать": { emoji: "😢", text: "{from} плачет перед {to}" },
+  "вздохнуть": { emoji: "😮‍💨", text: "{from} вздыхает на {to}" },
+  "нахмуриться": { emoji: "😠", text: "{from} нахмурился на {to}" },
+  "удивиться": { emoji: "😮", text: "{from} удивился {to}" },
+  "испугаться": { emoji: "😱", text: "{from} испугался {to}" },
+  "разозлиться": { emoji: "😤", text: "{from} разозлился на {to}" },
+  "восхититься": { emoji: "🤩", text: "{from} восхитился {to}" },
+  "усмехнуться": { emoji: "😏", text: "{from} усмехнулся {to}" },
+  // Физические
+  "бежать": { emoji: "🏃", text: "{from} убегает от {to}" },
+  "спрятаться": { emoji: "🫣", text: "{from} прячется от {to}" },
+  "замереть": { emoji: "🧊", text: "{from} замер рядом с {to}" },
+  "присесть": { emoji: "🪑", text: "{from} присел рядом с {to}" },
+  "лечь": { emoji: "😴", text: "{from} лёг рядом с {to}" },
+  "встать": { emoji: "🧍", text: "{from} встал перед {to}" },
+  "прыгнуть": { emoji: "🦘", text: "{from} прыгнул на {to}" },
+  "нырнуть": { emoji: "🤿", text: "{from} нырнул к {to}" },
+  "кивнуть": { emoji: "🙂", text: "{from} кивнул {to}" },
+  // Магия
+  "заморозить": { emoji: "❄️", text: "{from} заморозил {to}" },
+  "поджечь": { emoji: "🔥", text: "{from} поджёг {to}" },
+  "ослепить": { emoji: "✨", text: "{from} ослепил {to}" },
+  "молния": { emoji: "⚡", text: "{from} ударил молнией {to}" },
+  "проклятие": { emoji: "🎃", text: "{from} наложил проклятие на {to}" },
+  "снять": { emoji: "🪄", text: "{from} снял проклятие с {to}" },
+  "исцелить": { emoji: "💚", text: "{from} исцелил {to}" },
+  "воскресить": { emoji: "✝️", text: "{from} воскресил {to}" },
+  "наколдовать": { emoji: "🪄", text: "{from} наколдовал для {to}" },
+};
+
 async function handleTextCommands(triggerInfo: TriggerInfoTelegram, logger: any) {
-  return { success: true, message: "No matching command" };
+  const { chatId, userId, message, firstName } = triggerInfo.params;
+  
+  if (!message) return { success: true, message: "No matching command" };
+  
+  const lowerText = message.toLowerCase().trim();
+  
+  // Проверяем "кто сегодня [текст]"
+  if (lowerText.startsWith("кто сегодня") || lowerText.startsWith("кто")) {
+    const randomUser = await db.getRandomUserFromChat(chatId).catch(() => null);
+    if (randomUser) {
+      const userDisplay = randomUser.username
+        ? `@${randomUser.username}`
+        : `<b>${randomUser.first_name}</b>`;
+      const suffix = lowerText.replace(/^кто\s*(сегодня)?\s*/i, "").trim();
+      const answers = [
+        `🎰 Сегодня ${suffix ? suffix + " — это " : ""}${userDisplay}!`,
+        `🎯 Точно ${userDisplay}!`,
+        `🔮 Судьба выбрала ${userDisplay}!`,
+        `⚡ Однозначно ${userDisplay}!`,
+        `🌟 Без сомнений — ${userDisplay}!`,
+        `😈 Жертва определена: ${userDisplay}!`,
+      ];
+      const answer = answers[Math.floor(Math.random() * answers.length)];
+      await sendTelegramMessage(chatId, answer);
+      return { success: true, message: "Who today answered" };
+    }
+  }
+
+  // Проверяем РП-команды
+  let matchedCommand: string | null = null;
+  let rpData: { emoji: string; text: string } | null = null;
+
+  for (const [cmd, data] of Object.entries(RP_COMMANDS)) {
+    if (lowerText.startsWith(cmd)) {
+      matchedCommand = cmd;
+      rpData = data;
+      break;
+    }
+  }
+
+  if (!matchedCommand || !rpData) {
+    return { success: true, message: "No matching command" };
+  }
+
+  // Получаем цель из упоминания или ответа
+  const target = await getTargetUser(triggerInfo);
+  
+  const fromName = firstName || "Кто-то";
+  let toDisplay = "";
+
+  if (target) {
+    // Проверяем, есть ли у цели статус клоуна
+    const clownEffect = await db.getPremiumEffect(target.userId, chatId, "clown").catch(() => null);
+    const clownTag = clownEffect ? " 🤡 (клоун)" : "";
+    toDisplay = target.username
+      ? `@${target.username}${clownTag}`
+      : `<b>${target.firstName}${clownTag}</b>`;
+  } else {
+    toDisplay = "в воздух";
+  }
+
+  const resultText = rpData.text
+    .replace("{from}", `<b>${fromName}</b>`)
+    .replace("{to}", toDisplay);
+
+  await sendTelegramMessage(chatId, `${rpData.emoji} ${resultText}`);
+  logger?.info("🎭 [RP] Command executed", { cmd: matchedCommand, userId, chatId });
+  return { success: true, message: `RP command: ${matchedCommand}` };
 }
 
 async function cmdShowRp(triggerInfo: TriggerInfoTelegram, logger: any) {
@@ -1219,35 +1462,222 @@ async function cmdDivorce(triggerInfo: TriggerInfoTelegram, logger: any) {
   return { success: true, message: "Divorce" };
 }
 
+// =================== ТРОЛЛИНГ КОНСОЛЬ ===================
+
+function formatCooldownTime(seconds: number): string {
+  if (seconds < 60) return `${seconds} сек`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} мин`;
+  return `${Math.floor(seconds / 3600)} ч ${Math.floor((seconds % 3600) / 60)} мин`;
+}
+
 async function cmdFunnyText(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  const text = jokes[Math.floor(Math.random() * jokes.length)];
-  await sendTelegramMessage(chatId, `😂 ${text}`);
-  return { success: true, message: "Funny text sent" };
+  const { chatId, userId, firstName } = triggerInfo.params;
+  logger?.info("😂 [FunnyText] Command called", { userId, chatId });
+
+  // Проверяем КД (8 часов)
+  const cd = await db.checkPremiumCooldown(userId, chatId, "funny_text");
+  if (cd > 0) {
+    await sendTelegramMessage(chatId, `⏳ КД: ещё ${formatCooldownTime(cd)}`);
+    return { success: false, message: "Cooldown" };
+  }
+
+  // Нужно отвечать на сообщение
+  const target = await getTargetUser(triggerInfo);
+  if (!target && !triggerInfo.params.replyToMessage) {
+    await sendTelegramMessage(chatId, "❌ Ответь на сообщение пользователя командой /funny_text!");
+    return { success: false, message: "No reply" };
+  }
+
+  const targetId = triggerInfo.params.replyToMessage?.from?.id || target?.userId;
+  const targetName = triggerInfo.params.replyToMessage?.from?.first_name || target?.firstName || "Пользователь";
+
+  if (!targetId) {
+    await sendTelegramMessage(chatId, "❌ Ответь на сообщение пользователя!");
+    return { success: false, message: "No target" };
+  }
+
+  // Проверяем невидимость цели
+  const invisible = await db.getPremiumEffect(targetId, chatId, "invisibility");
+  if (invisible) {
+    await sendTelegramMessage(chatId, `👻 <b>${targetName}</b> невидим — эффект не действует!`);
+    return { success: false, message: "Target invisible" };
+  }
+
+  // Устанавливаем эффект (6 сообщений, истекает через 24 часа)
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await db.setPremiumEffect(targetId, chatId, "funny_text", expiresAt, "6");
+
+  // Устанавливаем КД 8 часов
+  const cooldownAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  await db.setPremiumCooldown(userId, chatId, "funny_text", cooldownAt);
+
+  await sendTelegramMessage(chatId, `😂 <b>${firstName}</b> наслал смешной текст на <b>${targetName}</b>!\n\nСледующие 6 сообщений ${targetName} будут заменены на смешные фразы 🤣\n\n⏳ КД: 8 часов`);
+  logger?.info("😂 [FunnyText] Effect set", { targetId, targetName });
+  return { success: true, message: "FunnyText effect set" };
 }
 
 async function cmdKloun(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, `🤡 Ты клоун!`);
-  return { success: true, message: "Clown" };
+  const { chatId, userId, firstName } = triggerInfo.params;
+  logger?.info("🤡 [Kloun] Command called", { userId, chatId });
+
+  // Проверяем КД (4 часа)
+  const cd = await db.checkPremiumCooldown(userId, chatId, "kloun");
+  if (cd > 0) {
+    await sendTelegramMessage(chatId, `⏳ КД: ещё ${formatCooldownTime(cd)}`);
+    return { success: false, message: "Cooldown" };
+  }
+
+  // Нужно отвечать на сообщение
+  const target = await getTargetUser(triggerInfo);
+  if (!target && !triggerInfo.params.replyToMessage) {
+    await sendTelegramMessage(chatId, "❌ Ответь на сообщение пользователя командой /kloun!");
+    return { success: false, message: "No reply" };
+  }
+
+  const targetId = triggerInfo.params.replyToMessage?.from?.id || target?.userId;
+  const targetName = triggerInfo.params.replyToMessage?.from?.first_name || target?.firstName || "Пользователь";
+
+  if (!targetId) {
+    await sendTelegramMessage(chatId, "❌ Ответь на сообщение пользователя!");
+    return { success: false, message: "No target" };
+  }
+
+  // Проверяем невидимость цели
+  const invisible = await db.getPremiumEffect(targetId, chatId, "invisibility");
+  if (invisible) {
+    await sendTelegramMessage(chatId, `👻 <b>${targetName}</b> невидим — эффект не действует!`);
+    return { success: false, message: "Target invisible" };
+  }
+
+  // Устанавливаем эффект клоуна на 1 час
+  const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
+  await db.setPremiumEffect(targetId, chatId, "clown", expiresAt);
+
+  // Устанавливаем КД 4 часа
+  const cooldownAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+  await db.setPremiumCooldown(userId, chatId, "kloun", cooldownAt);
+
+  await sendTelegramMessage(chatId, `🤡 <b>${firstName}</b> назвал <b>${targetName}</b> клоуном!\n\nТеперь в РП-командах ${targetName} будет отмечен как 🤡 Клоун на 1 час!\n\n⏳ КД: 4 часа`);
+  logger?.info("🤡 [Kloun] Effect set", { targetId, targetName });
+  return { success: true, message: "Clown effect set" };
 }
 
 async function cmdUnmuteAll(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, `🔊 Все размучены!`);
-  return { success: true, message: "Unmuted all" };
+  const { chatId, userId, firstName } = triggerInfo.params;
+  logger?.info("🔊 [UnmuteAll] Command called", { userId, chatId });
+
+  // Проверяем КД (24 часа)
+  const cd = await db.checkPremiumCooldown(userId, chatId, "unmuteall");
+  if (cd > 0) {
+    await sendTelegramMessage(chatId, `⏳ КД: ещё ${formatCooldownTime(cd)}`);
+    return { success: false, message: "Cooldown" };
+  }
+
+  // Размучиваем во всех чатах где есть бот
+  const allChats = await db.getAllChatsForUser(userId);
+  let unmutedCount = 0;
+
+  for (const cId of allChats) {
+    try {
+      await restrictChatMember(cId, userId, { can_send_messages: true, can_send_media_messages: true, can_send_other_messages: true });
+      unmutedCount++;
+    } catch (e) {
+      logger?.warn("🔊 [UnmuteAll] Failed to unmute in chat", { cId });
+    }
+  }
+
+  // Иммунитет к муту на 30 секунд
+  const immunityExpires = new Date(Date.now() + 30 * 1000);
+  await db.setPremiumEffect(userId, chatId, "mute_immunity", immunityExpires);
+
+  // КД 24 часа
+  const cooldownAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await db.setPremiumCooldown(userId, chatId, "unmuteall", cooldownAt);
+
+  await sendTelegramMessage(chatId, `🔊 <b>${firstName}</b> использовал Размут Везде!\n\n✅ Размучен в ${unmutedCount} чатах\n🛡️ Иммунитет к муту: 30 секунд\n\n⏳ КД: 24 часа`);
+  logger?.info("🔊 [UnmuteAll] Done", { unmutedCount });
+  return { success: true, message: "UnmuteAll done" };
 }
 
 async function cmdTransform(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, `🐾 Трансформация!`);
-  return { success: true, message: "Transform" };
+  const { chatId, userId, firstName } = triggerInfo.params;
+  logger?.info("🐾 [Transform] Command called", { userId, chatId });
+
+  // Проверяем КД (6 часов)
+  const cd = await db.checkPremiumCooldown(userId, chatId, "transform");
+  if (cd > 0) {
+    await sendTelegramMessage(chatId, `⏳ КД: ещё ${formatCooldownTime(cd)}`);
+    return { success: false, message: "Cooldown" };
+  }
+
+  // Нужно отвечать на сообщение
+  const target = await getTargetUser(triggerInfo);
+  if (!target && !triggerInfo.params.replyToMessage) {
+    await sendTelegramMessage(chatId, "❌ Ответь на сообщение пользователя командой /transform!");
+    return { success: false, message: "No reply" };
+  }
+
+  const targetId = triggerInfo.params.replyToMessage?.from?.id || target?.userId;
+  const targetName = triggerInfo.params.replyToMessage?.from?.first_name || target?.firstName || "Пользователь";
+
+  if (!targetId) {
+    await sendTelegramMessage(chatId, "❌ Ответь на сообщение пользователя!");
+    return { success: false, message: "No target" };
+  }
+
+  // Проверяем невидимость цели
+  const invisible = await db.getPremiumEffect(targetId, chatId, "invisibility");
+  if (invisible) {
+    await sendTelegramMessage(chatId, `👻 <b>${targetName}</b> невидим — эффект не действует!`);
+    return { success: false, message: "Target invisible" };
+  }
+
+  // Выбираем случайное животное
+  const animal = TRANSFORM_ANIMALS[Math.floor(Math.random() * TRANSFORM_ANIMALS.length)];
+
+  // Устанавливаем эффект трансформации на 45 минут
+  const expiresAt = new Date(Date.now() + 45 * 60 * 1000);
+  await db.setPremiumEffect(targetId, chatId, "transform", expiresAt, JSON.stringify({ sound: animal.sound, name: animal.name }));
+
+  // КД 6 часов
+  const cooldownAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
+  await db.setPremiumCooldown(userId, chatId, "transform", cooldownAt);
+
+  await sendTelegramMessage(chatId, `🐾 <b>${firstName}</b> превратил <b>${targetName}</b> в ${animal.name}!\n\nТеперь каждое сообщение <b>${targetName}</b> должно начинаться с "<code>${animal.sound}</code>" — иначе сообщение будет удалено!\n\n⏱ Длительность: 45 минут\n⏳ КД: 6 часов`);
+  logger?.info("🐾 [Transform] Effect set", { targetId, targetName, animal: animal.name });
+  return { success: true, message: "Transform effect set" };
 }
 
 async function cmdInvisibility(triggerInfo: TriggerInfoTelegram, logger: any) {
-  const { chatId } = triggerInfo.params;
-  await sendTelegramMessage(chatId, `👻 Невидимость!`);
-  return { success: true, message: "Invisibility" };
+  const { chatId, userId, firstName } = triggerInfo.params;
+  logger?.info("👻 [Invisibility] Command called", { userId, chatId });
+
+  // Проверяем КД (4 часа)
+  const cd = await db.checkPremiumCooldown(userId, chatId, "invisibility");
+  if (cd > 0) {
+    await sendTelegramMessage(chatId, `⏳ КД: ещё ${formatCooldownTime(cd)}`);
+    return { success: false, message: "Cooldown" };
+  }
+
+  // Проверяем, активна ли уже невидимость
+  const existing = await db.getPremiumEffect(userId, chatId, "invisibility");
+  if (existing) {
+    await db.removePremiumEffect(userId, chatId, "invisibility");
+    await sendTelegramMessage(chatId, `👁️ <b>${firstName}</b> вышел из невидимости!`);
+    return { success: true, message: "Invisibility removed" };
+  }
+
+  // Устанавливаем невидимость на 3 часа (иммунитет к клоуну, трансформации, смешному тексту)
+  const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  await db.setPremiumEffect(userId, chatId, "invisibility", expiresAt);
+
+  // КД 4 часа
+  const cooldownAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+  await db.setPremiumCooldown(userId, chatId, "invisibility", cooldownAt);
+
+  await sendTelegramMessage(chatId, `👻 <b>${firstName}</b> стал невидимым!\n\n🛡️ Иммунитет к:\n• /kloun (клоун)\n• /transform (трансформация)\n• /funny_text (смешной текст)\n\n⏱ Длительность: 3 часа\n⏳ КД: 4 часа\n\nНапиши /invisibility снова чтобы выйти.`);
+  logger?.info("👻 [Invisibility] Effect set", { userId });
+  return { success: true, message: "Invisibility set" };
 }
 
 async function cmdClean(triggerInfo: TriggerInfoTelegram, args: string[], isUserAdmin: boolean, logger: any) {
@@ -1532,6 +1962,14 @@ async function cmdMute(triggerInfo: TriggerInfoTelegram, args: string[], isUserA
   if (!isUserAdmin) return { success: false, message: "Not admin" };
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
+
+  // Проверяем иммунитет к муту (от /unmuteall)
+  const immunity = await db.getMuteImmunity(target.userId, chatId).catch(() => false);
+  if (immunity) {
+    await sendTelegramMessage(chatId, `🛡️ <b>${target.firstName}</b> имеет иммунитет к муту!`);
+    return { success: false, message: "User has mute immunity" };
+  }
+
   await restrictChatMember(chatId, target.userId, { can_send_messages: false });
   await sendTelegramMessage(chatId, `🤐 <b>${target.firstName}</b> замучен.`);
   return { success: true, message: "User muted" };
@@ -1542,6 +1980,14 @@ async function cmdTempMute(triggerInfo: TriggerInfoTelegram, args: string[], isU
   if (!isUserAdmin) return { success: false, message: "Not admin" };
   const target = await getTargetUser(triggerInfo);
   if (!target) return { success: false, message: "No target" };
+
+  // Проверяем иммунитет к муту
+  const immunity = await db.getMuteImmunity(target.userId, chatId).catch(() => false);
+  if (immunity) {
+    await sendTelegramMessage(chatId, `🛡️ <b>${target.firstName}</b> имеет иммунитет к муту!`);
+    return { success: false, message: "User has mute immunity" };
+  }
+
   const time = args[0] || "1h";
   await sendTelegramMessage(chatId, `⏳ <b>${target.firstName}</b> замучен на ${time}.`);
   return { success: true, message: "User tempmuted" };
